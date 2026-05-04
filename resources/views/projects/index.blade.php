@@ -521,6 +521,13 @@
 
     /* ─── Responsive ───────────────────────────────────────────── */
     @media (max-width: 768px) {
+        /* Content header */
+        .content-header { padding: 12px 14px; }
+        .content-header .d-flex { flex-direction: column; align-items: flex-start !important; gap: 10px; }
+        .content-title  { font-size: 15px; }
+        .content-subtitle { font-size: 11px; }
+        .cu-new-btn { width: 100%; justify-content: center; padding: 8px 14px; font-size: 13px; }
+
         .cu-stats { grid-template-columns: repeat(2, 1fr); }
         .cu-grid  { grid-template-columns: 1fr; }
         .cu-list-header, .cu-list-row { grid-template-columns: 1fr auto auto; }
