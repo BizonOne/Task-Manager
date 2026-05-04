@@ -283,11 +283,34 @@
 .ts-modal-save:hover { background:#6d28d9; }
 
 @media(max-width:768px) {
-    .ts-body { grid-template-columns:1fr; }
+    /* Two-column → single column */
+    .ts-body  { grid-template-columns:1fr; }
     .ts-panel { position:static; }
     .ts-progress-grid { grid-template-columns:repeat(3,1fr); }
-    .ts-header { flex-wrap:wrap; gap:10px; }
-    .ts-header-actions { flex-wrap:wrap; }
+
+    /* Header layout */
+    .ts-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 14px 16px;
+    }
+    .ts-header-title   { font-size: 15px; }
+    .ts-task-id        { font-size: 10px; }
+    .ts-back-btn       { padding: 5px 10px; font-size: 12px; }
+
+    /* Action buttons — full width row */
+    .ts-header-actions {
+        display: flex;
+        width: 100%;
+        gap: 8px;
+    }
+    .ts-header-btn {
+        flex: 1;
+        justify-content: center;
+        padding: 8px 10px;
+        font-size: 12px;
+    }
 }
 </style>
 @endpush
