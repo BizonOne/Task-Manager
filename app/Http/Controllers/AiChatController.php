@@ -195,6 +195,12 @@ PROMPT;
         return response()->json(['reply' => "All AI models failed. Last error: {$lastError}"], 200);
     }
 
+    private function sseFlush(): void
+    {
+        if (ob_get_level() > 0) ob_flush();
+        flush();
+    }
+
     private function cleanUtf8(string $str): string
     {
         // Replace invalid UTF-8 sequences with a placeholder, then strip nulls
@@ -266,7 +272,7 @@ PROMPT;
         if (!$apiKey) {
             return response()->stream(function () {
                 echo "data: " . json_encode(['error' => 'AI assistant is not configured.']) . "\n\n";
-                ob_flush(); flush();
+                if (ob_get_level() > 0) ob_flush(); flush();
             }, 200, ['Content-Type' => 'text/event-stream', 'Cache-Control' => 'no-cache', 'X-Accel-Buffering' => 'no']);
         }
 
@@ -376,10 +382,12 @@ PROMPT;
             }
         }
 
+        $sseFlush = function () { if (ob_get_level() > 0) ob_flush(); flush(); };
+
         if (!$workingModel) {
-            return response()->stream(function () {
+            return response()->stream(function () use ($sseFlush) {
                 echo "data: " . json_encode(['error' => 'All AI models are currently unavailable. Please try again later.']) . "\n\n";
-                ob_flush(); flush();
+                $sseFlush();
             }, 200, ['Content-Type' => 'text/event-stream', 'Cache-Control' => 'no-cache', 'X-Accel-Buffering' => 'no']);
         }
 
@@ -388,10 +396,10 @@ PROMPT;
         $userId         = $user->id;
         $conversationId = $conversation->id;
 
-        return response()->stream(function () use ($body, $model, $userId, $conversationId) {
+        return response()->stream(function () use ($body, $model, $userId, $conversationId, $sseFlush) {
             // Send model + conversation_id so the frontend can track the conversation
             echo "data: " . json_encode(['model' => $model, 'conversation_id' => $conversationId]) . "\n\n";
-            ob_flush(); flush();
+            $sseFlush();
 
             $buffer          = '';
             $accumulatedText = '';
@@ -424,7 +432,7 @@ PROMPT;
                                 AiConversation::where('id', $conversationId)->touch();
                             }
                             echo "data: [DONE]\n\n";
-                            ob_flush(); flush();
+                            $sseFlush();
                             return;
                         }
 
@@ -433,17 +441,17 @@ PROMPT;
                         if ($token) $accumulatedText .= $token;
 
                         echo "data: {$data}\n\n";
-                        ob_flush(); flush();
+                        $sseFlush();
                     }
                 }
             } catch (\Exception $e) {
                 \Log::error('Groq stream read error', ['model' => $model, 'user_id' => $userId, 'error' => $e->getMessage()]);
                 echo "data: " . json_encode(['error' => 'Stream interrupted.']) . "\n\n";
-                ob_flush(); flush();
+                $sseFlush();
             }
 
             echo "data: [DONE]\n\n";
-            ob_flush(); flush();
+            $sseFlush();
         }, 200, [
             'Content-Type'      => 'text/event-stream',
             'Cache-Control'     => 'no-cache',
