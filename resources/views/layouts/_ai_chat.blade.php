@@ -425,7 +425,8 @@
 
                     try {
                         const json = JSON.parse(data);
-                        if (json.model) {
+                        if (json.model && json.choices === undefined) {
+                            // Our metadata packet: { model } (no choices)
                             selectedModel = json.model;
                             const tag = document.createElement('span');
                             tag.className = 'ai-model-tag';

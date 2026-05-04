@@ -743,7 +743,8 @@ footer { display: none !important; }
 
                     try {
                         const json = JSON.parse(data);
-                        if (json.model || json.conversation_id) {
+                        if (json.conversation_id !== undefined && json.choices === undefined) {
+                            // Our metadata packet: { model, conversation_id }
                             if (json.model) {
                                 selectedModel = json.model;
                                 const tag = document.createElement('span');
