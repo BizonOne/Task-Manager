@@ -112,6 +112,16 @@
         text-decoration: none; transition: all .15s;
     }
     .cu-view-all:hover { border-color: #7c3aed; color: #7c3aed; background: #faf5ff; }
+
+    /* ── Responsive ───────────────────────────────────────── */
+    @media (max-width: 768px) {
+        /* Header */
+        .cu-header { padding: 10px 14px; }
+        .cu-header .d-flex { flex-direction: column; align-items: flex-start !important; gap: 10px; }
+        .cu-header-title { font-size: 15px; }
+        .cu-header-sub   { font-size: 11px; }
+        .cu-btn-new { width: 100%; justify-content: center; padding: 8px 14px; }
+    }
 </style>
 @endpush
 
