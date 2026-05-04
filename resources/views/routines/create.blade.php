@@ -29,8 +29,9 @@
     /* ── Left info panel ─────────────────────────────────── */
     .cu-info-panel {
         background: white; border: 1px solid #e3e4e8; border-radius: 8px;
-        overflow: hidden; position: sticky; top: 14px;
+        overflow: hidden;
     }
+    @media(min-width:769px) { .cu-info-panel { position: sticky; top: 14px; } }
     .cu-info-panel-header {
         background: #f7f8fa; border-bottom: 1px solid #e3e4e8; padding: 10px 14px;
     }
@@ -155,6 +156,17 @@
         cursor: pointer; transition: all .15s; line-height: 1.4;
     }
     .cu-btn-save:hover { background: #6d28d9; border-color: #6d28d9; box-shadow: 0 2px 6px rgba(109,40,217,.35); }
+
+    /* ── Responsive ─────────────────────────────────────── */
+    @media(max-width:768px) {
+        .cu-header { padding: 10px 14px; }
+        .cu-header-title { font-size: 15px; }
+        .cu-header-sub   { font-size: 11px; }
+        .cu-field-row    { grid-template-columns: 1fr; }
+        .cu-action-bar   { flex-direction: column-reverse; }
+        .cu-btn-cancel,
+        .cu-btn-save     { width: 100%; text-align: center; padding: 10px; }
+    }
 </style>
 @endpush
 
