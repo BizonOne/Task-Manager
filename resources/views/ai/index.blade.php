@@ -776,15 +776,7 @@ footer { display: none !important; }
     function scrollBottom() { setTimeout(() => msgsEl.scrollTop = msgsEl.scrollHeight, 30); }
 
     function friendlyModel(model) {
-        if (!model) return 'Lina';
-        const map = {
-            'compound-beta':                             'Compound β',
-            'llama-3.1-8b-instant':                      'Llama 3.1 8B',
-            'llama-3.3-70b-versatile':                   'Llama 3.3 70B',
-            'meta-llama/llama-4-scout-17b-16e-instruct': 'Llama 4 Scout',
-            'qwen/qwen3-32b':                             'Qwen3 32B',
-        };
-        return map[model] || model.split('/').pop();
+        return 'Lina';
     }
 
     function formatTime(iso) {
