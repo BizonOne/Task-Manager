@@ -242,10 +242,16 @@
 
     /* ─── Responsive ─────────────────────────────────────────── */
     @media (max-width: 768px) {
+        .content-header  { padding: 10px 14px; }
+        .content-title   { font-size: 15px; }
+        .content-subtitle { font-size: 11px; }
         .cu-layout { grid-template-columns: 1fr; }
         .cu-info-panel { position: static; }
         .cu-field-row { grid-template-columns: 1fr; }
+        .cu-action-bar { flex-direction: column-reverse; gap: 6px; }
+        .cu-btn-cancel, .cu-btn-save { width: 100%; text-align: center; }
         .cu-danger-section .cu-section-body { flex-direction: column; align-items: flex-start; }
+        .cu-btn-danger { width: 100%; text-align: center; }
     }
 </style>
 @endpush

@@ -30,8 +30,9 @@
 
 .cu-info-panel {
     background: white; border: 1px solid #e3e4e8; border-radius: 8px;
-    overflow: hidden; position: sticky; top: 1rem;
+    overflow: hidden;
 }
+@media(min-width:769px) { .cu-info-panel { position: sticky; top: 1rem; } }
 .cu-info-panel-header { background: #f7f8fa; border-bottom: 1px solid #e3e4e8; padding: 10px 14px; }
 .cu-info-panel-header span { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #8a8f98; }
 .cu-info-body { padding: 14px; }
@@ -160,6 +161,17 @@
     background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px;
     padding: 10px 14px; display: flex; align-items: flex-start; gap: 8px;
     font-size: 12px; color: #92400e;
+}
+
+/* ── Mobile responsive ────────────────────────────────── */
+@media(max-width:768px) {
+    .cu-header-inner { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .cu-header-title { font-size: 15px; }
+    .cu-header-sub   { font-size: 11px; }
+    .cu-btn-hdr      { width: 100%; justify-content: center; }
+    .cu-action-bar   { flex-direction: column-reverse; }
+    .cu-btn-cancel,
+    .cu-btn-save     { width: 100%; text-align: center; justify-content: center; padding: 10px; }
 }
 </style>
 @endpush

@@ -1669,4 +1669,14 @@
     line-height: 1.5;
 }
 
+/* ── Mobile responsive ───────────────────────────── */
+@media (max-width: 768px) {
+    .form-container { padding: 0 4px; }
+    .form-row { grid-template-columns: 1fr; gap: 0; }
+    .priority-options,
+    .status-options { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .form-actions { flex-direction: column-reverse; }
+    .btn-secondary,
+    .btn-primary { width: 100%; text-align: center; }
+}
 

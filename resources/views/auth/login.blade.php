@@ -189,6 +189,14 @@
             font-size: 11px; font-weight: 700; letter-spacing: .8px;
             text-transform: uppercase; color: #6366f1; opacity: .7;
         }
+
+        /* ── Mobile responsive ──────────────────────────── */
+        @media (max-width: 420px) {
+            body { padding: 12px; }
+            .lc-header { padding: 20px 18px 18px; }
+            .lc-body   { padding: 18px 18px 14px; }
+            .lc-footer { padding: 12px 18px; }
+        }
     </style>
 </head>
 <body>
