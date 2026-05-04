@@ -59,7 +59,6 @@
     @media (max-width: 900px) {
         /* Layout */
         .cu-layout   { grid-template-columns: 1fr; }
-        .cu-left-panel { position: static; }
 
         /* Content header */
         .content-header { padding: 10px 14px; }
@@ -90,8 +89,9 @@
         border: 1px solid #e3e4e8;
         border-radius: 10px;
         overflow: hidden;
-        position: sticky;
-        top: 14px;
+    }
+    @media (min-width: 901px) {
+        .cu-left-panel { position: sticky; top: 14px; }
     }
     .cu-panel-top {
         background: #f7f8fa;
