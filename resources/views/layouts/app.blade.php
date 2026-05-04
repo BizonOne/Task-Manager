@@ -483,38 +483,66 @@
             color: #d97706;
         }
 
-        /* Responsive Design */
+        /* ── Hamburger button (mobile only) ── */
+        .sidebar-toggle {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            width: 36px; height: 36px;
+            background: transparent;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-md);
+            color: var(--gray-600);
+            font-size: 1.125rem;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background-color 0.15s;
+        }
+        .sidebar-toggle:hover { background: var(--gray-100); color: var(--gray-800); }
+
+        /* ── Sidebar overlay (mobile backdrop) ── */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 999;
+            backdrop-filter: blur(1px);
+            -webkit-backdrop-filter: blur(1px);
+        }
+        .sidebar-overlay.active { display: block; }
+
+        /* ── Responsive Design ── */
         @media (max-width: 768px) {
+            .sidebar-toggle { display: flex; }
+
             .sidebar {
                 position: fixed;
-                left: -280px;
+                left: -260px;
                 top: 0;
                 height: 100vh;
+                width: 260px;
                 z-index: 1000;
-                transition: left 0.3s ease;
+                transition: left 0.28s cubic-bezier(0.4,0,0.2,1);
+                box-shadow: none;
             }
-
             .sidebar.open {
                 left: 0;
+                box-shadow: 4px 0 24px rgba(0,0,0,0.12);
             }
 
-            .content {
-                margin-left: 0;
-            }
+            .content { margin-left: 0; }
 
-            main {
-                padding: 0.75rem;
-            }
+            main { padding: 0.75rem; }
 
-            .topnav {
-                padding: 0.5rem 0.75rem;
-            }
+            .topnav { padding: 0.5rem 0.75rem; }
         }
     </style>
 </head>
 
 <body>
-    <div class="sidebar">
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+    <div class="sidebar" id="appSidebar">
         <div class="sidebar-header">
             <a href="{{ route('dashboard') }}" class="sidebar-brand">
                 <img src="{{ asset('assets/img/logo-circle.png') }}" alt="TaskManager">
@@ -641,7 +669,9 @@
     <div class="content">
         <header class="topnav">
             <div class="topnav-container">
-                {{-- <h1 class="page-title">@yield('page-title')</h1> --}}
+                <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">
+                    <i class="bi bi-list"></i>
+                </button>
                 <div class="topnav-actions">
                     <span class="current-time" id="currentDateTime"></span>
                     <div class="dropdown">
@@ -710,31 +740,31 @@
         updateDateTime();
         setInterval(updateDateTime, 1000); // Update every second
 
-        // Mobile sidebar toggle
+        // ── Sidebar helpers ──
+        const appSidebar = document.getElementById('appSidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+        function openSidebar() {
+            appSidebar.classList.add('open');
+            sidebarOverlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeSidebar() {
+            appSidebar.classList.remove('open');
+            sidebarOverlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
         function toggleSidebar() {
-            const sidebar = document.querySelector('.sidebar');
-            sidebar.classList.toggle('open');
+            appSidebar.classList.contains('open') ? closeSidebar() : openSidebar();
         }
 
-        // Add mobile menu button for responsive design
-        if (window.innerWidth <= 768) {
-            const topnav = document.querySelector('.topnav-container');
-            const menuBtn = document.createElement('button');
-            menuBtn.className = 'btn btn-outline d-md-none';
-            menuBtn.innerHTML = '<i class="bi bi-list"></i>';
-            menuBtn.onclick = toggleSidebar;
-            topnav.insertBefore(menuBtn, topnav.firstChild);
-        }
-
-        // Close sidebar when clicking outside on mobile
-        document.addEventListener('click', function(event) {
-            const sidebar = document.querySelector('.sidebar');
-            const isClickInsideSidebar = sidebar.contains(event.target);
-            const isMenuButton = event.target.closest('.btn') && event.target.querySelector('.bi-list');
-
-            if (!isClickInsideSidebar && !isMenuButton && window.innerWidth <= 768) {
-                sidebar.classList.remove('open');
-            }
+        // Close sidebar when a nav link is tapped on mobile
+        appSidebar.querySelectorAll('.nav-link').forEach(function(link) {
+            link.addEventListener('click', function() {
+                if (window.innerWidth <= 768) closeSidebar();
+            });
         });
     </script>
     @stack('scripts')
