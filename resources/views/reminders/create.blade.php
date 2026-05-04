@@ -27,8 +27,9 @@
 /* Left info panel */
 .cu-info-panel {
     background: white; border: 1px solid #e3e4e8; border-radius: 8px;
-    overflow: hidden; position: sticky; top: 1rem;
+    overflow: hidden;
 }
+@media(min-width:769px) { .cu-info-panel { position: sticky; top: 1rem; } }
 .cu-info-panel-header { background: #f7f8fa; border-bottom: 1px solid #e3e4e8; padding: 10px 14px; }
 .cu-info-panel-header span { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #8a8f98; }
 .cu-info-body { padding: 16px 14px; }
@@ -172,6 +173,16 @@
     cursor: pointer; transition: all .15s; display: inline-flex; align-items: center; gap: 5px;
 }
 .cu-btn-save:hover { background: #d97706; border-color: #d97706; box-shadow: 0 2px 6px rgba(245,158,11,.4); }
+
+/* ── Mobile responsive ──────────────────────────────────── */
+@media(max-width:768px) {
+    .cu-header-title { font-size: 15px; }
+    .cu-header-sub   { font-size: 11px; }
+    .cu-field-row    { grid-template-columns: 1fr; }
+    .cu-action-bar   { flex-direction: column-reverse; }
+    .cu-btn-cancel,
+    .cu-btn-save     { width: 100%; text-align: center; justify-content: center; padding: 10px; }
+}
 </style>
 @endpush
 
