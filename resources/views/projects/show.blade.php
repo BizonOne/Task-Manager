@@ -72,10 +72,16 @@
             grid-template-columns: 1fr 1fr;
         }
 
-        /* Progress section — stack ring above tiles */
-        .cu-section-body .d-flex { flex-direction: column; align-items: flex-start !important; gap: 12px; }
-        .cu-ring-wrap { margin: 0 auto; }
-        .cu-stat-tiles { width: 100%; }
+        /* Progress section — ring + tiles wrap onto two lines */
+        .cu-ring-wrap + .cu-stat-tiles {
+            width: 100%;
+        }
+        .cu-section-body > .d-flex.align-items-center {
+            flex-wrap: wrap;
+        }
+        .cu-ring-wrap {
+            margin: 0 auto;
+        }
     }
 
     /* ─── Left Info Panel ────────────────────────────────────── */
