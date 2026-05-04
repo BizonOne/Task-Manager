@@ -19,11 +19,12 @@
                 <span class="cu-cat-badge"><i class="bi bi-tag me-1" style="font-size:10px;"></i>{{ $note->category }}</span>
             @endif
             @if($note->tags)
-                @foreach(array_slice($note->tags, 0, 3) as $tag)
+                @php $tags = is_array($note->tags) ? $note->tags : (json_decode($note->tags, true) ?? []); @endphp
+                @foreach(array_slice($tags, 0, 3) as $tag)
                     <span class="cu-tag-pill">{{ $tag }}</span>
                 @endforeach
-                @if(count($note->tags) > 3)
-                    <span class="cu-tag-pill">+{{ count($note->tags) - 3 }}</span>
+                @if(count($tags) > 3)
+                    <span class="cu-tag-pill">+{{ count($tags) - 3 }}</span>
                 @endif
             @endif
         </div>
