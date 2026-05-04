@@ -186,6 +186,21 @@
     .cu-rem-grid  { grid-template-columns: 1fr; }
     .cu-rem-stats { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* ── Mobile responsive ────────────────────────────────── */
+@media (max-width: 768px) {
+    .cu-header-inner { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .cu-header-title { font-size: 15px; }
+    .cu-header-sub   { font-size: 11px; }
+    .cu-btn-add-rem  { width: 100%; justify-content: center; }
+
+    .cu-rem-stats { grid-template-columns: repeat(2, 1fr); }
+
+    .cu-rem-filter-bar { flex-direction: column; align-items: stretch; gap: .5rem; }
+    .cu-rem-search { min-width: unset; width: 100%; }
+    .cu-rem-select { width: 100%; }
+    .cu-count-label { margin-left: 0; text-align: center; }
+}
 </style>
 @endpush
 

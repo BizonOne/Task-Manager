@@ -49,13 +49,14 @@
             </div>
 
             {{-- Tags --}}
-            @if($reminder->tags && count($reminder->tags) > 0)
+            @php $tags = is_array($reminder->tags) ? $reminder->tags : (json_decode($reminder->tags, true) ?? []); @endphp
+            @if($tags && count($tags) > 0)
                 <div class="cu-rem-tags">
-                    @foreach(array_slice($reminder->tags, 0, 3) as $tag)
+                    @foreach(array_slice($tags, 0, 3) as $tag)
                         <span class="cu-tag-pill">{{ $tag }}</span>
                     @endforeach
-                    @if(count($reminder->tags) > 3)
-                        <span class="cu-tag-more">+{{ count($reminder->tags) - 3 }}</span>
+                    @if(count($tags) > 3)
+                        <span class="cu-tag-more">+{{ count($tags) - 3 }}</span>
                     @endif
                 </div>
             @endif
