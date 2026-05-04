@@ -387,9 +387,20 @@
 
     /* ─── Responsive ─────────────────────────────────────────── */
     @media (max-width: 768px) {
+        /* Content header */
+        .content-header { padding: 10px 14px; }
+        .content-title  { font-size: 15px; }
+        .content-subtitle { font-size: 11px; }
+
+        /* Layout */
         .cu-layout { grid-template-columns: 1fr; }
         .cu-info-panel { position: static; }
         .cu-field-row { grid-template-columns: 1fr; }
+
+        /* Action bar — stack buttons full-width */
+        .cu-action-bar { flex-direction: column-reverse; }
+        .cu-btn-cancel,
+        .cu-btn-save { width: 100%; text-align: center; padding: 10px; }
     }
 
 </style>
