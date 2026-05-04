@@ -754,7 +754,8 @@ footer { display: none !important; }
                             }
                         } else if (json.error) {
                             streamBubbleEl.classList.remove('lina-streaming');
-                            streamBubbleEl.textContent = '⚠ ' + json.error;
+                            const errMsg = typeof json.error === 'string' ? json.error : (json.error?.message || 'Something went wrong. Please try again.');
+                            streamBubbleEl.textContent = '⚠ ' + errMsg;
                         } else {
                             const token = json.choices?.[0]?.delta?.content || '';
                             if (token) {

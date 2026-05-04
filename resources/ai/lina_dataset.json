@@ -1,0 +1,129 @@
+{
+    "_comment": "Lina offline brain dataset. Add or edit entries here — no PHP changes needed.",
+
+    "about": {
+        "intro": "I'm **Lina**, your personal AI assistant built into this Task Manager app by **{name}**. 🌟",
+        "description": "I'm designed to keep you organised and productive. I have full access to your:",
+        "capabilities": [
+            "✅ **Tasks** — track, prioritise, and review progress",
+            "📁 **Projects** — manage work across multiple goals",
+            "📝 **Notes** — your knowledge and ideas",
+            "⏰ **Reminders** — never miss an important date",
+            "🔄 **Routines** — build consistent habits",
+            "📎 **Files** — your uploaded documents"
+        ],
+        "offline_note": "> 💡 I'm currently running in **Offline Mode** — my cloud AI brain is temporarily resting. I can still fully navigate your workspace data!"
+    },
+
+    "help": {
+        "intro": "Here's what I can help you with right now:",
+        "sections": [
+            {
+                "heading": "**📋 Tasks**",
+                "items": [
+                    "*\"What tasks are due today?\"*",
+                    "*\"Show overdue tasks\"*",
+                    "*\"Show high priority tasks\"*",
+                    "*\"How many tasks do I have?\"*"
+                ]
+            },
+            {
+                "heading": "**📁 Projects & Reminders**",
+                "items": [
+                    "*\"Summarise my projects\"*",
+                    "*\"Any pending reminders?\"*"
+                ]
+            },
+            {
+                "heading": "**📝 Notes & Routines**",
+                "items": [
+                    "*\"Show my recent notes\"*",
+                    "*\"What routines do I have?\"*"
+                ]
+            },
+            {
+                "heading": "**📊 Overview**",
+                "items": [
+                    "*\"Give me a dashboard summary\"*"
+                ]
+            }
+        ],
+        "offline_note": "> 💡 **Offline Mode**: General knowledge, coding help, and web search will return when my cloud brain reconnects!"
+    },
+
+    "greetings": {
+        "morning": "Good morning",
+        "afternoon": "Good afternoon",
+        "evening": "Good evening"
+    },
+
+    "thanks": [
+        "You're welcome! 😊 Anything else I can help with?",
+        "Happy to help! Let me know if you need anything.",
+        "Anytime! I'm here whenever you need me. 🌟",
+        "Of course! Feel free to ask about your tasks, projects, or reminders.",
+        "My pleasure! Is there anything else on your mind?",
+        "Glad I could help! Don't hesitate to ask."
+    ],
+
+    "unknown": {
+        "intro": "I'm **Lina** running in **Offline Mode** 🔌 — so I can only access your workspace data right now (no general knowledge or coding help until my cloud brain reconnects).",
+        "prompt": "Here are some things you can ask me:",
+        "suggestions": [
+            "\"What tasks are due today?\"",
+            "\"Show my overdue tasks\"",
+            "\"Summarise my projects\"",
+            "\"Any pending reminders?\"",
+            "\"Show my recent notes\"",
+            "\"Give me a dashboard summary\"",
+            "\"Show high priority tasks\"",
+            "\"What tasks are due tomorrow?\"",
+            "\"How many tasks do I have?\"",
+            "\"Show my routines\""
+        ],
+        "footer": "> 💡 Full AI capabilities will return shortly. Try asking about your tasks, projects, notes, or reminders!"
+    },
+
+    "priority_icons": {
+        "high": "🔴",
+        "urgent": "🔴",
+        "critical": "🔴",
+        "medium": "🟡",
+        "low": "🟢",
+        "default": "⚪"
+    },
+
+    "empty_states": {
+        "tasks_today": "🎉 **No tasks due today!** You're all clear.\n\nWould you like to see all pending tasks instead?",
+        "tasks_tomorrow": "📅 **No tasks due tomorrow.** Enjoy the buffer!",
+        "overdue": "✅ **No overdue tasks!** You're doing great with deadlines. 🏆",
+        "high_priority": "✅ **No high priority pending tasks.** Everything looks calm!",
+        "completed": "No completed tasks yet. Keep going — you'll get there!",
+        "all_tasks": "🎉 **No pending tasks!** Your slate is clean. Add something new or enjoy the break.",
+        "projects": "You have no projects yet. Head to the Projects section to create one!",
+        "reminders": "✅ **No pending reminders!** You're all clear.",
+        "notes": "You have no notes yet. Start capturing your ideas in the Notes section!",
+        "routines": "You have no routines set up yet. Head to Routines to build healthy habits!",
+        "files": "You have no files uploaded yet."
+    },
+
+    "labels": {
+        "tasks_today_heading": "**Tasks due today** ({count}):",
+        "tasks_tomorrow_heading": "**Tasks due tomorrow** ({count}):",
+        "overdue_heading": "⚠️ **Overdue tasks** ({count}):",
+        "overdue_footer": "> Consider updating their due dates or marking them complete.",
+        "high_priority_heading": "🔴 **High priority tasks** ({count}):",
+        "task_stats_heading": "**Your task stats:**",
+        "completed_heading": "✅ **Recently completed tasks** ({count} shown):",
+        "all_tasks_heading": "**Pending tasks** (showing up to 15):",
+        "projects_heading": "**Your projects** ({count}):",
+        "reminders_heading": "**Pending reminders** ({count}):",
+        "notes_heading": "**Your recent notes** ({count}):",
+        "routines_heading": "**Your routines** ({count}):",
+        "files_heading": "**Your files** ({count} shown):",
+        "summary_heading": "## 📊 Workspace Summary\n_As of {date}_",
+        "summary_footer_overdue": "> ⚠️ **{count} overdue task(s)** need attention!",
+        "summary_footer_today": "> 📅 **{count} task(s) due today** — let's go!",
+        "summary_footer_clear": "> ✅ You're all caught up! Great work."
+    }
+}

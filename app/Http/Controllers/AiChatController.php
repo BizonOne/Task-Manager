@@ -13,6 +13,7 @@ use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
+use App\Services\LinaFallbackBrain;
 
 class AiChatController extends Controller
 {
@@ -269,14 +270,7 @@ PROMPT;
         ]);
 
         $apiKey = config('services.groq.key');
-        if (!$apiKey) {
-            return response()->stream(function () {
-                echo "data: " . json_encode(['error' => 'AI assistant is not configured.']) . "\n\n";
-                if (ob_get_level() > 0) ob_flush(); flush();
-            }, 200, ['Content-Type' => 'text/event-stream', 'Cache-Control' => 'no-cache', 'X-Accel-Buffering' => 'no']);
-        }
-
-        $user = Auth::user();
+        $user   = Auth::user();
 
         // Resolve or create conversation
         $convId = $request->input('conversation_id');
@@ -299,17 +293,22 @@ PROMPT;
             $conversation->update(['label' => mb_substr($request->message, 0, 60)]);
         }
 
-        try {
-            $context = $this->buildContext($user);
-        } catch (\Exception $e) {
-            \Log::error('Groq stream buildContext error', ['user_id' => $user->id, 'error' => $e->getMessage()]);
-            $context = '(Could not load user data)';
-        }
+        // Find a working model (skip if no API key)
+        $workingModel = null;
+        $groqResponse = null;
 
-        $today       = now()->format('l, F j, Y');
-        $creatorName = $user->name;
+        if ($apiKey) {
+            try {
+                $context = $this->buildContext($user);
+            } catch (\Exception $e) {
+                \Log::error('Groq stream buildContext error', ['user_id' => $user->id, 'error' => $e->getMessage()]);
+                $context = '(Could not load user data)';
+            }
 
-        $systemPrompt = <<<PROMPT
+            $today       = now()->format('l, F j, Y');
+            $creatorName = $user->name;
+
+            $systemPrompt = <<<PROMPT
 You are Lina, a smart personal AI assistant built into this Task Manager app by {$creatorName}.
 If asked your name, say your name is Lina. If asked who created or built you, say you were created by {$creatorName}.
 Today is {$today}.
@@ -331,15 +330,12 @@ Guidelines:
 --- END WORKSPACE DATA ---
 PROMPT;
 
-        $messages = [['role' => 'system', 'content' => $this->cleanUtf8($systemPrompt)]];
-        foreach ($request->input('history', []) as $turn) {
-            $messages[] = ['role' => $turn['role'], 'content' => $this->cleanUtf8($turn['content'])];
-        }
-        $messages[] = ['role' => 'user', 'content' => $this->cleanUtf8($request->message)];
+            $messages = [['role' => 'system', 'content' => $this->cleanUtf8($systemPrompt)]];
+            foreach ($request->input('history', []) as $turn) {
+                $messages[] = ['role' => $turn['role'], 'content' => $this->cleanUtf8($turn['content'])];
+            }
+            $messages[] = ['role' => 'user', 'content' => $this->cleanUtf8($request->message)];
 
-        // Find a working model
-        $workingModel = null;
-        $groqResponse = null;
         $client = new \GuzzleHttp\Client(['verify' => false, 'timeout' => 60]);
 
         foreach ($this->models as $model) {
@@ -381,14 +377,34 @@ PROMPT;
                 continue;
             }
         }
+        } // end if ($apiKey)
 
         $sseFlush = function () { if (ob_get_level() > 0) ob_flush(); flush(); };
 
-        if (!$workingModel) {
-            return response()->stream(function () use ($sseFlush) {
-                echo "data: " . json_encode(['error' => 'All AI models are currently unavailable. Please try again later.']) . "\n\n";
+        // No API key OR all models exhausted → use LinaFallbackBrain (smart offline mode)
+        if (!$apiKey || !$workingModel) {
+            $fallbackText = (new LinaFallbackBrain($user, $request->message))->respond();
+            $offlineConvId = $conversation->id;
+            return response()->stream(function () use ($sseFlush, $offlineConvId, $fallbackText) {
+                echo "data: " . json_encode(['model' => 'lina-offline', 'conversation_id' => $offlineConvId]) . "\n\n";
                 $sseFlush();
-            }, 200, ['Content-Type' => 'text/event-stream', 'Cache-Control' => 'no-cache', 'X-Accel-Buffering' => 'no']);
+                foreach (str_split($fallbackText, 4) as $chunk) {
+                    echo "data: " . json_encode(['choices' => [['delta' => ['content' => $chunk]]]]) . "\n\n";
+                    $sseFlush();
+                    usleep(14000);
+                }
+                try {
+                    AiMessage::create([
+                        'conversation_id' => $offlineConvId,
+                        'role'            => 'assistant',
+                        'content'         => $fallbackText,
+                        'model'           => 'lina-offline',
+                    ]);
+                    AiConversation::where('id', $offlineConvId)->touch();
+                } catch (\Exception $e) { /* non-fatal */ }
+                echo "data: [DONE]\n\n";
+                $sseFlush();
+            }, 200, ['Content-Type' => 'text/event-stream', 'Cache-Control' => 'no-cache', 'X-Accel-Buffering' => 'no', 'Connection' => 'keep-alive']);
         }
 
         $body           = $groqResponse->getBody();
