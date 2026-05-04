@@ -23,8 +23,9 @@
 
 .cu-info-panel {
     background: white; border: 1px solid #e3e4e8; border-radius: 8px;
-    overflow: hidden; position: sticky; top: 1rem;
+    overflow: hidden;
 }
+@media(min-width:769px) { .cu-info-panel { position: sticky; top: 1rem; } }
 .cu-info-panel-header { background: #f7f8fa; border-bottom: 1px solid #e3e4e8; padding: 10px 14px; }
 .cu-info-panel-header span { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #8a8f98; }
 .cu-info-body { padding: 14px; }
@@ -125,9 +126,15 @@
 .cu-detail-table tr:last-child td { border-bottom: none; }
 .cu-detail-table td:first-child { font-weight: 600; color: #374151; width: 38%; }
 .cu-detail-table td:last-child  { color: #6b7280; }
+
+/* ── Mobile responsive ────────────────────────────────── */
+@media(max-width:768px) {
+    .cu-header-title { font-size: 15px; }
+    .cu-header-sub   { font-size: 11px; }
+    .cu-action-btn   { padding: 9px 10px; }
+}
 </style>
 @endpush
-
 @section('content')
 @php
     $ext     = strtolower(pathinfo($file->path, PATHINFO_EXTENSION));

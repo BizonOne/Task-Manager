@@ -153,6 +153,21 @@
     text-decoration: none; display: inline-flex; align-items: center; gap: 5px; transition: background .15s;
 }
 .cu-btn-upload:hover { background: #047857; color: #fff; }
+
+/* ── Mobile responsive ────────────────────────────────── */
+@media(max-width:768px) {
+    .cu-header-inner { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .cu-header-title { font-size: 15px; }
+    .cu-header-sub   { font-size: 11px; }
+    .cu-btn-new      { width: 100%; justify-content: center; }
+
+    .cu-filter-bar   { flex-direction: column; align-items: stretch; gap: 8px; }
+    .cu-search-wrap  { min-width: unset; width: 100%; }
+    .cu-sel          { width: 100%; }
+    .cu-count        { margin-left: 0; }
+
+    .cu-file-grid    { grid-template-columns: 1fr; }
+}
 </style>
 @endpush
 
