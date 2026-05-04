@@ -322,20 +322,69 @@ footer { display: none !important; }
     margin: 0 auto; max-width: 400px;
 }
 
+/* ── Mobile sidebar slide-over ── */
 @media (max-width: 768px) {
-    .lina-sidebar { display: none; }
     .lina-msg { max-width: 90%; }
+
+    /* Sidebar becomes a slide-over panel */
+    .lina-sidebar {
+        position: fixed; top: 0; left: 0; bottom: 0;
+        z-index: 1000; width: 280px;
+        transform: translateX(-100%);
+        transition: transform .25s ease;
+        box-shadow: 4px 0 20px rgba(0,0,0,.15);
+    }
+    .lina-sidebar.open { transform: translateX(0); }
+
+    /* Backdrop behind sidebar */
+    .lina-mob-backdrop {
+        display: none;
+        position: fixed; inset: 0; z-index: 999;
+        background: rgba(0,0,0,.35);
+    }
+    .lina-mob-backdrop.open { display: block; }
+
+    /* Close button inside sidebar */
+    .lina-sidebar-close {
+        display: flex !important;
+    }
+
+    /* Hamburger + back button in header */
+    .lina-mob-menu-btn { display: flex !important; }
+
+    /* Shrink header padding */
+    .lina-head { padding: 12px 14px; gap: 10px; }
+    .lina-head-avatar { width: 38px; height: 38px; font-size: 18px; border-radius: 11px; }
+    .lina-head-title { font-size: 15px; }
+    .lina-head-status { font-size: 10.5px; }
+
+    /* Shrink message area padding */
+    .lina-messages { padding: 14px 12px; gap: 12px; }
+    .lina-foot { padding: 8px 12px 14px; }
 }
+
+/* Hidden by default on desktop */
+.lina-mob-menu-btn { display: none; }
+.lina-sidebar-close { display: none; }
+.lina-mob-backdrop { display: none; }
 </style>
 @endpush
 
 @section('content')
+{{-- Mobile backdrop --}}
+<div class="lina-mob-backdrop" id="linaMobBackdrop" onclick="closeMobSidebar()"></div>
+
 <div class="lina-page">
 
     {{-- Left conversations sidebar --}}
-    <div class="lina-sidebar">
+    <div class="lina-sidebar" id="linaSidebar">
         <div class="lina-sidebar-head">
-            <h2>Conversations</h2>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <h2 style="margin:0;">Conversations</h2>
+                <button class="lina-sidebar-close" onclick="closeMobSidebar()" title="Close" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--gray-500);padding:2px 6px;border-radius:6px;">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
             <button class="lina-new-btn" onclick="newConversation()">
                 <i class="bi bi-plus-lg"></i> New Chat
             </button>
@@ -348,15 +397,24 @@ footer { display: none !important; }
 
         {{-- Header --}}
         <div class="lina-head">
+            {{-- Mobile: hamburger to open sidebar --}}
+            <button class="lina-mob-menu-btn lina-icon-btn" onclick="openMobSidebar()" title="Conversations" style="flex-shrink:0;">
+                <i class="bi bi-layout-sidebar"></i>
+            </button>
             <div class="lina-head-avatar"><i class="bi bi-stars"></i></div>
-            <div>
+            <div style="flex:1;min-width:0;">
                 <div class="lina-head-title">Lina</div>
                 <div class="lina-head-status">
                     <span class="lina-status-dot"></span>
                     <span>Online &mdash; knows your workspace data</span>
                 </div>
             </div>
-            <div class="lina-head-right"></div>
+            <div class="lina-head-right">
+                {{-- Mobile: back to app button --}}
+                <a href="{{ url()->previous() == url()->current() ? route('dashboard') : url()->previous() }}" class="lina-icon-btn" title="Back" style="text-decoration:none;">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+            </div>
         </div>
 
         {{-- Messages --}}
@@ -470,6 +528,11 @@ footer { display: none !important; }
     }
 
     window.newConversation = async function () {
+        // If the active conversation is already empty, just focus it — don't create another
+        if (activeConvId && activeMessages.length === 0) {
+            if (window.closeMobSidebar) closeMobSidebar();
+            return;
+        }
         try {
             const conv = await api('POST', CONV_URL, { label: 'New Chat' });
             conversations.unshift(conv);
@@ -484,6 +547,8 @@ footer { display: none !important; }
         renderConvList();
         msgsEl.innerHTML = '';
         msgsEl.appendChild(welcome);
+        // Close sidebar on mobile after picking a conversation
+        if (window.closeMobSidebar) closeMobSidebar();
         try {
             const data = await api('GET', CONV_URL + '/' + id);
             activeMessages = data.messages || [];
@@ -744,6 +809,12 @@ footer { display: none !important; }
         input.value = el.textContent.trim();
         autoResize(); updateCharCount(); sendMessage();
     };
+
+    /* ── Mobile sidebar ── */
+    const mobSidebar  = document.getElementById('linaSidebar');
+    const mobBackdrop = document.getElementById('linaMobBackdrop');
+    window.openMobSidebar  = function () { mobSidebar.classList.add('open'); mobBackdrop.classList.add('open'); document.body.style.overflow='hidden'; };
+    window.closeMobSidebar = function () { mobSidebar.classList.remove('open'); mobBackdrop.classList.remove('open'); document.body.style.overflow=''; };
 
     /* ── Toolbar actions ── */
     window.clearConversation = async function () {
