@@ -287,6 +287,12 @@ footer { display: none !important; }
 }
 .lina-chip:hover { background: #ede9fe; border-color: #c4b5fd; color: #5b21b6; }
 
+/* Streaming cursor */
+.lina-streaming::after {
+    content: '▋'; animation: linaCursor .7s infinite;
+}
+@keyframes linaCursor { 0%,100%{opacity:1} 50%{opacity:0} }
+
 /* Error */
 .lina-error {
     text-align: center; font-size: 13px; color: #ef4444;
@@ -377,7 +383,7 @@ footer { display: none !important; }
 <script>
 (function () {
     /* ── Config ── */
-    const CHAT_URL    = "{{ route('ai.chat') }}";
+    const STREAM_URL  = "{{ route('ai.stream') }}";
     const CSRF        = "{{ csrf_token() }}";
     const STORAGE_KEY = 'lina_conversations_v1';
     const MAX_HISTORY = 20;
@@ -467,11 +473,11 @@ footer { display: none !important; }
             msgsEl.appendChild(welcome);
             return;
         }
-        conv.messages.forEach(m => renderBubble(m.role, m.content, m.time, false));
+        conv.messages.forEach(m => renderBubble(m.role, m.content, m.time, false, m.model));
         scrollBottom();
     }
 
-    function renderBubble(role, content, time, animate) {
+    function renderBubble(role, content, time, animate, model) {
         const wrap = document.createElement('div');
         wrap.className = 'lina-msg-wrap ' + (role === 'user' ? 'user' : 'bot');
         if (animate) { wrap.style.opacity = '0'; wrap.style.transform = 'translateY(8px)'; wrap.style.transition = 'all .2s'; }
@@ -479,6 +485,12 @@ footer { display: none !important; }
         // Meta
         const meta = document.createElement('div');
         meta.className = 'lina-msg-meta';
+        if (role !== 'user' && model) {
+            const tag = document.createElement('span');
+            tag.className = 'lina-model-tag';
+            tag.textContent = friendlyModel(model);
+            meta.appendChild(tag);
+        }
         const ts = document.createElement('span');
         ts.textContent = formatTime(time);
         meta.appendChild(ts);
@@ -564,8 +576,14 @@ footer { display: none !important; }
             content: m.content,
         }));
 
+        let accumulatedText = '';
+        let selectedModel   = null;
+        let streamWrap      = null;
+        let streamBubbleEl  = null;
+        let streamMetaEl    = null;
+
         try {
-            const res = await fetch(CHAT_URL, {
+            const res = await fetch(STREAM_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
                 body: JSON.stringify({ message: text, history: historyPayload }),
@@ -576,20 +594,103 @@ footer { display: none !important; }
             if (!res.ok) {
                 appendError('Server error ' + res.status + '. Please try again.');
                 conv.messages.pop(); saveConversations();
-            } else {
-                const data = await res.json();
-                const reply = data.reply || 'No response.';
-                const model = data.model || null;
-                const ts    = new Date().toISOString();
-                conv.messages.push({ role: 'assistant', content: reply, model, time: ts });
-                saveConversations();
-                renderBubble('assistant', reply, ts, true);
-                scrollBottom();
+                return;
             }
+
+            // Create streaming bubble
+            const streamTs = new Date().toISOString();
+            streamWrap = document.createElement('div');
+            streamWrap.className = 'lina-msg-wrap bot';
+            streamWrap.style.cssText = 'opacity:0;transform:translateY(8px);transition:all .2s';
+
+            streamMetaEl = document.createElement('div');
+            streamMetaEl.className = 'lina-msg-meta';
+            const tsMeta = document.createElement('span');
+            tsMeta.textContent = formatTime(streamTs);
+            streamMetaEl.appendChild(tsMeta);
+            streamWrap.appendChild(streamMetaEl);
+
+            streamBubbleEl = document.createElement('div');
+            streamBubbleEl.className = 'lina-msg bot lina-streaming';
+            streamWrap.appendChild(streamBubbleEl);
+            msgsEl.appendChild(streamWrap);
+            requestAnimationFrame(() => { streamWrap.style.opacity='1'; streamWrap.style.transform='translateY(0)'; });
+            scrollBottom();
+
+            // Read SSE stream
+            const reader  = res.body.getReader();
+            const decoder = new TextDecoder();
+            let sseBuffer  = '';
+
+            outer: while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                sseBuffer += decoder.decode(value, { stream: true });
+
+                const lines = sseBuffer.split('\n');
+                sseBuffer   = lines.pop();
+
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed.startsWith('data: ')) continue;
+                    const data = trimmed.slice(6);
+                    if (data === '[DONE]') break outer;
+
+                    try {
+                        const json = JSON.parse(data);
+                        if (json.model) {
+                            selectedModel = json.model;
+                            const tag = document.createElement('span');
+                            tag.className = 'lina-model-tag';
+                            tag.textContent = friendlyModel(selectedModel);
+                            streamMetaEl.prepend(tag);
+                        } else if (json.error) {
+                            streamBubbleEl.classList.remove('lina-streaming');
+                            streamBubbleEl.textContent = '⚠ ' + json.error;
+                        } else {
+                            const token = json.choices?.[0]?.delta?.content || '';
+                            if (token) {
+                                accumulatedText += token;
+                                streamBubbleEl.textContent = accumulatedText;
+                                scrollBottom();
+                            }
+                        }
+                    } catch (e) { /* ignore parse errors */ }
+                }
+            }
+
+            // Final markdown render
+            streamBubbleEl.classList.remove('lina-streaming');
+            if (accumulatedText) {
+                streamBubbleEl.innerHTML = typeof marked !== 'undefined'
+                    ? marked.parse(accumulatedText)
+                    : accumulatedText.replace(/\n/g, '<br>');
+                const actions = document.createElement('div');
+                actions.className = 'lina-msg-actions';
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'lina-copy-btn';
+                copyBtn.innerHTML = '<i class="bi bi-clipboard"></i> Copy';
+                const capturedText = accumulatedText;
+                copyBtn.onclick = () => copyText(capturedText, copyBtn);
+                actions.appendChild(copyBtn);
+                streamWrap.appendChild(actions);
+
+                const finalTs = new Date().toISOString();
+                conv.messages.push({ role: 'assistant', content: accumulatedText, model: selectedModel, time: finalTs });
+                saveConversations();
+            } else if (!streamBubbleEl.textContent.includes('⚠')) {
+                streamBubbleEl.textContent = 'No response received.';
+                conv.messages.pop(); saveConversations();
+            }
+
+            scrollBottom();
+
         } catch (e) {
-            typingEl.remove();
+            if (typingEl.parentNode) typingEl.remove();
+            if (streamWrap && streamWrap.parentNode) streamWrap.remove();
             appendError('Network error. Check your connection.');
             conv.messages.pop(); saveConversations();
+            console.error('[Lina]', e);
         } finally {
             isBusy = false; sendBtn.disabled = false; input.focus();
         }
@@ -626,6 +727,18 @@ footer { display: none !important; }
 
     /* ── Helpers ── */
     function scrollBottom() { setTimeout(() => msgsEl.scrollTop = msgsEl.scrollHeight, 30); }
+
+    function friendlyModel(model) {
+        if (!model) return 'Lina';
+        const map = {
+            'compound-beta':                             'Compound β',
+            'llama-3.1-8b-instant':                      'Llama 3.1 8B',
+            'llama-3.3-70b-versatile':                   'Llama 3.3 70B',
+            'meta-llama/llama-4-scout-17b-16e-instruct': 'Llama 4 Scout',
+            'qwen/qwen3-32b':                             'Qwen3 32B',
+        };
+        return map[model] || model.split('/').pop();
+    }
 
     function formatTime(iso) {
         if (!iso) return '';

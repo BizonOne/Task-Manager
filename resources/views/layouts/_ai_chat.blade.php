@@ -186,6 +186,12 @@
 #aiCharCount.warn { color: #f59e0b; }
 #aiCharCount.over { color: #ef4444; }
 
+/* Streaming cursor */
+.ai-streaming::after {
+    content: '▋'; animation: aiCursor .7s infinite;
+}
+@keyframes aiCursor { 0%,100%{opacity:1} 50%{opacity:0} }
+
 /* Empty state */
 .ai-empty {
     display: flex; flex-direction: column; align-items: center;
@@ -339,8 +345,13 @@
         const historyPayload = history.slice(0, -1).slice(-MAX_HISTORY)
             .map(h => ({ role: h.role === 'assistant' ? 'assistant' : 'user', content: h.content }));
 
+        let accumulatedText = '';
+        let selectedModel   = null;
+        let streamWrap      = null;
+        let streamBubbleEl  = null;
+
         try {
-            const res = await fetch('{{ route("ai.chat") }}', {
+            const res = await fetch('{{ route("ai.stream") }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                 body: JSON.stringify({ message: text, history: historyPayload }),
@@ -351,19 +362,102 @@
             if (!res.ok) {
                 appendError('Server error ' + res.status + '. Please try again.');
                 history.pop(); saveHistory();
-            } else {
-                const data = await res.json();
-                const reply = data.reply || 'No response.';
-                const model = data.model || null;
-                const ts    = new Date().toISOString();
-                history.push({ role: 'assistant', content: reply, model, time: ts });
-                saveHistory();
-                renderMessage('bot', reply, model, ts, true);
-                updateModelPill(model);
-                updateMsgCount();
+                return;
             }
+
+            // Create streaming bubble
+            const streamTs = new Date().toISOString();
+            streamWrap = document.createElement('div');
+            streamWrap.className = 'ai-msg-wrap bot';
+            streamWrap.style.cssText = 'opacity:0;transform:translateY(8px);transition:all .2s';
+
+            const metaEl = document.createElement('div');
+            metaEl.className = 'ai-msg-meta';
+            const tsMeta = document.createElement('span');
+            tsMeta.textContent = formatTime(streamTs);
+            metaEl.appendChild(tsMeta);
+            streamWrap.appendChild(metaEl);
+
+            streamBubbleEl = document.createElement('div');
+            streamBubbleEl.className = 'ai-msg bot ai-streaming';
+            streamWrap.appendChild(streamBubbleEl);
+            messages.appendChild(streamWrap);
+            requestAnimationFrame(() => { streamWrap.style.opacity='1'; streamWrap.style.transform='translateY(0)'; });
+            scrollBottom();
+
+            // Read SSE stream
+            const reader  = res.body.getReader();
+            const decoder = new TextDecoder();
+            let sseBuffer  = '';
+
+            outer: while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                sseBuffer += decoder.decode(value, { stream: true });
+
+                const lines = sseBuffer.split('\n');
+                sseBuffer   = lines.pop();
+
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed.startsWith('data: ')) continue;
+                    const data = trimmed.slice(6);
+                    if (data === '[DONE]') break outer;
+
+                    try {
+                        const json = JSON.parse(data);
+                        if (json.model) {
+                            selectedModel = json.model;
+                            const tag = document.createElement('span');
+                            tag.className = 'ai-model-tag';
+                            tag.textContent = friendlyModel(selectedModel);
+                            metaEl.prepend(tag);
+                            updateModelPill(selectedModel);
+                        } else if (json.error) {
+                            streamBubbleEl.classList.remove('ai-streaming');
+                            streamBubbleEl.textContent = '⚠ ' + json.error;
+                        } else {
+                            const token = json.choices?.[0]?.delta?.content || '';
+                            if (token) {
+                                accumulatedText += token;
+                                streamBubbleEl.textContent = accumulatedText;
+                                scrollBottom();
+                            }
+                        }
+                    } catch (e) { /* ignore parse errors */ }
+                }
+            }
+
+            // Final markdown render
+            streamBubbleEl.classList.remove('ai-streaming');
+            if (accumulatedText) {
+                streamBubbleEl.innerHTML = typeof marked !== 'undefined'
+                    ? marked.parse(accumulatedText)
+                    : accumulatedText.replace(/\n/g, '<br>');
+                const actions = document.createElement('div');
+                actions.className = 'ai-msg-actions';
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'ai-copy-btn';
+                copyBtn.innerHTML = '<i class="bi bi-clipboard"></i> Copy';
+                const capturedText = accumulatedText;
+                copyBtn.onclick = () => copyText(capturedText, copyBtn);
+                actions.appendChild(copyBtn);
+                streamWrap.appendChild(actions);
+
+                const finalTs = new Date().toISOString();
+                history.push({ role: 'assistant', content: accumulatedText, model: selectedModel, time: finalTs });
+                saveHistory();
+                updateMsgCount();
+            } else if (!streamBubbleEl.textContent.includes('⚠')) {
+                streamBubbleEl.textContent = 'No response received.';
+                history.pop(); saveHistory();
+            }
+
+            scrollBottom();
+
         } catch (e) {
-            typingEl.remove();
+            if (typingEl.parentNode) typingEl.remove();
+            if (streamWrap && streamWrap.parentNode) streamWrap.remove();
             appendError('Network error. Check your connection.');
             history.pop(); saveHistory();
             console.error('[AI]', e);
@@ -475,6 +569,7 @@
     function friendlyModel(model) {
         if (!model) return 'AI';
         const map = {
+            'compound-beta':                             'Compound β',
             'llama-3.1-8b-instant':                      'Llama 3.1 8B',
             'llama-3.3-70b-versatile':                   'Llama 3.3 70B',
             'allam-2-7b':                                 'Allam 7B',

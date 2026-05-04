@@ -65,6 +65,7 @@ Route::middleware(['auth'])->group(function () {
     // AI Chat
     Route::get('/ai', [AiChatController::class, 'index'])->name('ai.index');
     Route::post('/ai/chat', [AiChatController::class, 'chat'])->name('ai.chat');
+    Route::post('/ai/stream', [AiChatController::class, 'stream'])->name('ai.stream');
 
     // Dashboard routes
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');

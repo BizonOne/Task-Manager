@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\File;
 use App\Models\Note;
 use App\Models\Project;
 use App\Models\Reminder;
@@ -96,8 +97,8 @@ PROMPT;
                   ->post('https://api.groq.com/openai/v1/chat/completions', [
                       'model'       => $model,
                       'messages'    => $messages,
-                      'max_tokens'  => 1024,
-                      'temperature' => 0.5,
+                      'max_tokens'  => 2048,
+                      'temperature' => 0.7,
                   ]);
             } catch (\Exception $e) {
                 \Log::warning('Groq connection error', ['model' => $model, 'error' => $e->getMessage()]);
@@ -186,12 +187,178 @@ PROMPT;
         $routines = Routine::where('user_id', $user->id)->get(['title', 'frequency']);
         $routineLines = $routines->map(fn($r) => "- {$r->title} ({$r->frequency})")->join("\n");
 
+        // Files
+        $files = File::where('user_id', $user->id)->get(['name', 'type']);
+        $fileLines = $files->map(fn($f) => "- {$f->name} (type: {$f->type})")->join("\n");
+
         return implode("\n\n", array_filter([
             $projects->count()  ? "PROJECTS ({$projects->count()}):\n{$projectLines}"    : null,
             $tasks->count()     ? "TASKS ({$tasks->count()}):\n{$taskLines}"              : null,
             $notes->count()     ? "NOTES ({$notes->count()}):\n{$noteLines}"              : null,
             $reminders->count() ? "REMINDERS ({$reminders->count()}):\n{$reminderLines}"  : null,
             $routines->count()  ? "ROUTINES ({$routines->count()}):\n{$routineLines}"     : null,
+            $files->count()     ? "FILES ({$files->count()}):\n{$fileLines}"              : null,
         ]));
+    }
+
+    public function stream(Request $request)
+    {
+        $request->validate([
+            'message' => 'required|string|max:2000',
+            'history' => 'nullable|array|max:40',
+            'history.*.role'    => 'required|in:user,assistant',
+            'history.*.content' => 'required|string|max:4000',
+        ]);
+
+        $apiKey = config('services.groq.key');
+        if (!$apiKey) {
+            return response()->stream(function () {
+                echo "data: " . json_encode(['error' => 'AI assistant is not configured.']) . "\n\n";
+                ob_flush(); flush();
+            }, 200, ['Content-Type' => 'text/event-stream', 'Cache-Control' => 'no-cache', 'X-Accel-Buffering' => 'no']);
+        }
+
+        $user = Auth::user();
+
+        try {
+            $context = $this->buildContext($user);
+        } catch (\Exception $e) {
+            \Log::error('Groq stream buildContext error', ['user_id' => $user->id, 'error' => $e->getMessage()]);
+            $context = '(Could not load user data)';
+        }
+
+        $today       = now()->format('l, F j, Y');
+        $creatorName = $user->name;
+
+        $systemPrompt = <<<PROMPT
+You are Lina, a smart personal AI assistant built into this Task Manager app by {$creatorName}.
+If asked your name, say your name is Lina. If asked who created or built you, say you were created by {$creatorName}.
+Today is {$today}.
+
+You can help the user with:
+- Their workspace data: tasks, projects, notes, reminders, routines, and files (full data provided below)
+- Coding, programming, software development, and any technical / technology questions
+- General knowledge and current information (search the web when needed for up-to-date facts)
+
+Guidelines:
+- Use markdown formatting — bullet points, code blocks, bold headings where helpful
+- For code, always use fenced code blocks with the language specified
+- For workspace data, only refer to what is in the context below — do not invent data
+- For tech/coding/general questions, use your training knowledge and web search as needed
+- Be concise and practical
+
+--- USER WORKSPACE DATA ---
+{$context}
+--- END WORKSPACE DATA ---
+PROMPT;
+
+        $messages = [['role' => 'system', 'content' => $this->cleanUtf8($systemPrompt)]];
+        foreach ($request->input('history', []) as $turn) {
+            $messages[] = ['role' => $turn['role'], 'content' => $this->cleanUtf8($turn['content'])];
+        }
+        $messages[] = ['role' => 'user', 'content' => $this->cleanUtf8($request->message)];
+
+        // Find a working model
+        $workingModel = null;
+        $groqResponse = null;
+        $client = new \GuzzleHttp\Client(['verify' => false, 'timeout' => 60]);
+
+        foreach ($this->models as $model) {
+            try {
+                $response = $client->post('https://api.groq.com/openai/v1/chat/completions', [
+                    'http_errors' => false,
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $apiKey,
+                        'Content-Type'  => 'application/json',
+                    ],
+                    'json' => [
+                        'model'       => $model,
+                        'messages'    => $messages,
+                        'max_tokens'  => 2048,
+                        'temperature' => 0.7,
+                        'stream'      => true,
+                    ],
+                    'stream' => true,
+                ]);
+
+                $status = $response->getStatusCode();
+
+                if ($status === 429 || $status === 503) {
+                    \Log::info('Groq stream rate limited', ['model' => $model, 'status' => $status]);
+                    continue;
+                }
+
+                if ($status !== 200) {
+                    \Log::warning('Groq stream non-200', ['model' => $model, 'status' => $status]);
+                    break;
+                }
+
+                $workingModel = $model;
+                $groqResponse = $response;
+                break;
+
+            } catch (\Exception $e) {
+                \Log::warning('Groq stream connection error', ['model' => $model, 'error' => $e->getMessage()]);
+                continue;
+            }
+        }
+
+        if (!$workingModel) {
+            return response()->stream(function () {
+                echo "data: " . json_encode(['error' => 'All AI models are currently unavailable. Please try again later.']) . "\n\n";
+                ob_flush(); flush();
+            }, 200, ['Content-Type' => 'text/event-stream', 'Cache-Control' => 'no-cache', 'X-Accel-Buffering' => 'no']);
+        }
+
+        $body  = $groqResponse->getBody();
+        $model = $workingModel;
+        $userId = $user->id;
+
+        return response()->stream(function () use ($body, $model, $userId) {
+            // Send model name first so the frontend can label the bubble
+            echo "data: " . json_encode(['model' => $model]) . "\n\n";
+            ob_flush(); flush();
+
+            $buffer = '';
+
+            try {
+                while (!$body->eof()) {
+                    $chunk  = $body->read(256);
+                    $buffer .= $chunk;
+
+                    while (($pos = strpos($buffer, "\n")) !== false) {
+                        $line   = substr($buffer, 0, $pos);
+                        $buffer = substr($buffer, $pos + 1);
+                        $line   = trim($line);
+
+                        if ($line === '') continue;
+                        if (!str_starts_with($line, 'data: ')) continue;
+
+                        $data = substr($line, 6);
+
+                        if ($data === '[DONE]') {
+                            echo "data: [DONE]\n\n";
+                            ob_flush(); flush();
+                            return;
+                        }
+
+                        echo "data: {$data}\n\n";
+                        ob_flush(); flush();
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('Groq stream read error', ['model' => $model, 'user_id' => $userId, 'error' => $e->getMessage()]);
+                echo "data: " . json_encode(['error' => 'Stream interrupted.']) . "\n\n";
+                ob_flush(); flush();
+            }
+
+            echo "data: [DONE]\n\n";
+            ob_flush(); flush();
+        }, 200, [
+            'Content-Type'    => 'text/event-stream',
+            'Cache-Control'   => 'no-cache',
+            'X-Accel-Buffering' => 'no',
+            'Connection'      => 'keep-alive',
+        ]);
     }
 }
