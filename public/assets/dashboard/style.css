@@ -771,3 +771,101 @@
     font-size: 0.75rem;
     color: var(--gray-400);
 }
+
+/* ── Mobile responsiveness ── */
+@media (max-width: 768px) {
+
+    /* Welcome */
+    .welcome-title {
+        font-size: 1.125rem;
+    }
+
+    /* Stat cards: 2 per row on mobile */
+    .stat-card {
+        padding: 0.75rem;
+    }
+    .stat-card-number {
+        font-size: 1.375rem;
+    }
+
+    /* Metric widgets inside analytics: 2×2 grid instead of 4 columns */
+    .analytics-card-content .row > [class*="col-md-3"] {
+        flex: 0 0 50%;
+        max-width: 50%;
+        margin-bottom: 0.5rem;
+    }
+    .metric-widget {
+        padding: 0.375rem;
+    }
+    .metric-value {
+        font-size: 1.25rem;
+    }
+    .metric-trend {
+        font-size: 0.6875rem;
+        padding: 0.1rem 0.375rem;
+    }
+
+    /* Chart height smaller on mobile */
+    .chart-container {
+        height: 150px;
+    }
+
+    /* Analytics header: stack select below title */
+    .analytics-card-header {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .analytics-card-actions {
+        width: 100%;
+    }
+    .analytics-card-actions .form-select {
+        width: 100%;
+    }
+
+    /* Status distribution chart: smaller */
+    .status-distribution-chart canvas {
+        width: 160px !important;
+        height: 160px !important;
+    }
+
+    /* Priority progress bar: narrower */
+    .priority-progress {
+        width: 40px;
+    }
+
+    /* Quick actions: keep 2×2 grid but slightly larger tap targets */
+    .quick-action-item {
+        padding: 0.625rem 0.375rem;
+    }
+    .quick-action-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+    }
+
+    /* Timeline: reduce gap */
+    .timeline-item {
+        margin-bottom: 0.625rem;
+    }
+
+    /* Activity cards: tighten padding */
+    .activity-card-header {
+        padding: 0.75rem 0.75rem 0;
+    }
+    .activity-card-content {
+        padding: 0 0.75rem 0.75rem;
+    }
+
+    /* Mini calendar card: full width */
+    .mini-calendar-card {
+        margin-top: 0.75rem;
+    }
+
+    /* Remove heavy hover transforms on touch */
+    .stat-card:hover {
+        transform: none;
+    }
+    .quick-action-item:hover {
+        transform: none;
+    }
+}
