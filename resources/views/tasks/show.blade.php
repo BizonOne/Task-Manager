@@ -75,9 +75,11 @@
 /* Left panel */
 .ts-panel {
     background:#fff; border-radius:14px;
-    border:1px solid #e5e7eb; position:sticky;
-    top:80px; overflow:hidden;
+    border:1px solid #e5e7eb; overflow:hidden;
     box-shadow:0 1px 4px rgba(0,0,0,.06);
+}
+@media(min-width:769px) {
+    .ts-panel { position:sticky; top:80px; }
 }
 .ts-panel-icon {
     display:flex; align-items:center; justify-content:center;
@@ -285,8 +287,11 @@
 @media(max-width:768px) {
     /* Two-column → single column */
     .ts-body  { grid-template-columns:1fr; }
-    .ts-panel { position:static; }
     .ts-progress-grid { grid-template-columns:repeat(3,1fr); }
+
+    /* Panel action buttons — side by side */
+    .ts-panel-actions { flex-direction:row; flex-wrap:wrap; }
+    .ts-panel-btn { flex:1; justify-content:center; }
 
     /* Header layout */
     .ts-header {
