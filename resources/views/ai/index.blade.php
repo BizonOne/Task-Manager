@@ -404,15 +404,16 @@ footer { display: none !important; }
 <script>
 (function () {
     /* ── Config ── */
-    const STREAM_URL  = "{{ route('ai.stream') }}";
-    const CSRF        = "{{ csrf_token() }}";
-    const STORAGE_KEY = 'lina_conversations_v1';
-    const MAX_HISTORY = 20;
-    const MAX_CHARS   = 2000;
+    const STREAM_URL    = "{{ route('ai.stream') }}";
+    const CONV_URL      = "{{ url('/ai/conversations') }}";
+    const CSRF          = "{{ csrf_token() }}";
+    const MAX_HISTORY   = 20;
+    const MAX_CHARS     = 2000;
 
     /* ── State ── */
-    let conversations = {};  // { id: { id, label, messages: [] } }
-    let activeId      = null;
+    let conversations = [];   // [{ id, label, updated_at }]
+    let activeConvId  = null;
+    let activeMessages= [];   // [{ role, content, model, created_at }]
     let isBusy        = false;
 
     /* ── DOM ── */
@@ -423,78 +424,96 @@ footer { display: none !important; }
     const charCount = document.getElementById('linaCharCount');
     const convList  = document.getElementById('linaConvList');
 
-    /* ── Conversations management ── */
-    function loadConversations() {
-        try { conversations = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
-        catch { conversations = {}; }
-        renderConvList();
-        // Reopen last active
-        const ids = Object.keys(conversations);
-        if (ids.length) switchConversation(ids[ids.length - 1]);
+    /* ── API helpers ── */
+    async function api(method, url, body) {
+        const opts = {
+            method,
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+        };
+        if (body) opts.body = JSON.stringify(body);
+        const res = await fetch(url, opts);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
     }
 
-    function saveConversations() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
+    /* ── Conversations management ── */
+    async function loadConversations() {
+        try {
+            conversations = await api('GET', CONV_URL);
+        } catch { conversations = []; }
+        renderConvList();
+        if (conversations.length) {
+            await switchConversation(conversations[0].id);
+        } else {
+            await newConversation();
+        }
     }
 
     function renderConvList() {
         convList.innerHTML = '';
-        const ids = Object.keys(conversations).reverse();
-        if (!ids.length) {
+        if (!conversations.length) {
             convList.innerHTML = '<div style="font-size:12px;color:var(--gray-400);padding:10px;text-align:center;">No conversations yet</div>';
             return;
         }
-        ids.forEach(id => {
-            const conv = conversations[id];
+        conversations.forEach(conv => {
             const item = document.createElement('div');
-            item.className = 'lina-conv-item' + (id === activeId ? ' active' : '');
-            item.dataset.id = id;
+            item.className = 'lina-conv-item' + (conv.id === activeConvId ? ' active' : '');
+            item.dataset.id = conv.id;
             item.innerHTML = `
                 <i class="bi bi-chat-left-text"></i>
                 <span class="lina-conv-label">${escHtml(conv.label || 'New Chat')}</span>
-                <button class="lina-conv-del" onclick="deleteConv('${id}', event)" title="Delete"><i class="bi bi-x"></i></button>
+                <button class="lina-conv-del" onclick="deleteConv(${conv.id}, event)" title="Delete"><i class="bi bi-x"></i></button>
             `;
-            item.addEventListener('click', () => switchConversation(id));
+            item.addEventListener('click', () => switchConversation(conv.id));
             convList.appendChild(item);
         });
     }
 
-    window.newConversation = function () {
-        const id = 'conv_' + Date.now();
-        conversations[id] = { id, label: 'New Chat', messages: [] };
-        saveConversations();
-        renderConvList();
-        switchConversation(id);
+    window.newConversation = async function () {
+        try {
+            const conv = await api('POST', CONV_URL, { label: 'New Chat' });
+            conversations.unshift(conv);
+            renderConvList();
+            await switchConversation(conv.id);
+        } catch (e) { console.error('[Lina] newConversation', e); }
     };
 
-    window.switchConversation = function (id) {
-        activeId = id;
+    window.switchConversation = async function (id) {
+        activeConvId = id;
+        activeMessages = [];
         renderConvList();
-        renderMessages();
+        msgsEl.innerHTML = '';
+        msgsEl.appendChild(welcome);
+        try {
+            const data = await api('GET', CONV_URL + '/' + id);
+            activeMessages = data.messages || [];
+            renderMessages();
+        } catch (e) { console.error('[Lina] switchConversation', e); }
     };
 
-    window.deleteConv = function (id, e) {
+    window.deleteConv = async function (id, e) {
         e.stopPropagation();
         if (!confirm('Delete this conversation?')) return;
-        delete conversations[id];
-        saveConversations();
-        const ids = Object.keys(conversations);
-        if (ids.length) { switchConversation(ids[ids.length - 1]); }
-        else { newConversation(); }
-        renderConvList();
+        try {
+            await api('DELETE', CONV_URL + '/' + id);
+            conversations = conversations.filter(c => c.id !== id);
+            if (conversations.length) {
+                await switchConversation(conversations[0].id);
+            } else {
+                await newConversation();
+            }
+            renderConvList();
+        } catch (e) { console.error('[Lina] deleteConv', e); }
     };
-
-    function activeConv() { return conversations[activeId] || null; }
 
     /* ── Messages rendering ── */
     function renderMessages() {
         msgsEl.innerHTML = '';
-        const conv = activeConv();
-        if (!conv || !conv.messages.length) {
+        if (!activeMessages.length) {
             msgsEl.appendChild(welcome);
             return;
         }
-        conv.messages.forEach(m => renderBubble(m.role, m.content, m.time, false, m.model));
+        activeMessages.forEach(m => renderBubble(m.role, m.content, m.created_at, false, m.model));
         scrollBottom();
     }
 
@@ -570,21 +589,20 @@ footer { display: none !important; }
     window.sendMessage = async function () {
         const text = input.value.trim();
         if (!text || isBusy || text.length > MAX_CHARS) return;
-
-        const conv = activeConv();
-        if (!conv) return;
+        if (!activeConvId) return;
 
         // Remove welcome if present
         if (welcome.parentNode) welcome.parentNode.removeChild(welcome);
 
         const timestamp = new Date().toISOString();
-        conv.messages.push({ role: 'user', content: text, time: timestamp });
-        // Auto-label from first message
-        if (conv.messages.length === 1) {
-            conv.label = text.slice(0, 36) + (text.length > 36 ? '…' : '');
-            renderConvList();
+        activeMessages.push({ role: 'user', content: text, created_at: timestamp });
+
+        // Optimistically update label if first message
+        if (activeMessages.length === 1) {
+            const conv = conversations.find(c => c.id === activeConvId);
+            if (conv) { conv.label = text.slice(0, 60); renderConvList(); }
         }
-        saveConversations();
+
         renderBubble('user', text, timestamp, true);
         scrollBottom();
 
@@ -593,7 +611,7 @@ footer { display: none !important; }
         const typingEl = appendTyping();
         isBusy = true; sendBtn.disabled = true;
 
-        const historyPayload = conv.messages.slice(0, -1).slice(-MAX_HISTORY).map(m => ({
+        const historyPayload = activeMessages.slice(0, -1).slice(-MAX_HISTORY).map(m => ({
             role: m.role === 'assistant' ? 'assistant' : 'user',
             content: m.content,
         }));
@@ -608,14 +626,14 @@ footer { display: none !important; }
             const res = await fetch(STREAM_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
-                body: JSON.stringify({ message: text, history: historyPayload }),
+                body: JSON.stringify({ message: text, conversation_id: activeConvId, history: historyPayload }),
             });
 
             typingEl.remove();
 
             if (!res.ok) {
                 appendError('Server error ' + res.status + '. Please try again.');
-                conv.messages.pop(); saveConversations();
+                activeMessages.pop();
                 return;
             }
 
@@ -660,12 +678,14 @@ footer { display: none !important; }
 
                     try {
                         const json = JSON.parse(data);
-                        if (json.model) {
-                            selectedModel = json.model;
-                            const tag = document.createElement('span');
-                            tag.className = 'lina-model-tag';
-                            tag.textContent = friendlyModel(selectedModel);
-                            streamMetaEl.prepend(tag);
+                        if (json.model || json.conversation_id) {
+                            if (json.model) {
+                                selectedModel = json.model;
+                                const tag = document.createElement('span');
+                                tag.className = 'lina-model-tag';
+                                tag.textContent = friendlyModel(selectedModel);
+                                streamMetaEl.prepend(tag);
+                            }
                         } else if (json.error) {
                             streamBubbleEl.classList.remove('lina-streaming');
                             streamBubbleEl.textContent = '⚠ ' + json.error;
@@ -699,11 +719,12 @@ footer { display: none !important; }
                 streamWrap.appendChild(actions);
 
                 const finalTs = new Date().toISOString();
-                conv.messages.push({ role: 'assistant', content: accumulatedText, model: selectedModel, time: finalTs });
-                saveConversations();
+                activeMessages.push({ role: 'assistant', content: accumulatedText, model: selectedModel, created_at: finalTs });
+                // Refresh conv list so updated_at order updates
+                api('GET', CONV_URL).then(c => { conversations = c; renderConvList(); }).catch(() => {});
             } else if (!streamBubbleEl.textContent.includes('⚠')) {
                 streamBubbleEl.textContent = 'No response received.';
-                conv.messages.pop(); saveConversations();
+                activeMessages.pop();
             }
 
             scrollBottom();
@@ -712,7 +733,7 @@ footer { display: none !important; }
             if (typingEl.parentNode) typingEl.remove();
             if (streamWrap && streamWrap.parentNode) streamWrap.remove();
             appendError('Network error. Check your connection.');
-            conv.messages.pop(); saveConversations();
+            activeMessages.pop();
             console.error('[Lina]', e);
         } finally {
             isBusy = false; sendBtn.disabled = false; input.focus();
@@ -725,19 +746,22 @@ footer { display: none !important; }
     };
 
     /* ── Toolbar actions ── */
-    window.clearConversation = function () {
-        const conv = activeConv();
-        if (!conv || !conv.messages.length) return;
+    window.clearConversation = async function () {
+        if (!activeConvId || !activeMessages.length) return;
         if (!confirm('Clear this conversation?')) return;
-        conv.messages = []; conv.label = 'New Chat';
-        saveConversations(); renderConvList(); renderMessages();
+        try {
+            await api('POST', CONV_URL + '/' + activeConvId + '/clear');
+            activeMessages = [];
+            const conv = conversations.find(c => c.id === activeConvId);
+            if (conv) conv.label = 'New Chat';
+            renderConvList(); renderMessages();
+        } catch (e) { console.error('[Lina] clear', e); }
     };
 
     window.exportChat = function () {
-        const conv = activeConv();
-        if (!conv || !conv.messages.length) return;
-        const lines = conv.messages.map(m =>
-            '[' + formatTime(m.time) + '] ' +
+        if (!activeMessages.length) return;
+        const lines = activeMessages.map(m =>
+            '[' + formatTime(m.created_at) + '] ' +
             (m.role === 'user' ? 'You' : 'Lina' + (m.model ? ' (' + m.model + ')' : '')) +
             ':\n' + m.content + '\n'
         );
@@ -837,9 +861,8 @@ footer { display: none !important; }
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.sendMessage(); }
     });
 
-    /* ── Boot (must be last — window.* assignments above are not hoisted) ── */
+    /* ── Boot ── */
     loadConversations();
-    if (!activeId) window.newConversation();
     autoResize();
 })();
 </script>

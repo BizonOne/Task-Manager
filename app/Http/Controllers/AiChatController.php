@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AiConversation;
+use App\Models\AiMessage;
 use App\Models\File;
 use App\Models\Note;
 use App\Models\Project;
@@ -17,6 +19,55 @@ class AiChatController extends Controller
     public function index()
     {
         return view('ai.index');
+    }
+
+    /* ── Conversation CRUD ── */
+
+    public function conversations()
+    {
+        $convs = AiConversation::where('user_id', Auth::id())
+            ->orderByDesc('updated_at')
+            ->get(['id', 'label', 'updated_at']);
+        return response()->json($convs);
+    }
+
+    public function createConversation(Request $request)
+    {
+        $conv = AiConversation::create([
+            'user_id' => Auth::id(),
+            'label'   => $request->input('label', 'New Chat'),
+        ]);
+        return response()->json($conv);
+    }
+
+    public function getConversation(AiConversation $conversation)
+    {
+        abort_if($conversation->user_id !== Auth::id(), 403);
+        $conversation->load('messages');
+        return response()->json($conversation);
+    }
+
+    public function renameConversation(Request $request, AiConversation $conversation)
+    {
+        abort_if($conversation->user_id !== Auth::id(), 403);
+        $request->validate(['label' => 'required|string|max:120']);
+        $conversation->update(['label' => $request->label]);
+        return response()->json(['ok' => true]);
+    }
+
+    public function deleteConversation(AiConversation $conversation)
+    {
+        abort_if($conversation->user_id !== Auth::id(), 403);
+        $conversation->delete();
+        return response()->json(['ok' => true]);
+    }
+
+    public function clearConversation(AiConversation $conversation)
+    {
+        abort_if($conversation->user_id !== Auth::id(), 403);
+        $conversation->messages()->delete();
+        $conversation->update(['label' => 'New Chat']);
+        return response()->json(['ok' => true]);
     }
 
     // compound-beta has built-in web search (Groq agentic model)
@@ -204,11 +255,203 @@ PROMPT;
     public function stream(Request $request)
     {
         $request->validate([
-            'message' => 'required|string|max:2000',
-            'history' => 'nullable|array|max:40',
+            'message'         => 'required|string|max:2000',
+            'conversation_id' => 'nullable|integer',
+            'history'         => 'nullable|array|max:40',
             'history.*.role'    => 'required|in:user,assistant',
             'history.*.content' => 'required|string|max:4000',
         ]);
+
+        $apiKey = config('services.groq.key');
+        if (!$apiKey) {
+            return response()->stream(function () {
+                echo "data: " . json_encode(['error' => 'AI assistant is not configured.']) . "\n\n";
+                ob_flush(); flush();
+            }, 200, ['Content-Type' => 'text/event-stream', 'Cache-Control' => 'no-cache', 'X-Accel-Buffering' => 'no']);
+        }
+
+        $user = Auth::user();
+
+        // Resolve or create conversation
+        $convId = $request->input('conversation_id');
+        if ($convId) {
+            $conversation = AiConversation::where('id', $convId)->where('user_id', $user->id)->first();
+        }
+        if (empty($conversation)) {
+            $conversation = AiConversation::create(['user_id' => $user->id, 'label' => 'New Chat']);
+        }
+
+        // Save user message
+        AiMessage::create([
+            'conversation_id' => $conversation->id,
+            'role'            => 'user',
+            'content'         => $request->message,
+        ]);
+
+        // Auto-label from first user message
+        if ($conversation->messages()->count() === 1) {
+            $conversation->update(['label' => mb_substr($request->message, 0, 60)]);
+        }
+
+        try {
+            $context = $this->buildContext($user);
+        } catch (\Exception $e) {
+            \Log::error('Groq stream buildContext error', ['user_id' => $user->id, 'error' => $e->getMessage()]);
+            $context = '(Could not load user data)';
+        }
+
+        $today       = now()->format('l, F j, Y');
+        $creatorName = $user->name;
+
+        $systemPrompt = <<<PROMPT
+You are Lina, a smart personal AI assistant built into this Task Manager app by {$creatorName}.
+If asked your name, say your name is Lina. If asked who created or built you, say you were created by {$creatorName}.
+Today is {$today}.
+
+You can help the user with:
+- Their workspace data: tasks, projects, notes, reminders, routines, and files (full data provided below)
+- Coding, programming, software development, and any technical / technology questions
+- General knowledge and current information (search the web when needed for up-to-date facts)
+
+Guidelines:
+- Use markdown formatting — bullet points, code blocks, bold headings where helpful
+- For code, always use fenced code blocks with the language specified
+- For workspace data, only refer to what is in the context below — do not invent data
+- For tech/coding/general questions, use your training knowledge and web search as needed
+- Be concise and practical
+
+--- USER WORKSPACE DATA ---
+{$context}
+--- END WORKSPACE DATA ---
+PROMPT;
+
+        $messages = [['role' => 'system', 'content' => $this->cleanUtf8($systemPrompt)]];
+        foreach ($request->input('history', []) as $turn) {
+            $messages[] = ['role' => $turn['role'], 'content' => $this->cleanUtf8($turn['content'])];
+        }
+        $messages[] = ['role' => 'user', 'content' => $this->cleanUtf8($request->message)];
+
+        // Find a working model
+        $workingModel = null;
+        $groqResponse = null;
+        $client = new \GuzzleHttp\Client(['verify' => false, 'timeout' => 60]);
+
+        foreach ($this->models as $model) {
+            try {
+                $response = $client->post('https://api.groq.com/openai/v1/chat/completions', [
+                    'http_errors' => false,
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $apiKey,
+                        'Content-Type'  => 'application/json',
+                    ],
+                    'json' => [
+                        'model'       => $model,
+                        'messages'    => $messages,
+                        'max_tokens'  => 2048,
+                        'temperature' => 0.7,
+                        'stream'      => true,
+                    ],
+                    'stream' => true,
+                ]);
+
+                $status = $response->getStatusCode();
+
+                if ($status === 429 || $status === 503) {
+                    \Log::info('Groq stream rate limited', ['model' => $model, 'status' => $status]);
+                    continue;
+                }
+
+                if ($status !== 200) {
+                    \Log::warning('Groq stream non-200', ['model' => $model, 'status' => $status]);
+                    break;
+                }
+
+                $workingModel = $model;
+                $groqResponse = $response;
+                break;
+
+            } catch (\Exception $e) {
+                \Log::warning('Groq stream connection error', ['model' => $model, 'error' => $e->getMessage()]);
+                continue;
+            }
+        }
+
+        if (!$workingModel) {
+            return response()->stream(function () {
+                echo "data: " . json_encode(['error' => 'All AI models are currently unavailable. Please try again later.']) . "\n\n";
+                ob_flush(); flush();
+            }, 200, ['Content-Type' => 'text/event-stream', 'Cache-Control' => 'no-cache', 'X-Accel-Buffering' => 'no']);
+        }
+
+        $body           = $groqResponse->getBody();
+        $model          = $workingModel;
+        $userId         = $user->id;
+        $conversationId = $conversation->id;
+
+        return response()->stream(function () use ($body, $model, $userId, $conversationId) {
+            // Send model + conversation_id so the frontend can track the conversation
+            echo "data: " . json_encode(['model' => $model, 'conversation_id' => $conversationId]) . "\n\n";
+            ob_flush(); flush();
+
+            $buffer          = '';
+            $accumulatedText = '';
+
+            try {
+                while (!$body->eof()) {
+                    $chunk  = $body->read(256);
+                    $buffer .= $chunk;
+
+                    while (($pos = strpos($buffer, "\n")) !== false) {
+                        $line   = substr($buffer, 0, $pos);
+                        $buffer = substr($buffer, $pos + 1);
+                        $line   = trim($line);
+
+                        if ($line === '') continue;
+                        if (!str_starts_with($line, 'data: ')) continue;
+
+                        $data = substr($line, 6);
+
+                        if ($data === '[DONE]') {
+                            // Persist the assistant reply
+                            if ($accumulatedText) {
+                                AiMessage::create([
+                                    'conversation_id' => $conversationId,
+                                    'role'            => 'assistant',
+                                    'content'         => $accumulatedText,
+                                    'model'           => $model,
+                                ]);
+                                // Bump conversation updated_at so it sorts first
+                                AiConversation::where('id', $conversationId)->touch();
+                            }
+                            echo "data: [DONE]\n\n";
+                            ob_flush(); flush();
+                            return;
+                        }
+
+                        $decoded = json_decode($data, true);
+                        $token   = $decoded['choices'][0]['delta']['content'] ?? '';
+                        if ($token) $accumulatedText .= $token;
+
+                        echo "data: {$data}\n\n";
+                        ob_flush(); flush();
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('Groq stream read error', ['model' => $model, 'user_id' => $userId, 'error' => $e->getMessage()]);
+                echo "data: " . json_encode(['error' => 'Stream interrupted.']) . "\n\n";
+                ob_flush(); flush();
+            }
+
+            echo "data: [DONE]\n\n";
+            ob_flush(); flush();
+        }, 200, [
+            'Content-Type'      => 'text/event-stream',
+            'Cache-Control'     => 'no-cache',
+            'X-Accel-Buffering' => 'no',
+            'Connection'        => 'keep-alive',
+        ]);
+    }
+}
 
         $apiKey = config('services.groq.key');
         if (!$apiKey) {

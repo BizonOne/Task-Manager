@@ -66,6 +66,13 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/ai', [AiChatController::class, 'index'])->name('ai.index');
     Route::post('/ai/chat', [AiChatController::class, 'chat'])->name('ai.chat');
     Route::post('/ai/stream', [AiChatController::class, 'stream'])->name('ai.stream');
+    // AI Conversations (DB-backed)
+    Route::get('/ai/conversations', [AiChatController::class, 'conversations'])->name('ai.conversations.index');
+    Route::post('/ai/conversations', [AiChatController::class, 'createConversation'])->name('ai.conversations.create');
+    Route::get('/ai/conversations/{conversation}', [AiChatController::class, 'getConversation'])->name('ai.conversations.show');
+    Route::patch('/ai/conversations/{conversation}/rename', [AiChatController::class, 'renameConversation'])->name('ai.conversations.rename');
+    Route::delete('/ai/conversations/{conversation}', [AiChatController::class, 'deleteConversation'])->name('ai.conversations.delete');
+    Route::post('/ai/conversations/{conversation}/clear', [AiChatController::class, 'clearConversation'])->name('ai.conversations.clear');
 
     // Dashboard routes
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
