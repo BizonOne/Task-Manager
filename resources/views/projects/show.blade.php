@@ -57,7 +57,25 @@
         align-items: start;
     }
     @media (max-width: 900px) {
-        .cu-layout { grid-template-columns: 1fr; }
+        /* Layout */
+        .cu-layout   { grid-template-columns: 1fr; }
+        .cu-left-panel { position: static; }
+
+        /* Content header */
+        .content-header { padding: 10px 14px; }
+        .content-title  { font-size: 15px; }
+        .content-subtitle { font-size: 11px; }
+
+        /* Left panel actions — 2-column grid on mobile */
+        .cu-panel-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        /* Progress section — stack ring above tiles */
+        .cu-section-body .d-flex { flex-direction: column; align-items: flex-start !important; gap: 12px; }
+        .cu-ring-wrap { margin: 0 auto; }
+        .cu-stat-tiles { width: 100%; }
     }
 
     /* ─── Left Info Panel ────────────────────────────────────── */
