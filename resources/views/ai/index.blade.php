@@ -5,6 +5,8 @@
 @push('styles')
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>if(typeof marked!=='undefined') marked.setOptions({ breaks: true, gfm: true });</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
 <style>
 /* ── Override layout shell for full-height chat ── */
@@ -181,11 +183,30 @@ footer { display: none !important; }
     font-size: 12.5px; font-family: 'Courier New', monospace;
 }
 .lina-msg.bot pre {
-    background: #1e293b; color: #e2e8f0;
-    border-radius: 10px; padding: 12px 14px;
-    overflow-x: auto; margin: 8px 0; font-size: 12.5px;
+    margin: 0; padding: 0; overflow-x: auto; font-size: 12.5px;
+    background: transparent; border-radius: 0;
 }
-.lina-msg.bot pre code { background: none; padding: 0; color: inherit; }
+.lina-msg.bot pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+.lina-msg.bot pre code.hljs { padding: 14px 16px !important; border-radius: 0 0 10px 10px !important; font-size: 12.5px; line-height: 1.6; }
+
+/* Code block wrapper with header */
+.code-block-wrap { margin: 10px 0; border-radius: 10px; overflow: hidden; border: 1px solid #2d333b; }
+.code-block-header {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #161b22; padding: 7px 12px;
+    border-bottom: 1px solid #2d333b;
+}
+.code-lang {
+    font-size: 11px; color: #8b949e;
+    font-family: 'Courier New', monospace; letter-spacing: .3px;
+}
+.code-copy-btn {
+    background: none; border: 1px solid #30363d; border-radius: 6px;
+    color: #8b949e; font-size: 11px; padding: 3px 9px; cursor: pointer;
+    display: flex; align-items: center; gap: 4px; transition: all .15s;
+    font-family: inherit; line-height: 1.4;
+}
+.code-copy-btn:hover { border-color: #6e7681; color: #e6edf3; background: rgba(255,255,255,.06); }
 .lina-msg.bot strong { color: var(--gray-900); }
 .lina-msg.bot h1,.lina-msg.bot h2,.lina-msg.bot h3 {
     font-size: 15px; font-weight: 700; margin: 8px 0 4px; color: var(--gray-900);
@@ -501,6 +522,7 @@ footer { display: none !important; }
         bubble.className = 'lina-msg ' + (role === 'user' ? 'user' : 'bot');
         if (role !== 'user' && typeof marked !== 'undefined') {
             bubble.innerHTML = marked.parse(content);
+            applyCodeEnhancements(bubble);
         } else {
             bubble.textContent = content;
         }
@@ -665,6 +687,7 @@ footer { display: none !important; }
                 streamBubbleEl.innerHTML = typeof marked !== 'undefined'
                     ? marked.parse(accumulatedText)
                     : accumulatedText.replace(/\n/g, '<br>');
+                applyCodeEnhancements(streamBubbleEl);
                 const actions = document.createElement('div');
                 actions.className = 'lina-msg-actions';
                 const copyBtn = document.createElement('button');
@@ -750,6 +773,44 @@ footer { display: none !important; }
         navigator.clipboard.writeText(text).then(() => {
             btn.innerHTML = '<i class="bi bi-check2"></i> Copied!';
             setTimeout(() => btn.innerHTML = '<i class="bi bi-clipboard"></i> Copy', 1800);
+        });
+    }
+
+    function applyCodeEnhancements(el) {
+        el.querySelectorAll('pre code').forEach(codeEl => {
+            if (typeof hljs !== 'undefined' && !codeEl.dataset.highlighted) {
+                hljs.highlightElement(codeEl);
+            }
+            const pre = codeEl.parentNode;
+            if (pre.dataset.enhanced) return;
+            pre.dataset.enhanced = '1';
+
+            const lang = [...codeEl.classList]
+                .find(c => c.startsWith('language-'))?.replace('language-', '') || 'plaintext';
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'code-block-wrap';
+            pre.parentNode.insertBefore(wrapper, pre);
+            wrapper.appendChild(pre);
+
+            const header = document.createElement('div');
+            header.className = 'code-block-header';
+            const langSpan = document.createElement('span');
+            langSpan.className = 'code-lang';
+            langSpan.textContent = lang;
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'code-copy-btn';
+            copyBtn.type = 'button';
+            copyBtn.innerHTML = '<i class="bi bi-clipboard"></i> Copy code';
+            copyBtn.addEventListener('click', function () {
+                navigator.clipboard.writeText(codeEl.innerText).then(() => {
+                    this.innerHTML = '<i class="bi bi-check2"></i> Copied!';
+                    setTimeout(() => { this.innerHTML = '<i class="bi bi-clipboard"></i> Copy code'; }, 1800);
+                });
+            });
+            header.appendChild(langSpan);
+            header.appendChild(copyBtn);
+            wrapper.insertBefore(header, pre);
         });
     }
 

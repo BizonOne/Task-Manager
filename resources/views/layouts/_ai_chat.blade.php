@@ -6,6 +6,8 @@
 {{-- marked.js for markdown rendering --}}
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>if(typeof marked!=='undefined') marked.setOptions({ breaks: true, gfm: true });</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
 <style>
 /* ── Backdrop ── */
@@ -112,10 +114,27 @@
     font-size: 12px; font-family: 'Courier New', monospace;
 }
 .ai-msg.bot pre {
-    background: #1e293b; color: #e2e8f0; border-radius: 8px;
-    padding: 10px 12px; overflow-x: auto; margin: 6px 0; font-size: 12px;
+    margin: 0; padding: 0; overflow-x: auto; font-size: 12px;
+    background: transparent; border-radius: 0;
 }
-.ai-msg.bot pre code { background: none; padding: 0; color: inherit; }
+.ai-msg.bot pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+.ai-msg.bot pre code.hljs { padding: 12px 14px !important; border-radius: 0 0 8px 8px !important; font-size: 12px; line-height: 1.6; }
+
+/* Code block wrapper */
+.ai-code-wrap { margin: 8px 0; border-radius: 8px; overflow: hidden; border: 1px solid #2d333b; }
+.ai-code-header {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #161b22; padding: 6px 10px;
+    border-bottom: 1px solid #2d333b;
+}
+.ai-code-lang { font-size: 10.5px; color: #8b949e; font-family: 'Courier New', monospace; letter-spacing: .3px; }
+.ai-code-copy {
+    background: none; border: 1px solid #30363d; border-radius: 5px;
+    color: #8b949e; font-size: 10.5px; padding: 2px 8px; cursor: pointer;
+    display: flex; align-items: center; gap: 3px; transition: all .15s;
+    font-family: inherit; line-height: 1.4;
+}
+.ai-code-copy:hover { border-color: #6e7681; color: #e6edf3; background: rgba(255,255,255,.06); }
 .ai-msg.bot strong { color: #0f172a; }
 .ai-msg.bot h1,.ai-msg.bot h2,.ai-msg.bot h3 { font-size: 14px; font-weight: 700; margin: 6px 0 3px; }
 
@@ -434,6 +453,7 @@
                 streamBubbleEl.innerHTML = typeof marked !== 'undefined'
                     ? marked.parse(accumulatedText)
                     : accumulatedText.replace(/\n/g, '<br>');
+                applyCodeEnhancements(streamBubbleEl);
                 const actions = document.createElement('div');
                 actions.className = 'ai-msg-actions';
                 const copyBtn = document.createElement('button');
@@ -494,6 +514,7 @@
         bubble.className = 'ai-msg ' + (role === 'user' ? 'user' : 'bot');
         if (role !== 'user' && typeof marked !== 'undefined') {
             bubble.innerHTML = marked.parse(content);
+            applyCodeEnhancements(bubble);
         } else {
             bubble.textContent = content;
         }
@@ -562,6 +583,44 @@
     };
 
     /* Helpers */
+    function applyCodeEnhancements(el) {
+        el.querySelectorAll('pre code').forEach(codeEl => {
+            if (typeof hljs !== 'undefined' && !codeEl.dataset.highlighted) {
+                hljs.highlightElement(codeEl);
+            }
+            const pre = codeEl.parentNode;
+            if (pre.dataset.enhanced) return;
+            pre.dataset.enhanced = '1';
+
+            const lang = [...codeEl.classList]
+                .find(c => c.startsWith('language-'))?.replace('language-', '') || 'plaintext';
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'ai-code-wrap';
+            pre.parentNode.insertBefore(wrapper, pre);
+            wrapper.appendChild(pre);
+
+            const header = document.createElement('div');
+            header.className = 'ai-code-header';
+            const langSpan = document.createElement('span');
+            langSpan.className = 'ai-code-lang';
+            langSpan.textContent = lang;
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'ai-code-copy';
+            copyBtn.type = 'button';
+            copyBtn.innerHTML = '<i class="bi bi-clipboard"></i> Copy';
+            copyBtn.addEventListener('click', function () {
+                navigator.clipboard.writeText(codeEl.innerText).then(() => {
+                    this.innerHTML = '<i class="bi bi-check2"></i> Copied!';
+                    setTimeout(() => { this.innerHTML = '<i class="bi bi-clipboard"></i> Copy'; }, 1800);
+                });
+            });
+            header.appendChild(langSpan);
+            header.appendChild(copyBtn);
+            wrapper.insertBefore(header, pre);
+        });
+    }
+
     function scrollBottom() { setTimeout(() => messages.scrollTop = messages.scrollHeight, 30); }
     function updateModelPill(model) { if (model) modelPill.textContent = friendlyModel(model); }
     function updateMsgCount() { msgCount.textContent = history.length + ' message' + (history.length !== 1 ? 's' : ''); }
