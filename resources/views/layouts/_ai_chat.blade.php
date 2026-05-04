@@ -115,10 +115,10 @@
 }
 .ai-msg.bot pre {
     margin: 0; padding: 0; overflow-x: auto; font-size: 12px;
-    background: transparent; border-radius: 0;
+    background: #282c34; border-radius: 0;
 }
-.ai-msg.bot pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
-.ai-msg.bot pre code.hljs { padding: 12px 14px !important; border-radius: 0 0 8px 8px !important; font-size: 12px; line-height: 1.6; }
+.ai-msg.bot pre code { padding: 0; font-size: inherit; }
+.ai-msg.bot pre code.hljs { padding: 12px 14px !important; border-radius: 0 0 8px 8px !important; font-size: 12px; line-height: 1.6; display: block; }
 
 /* Code block wrapper */
 .ai-code-wrap { margin: 8px 0; border-radius: 8px; overflow: hidden; border: 1px solid #2d333b; }
@@ -610,10 +610,15 @@
             copyBtn.type = 'button';
             copyBtn.innerHTML = '<i class="bi bi-clipboard"></i> Copy';
             copyBtn.addEventListener('click', function () {
-                navigator.clipboard.writeText(codeEl.innerText).then(() => {
-                    this.innerHTML = '<i class="bi bi-check2"></i> Copied!';
-                    setTimeout(() => { this.innerHTML = '<i class="bi bi-clipboard"></i> Copy'; }, 1800);
-                });
+                const ok  = '<i class="bi bi-check2"></i> Copied!';
+                const def = '<i class="bi bi-clipboard"></i> Copy';
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(codeEl.innerText)
+                        .then(() => { this.innerHTML = ok; setTimeout(() => { this.innerHTML = def; }, 1800); })
+                        .catch(() => fallbackCopy(codeEl.innerText, this, ok, def));
+                } else {
+                    fallbackCopy(codeEl.innerText, this, ok, def);
+                }
             });
             header.appendChild(langSpan);
             header.appendChild(copyBtn);
@@ -644,11 +649,26 @@
         catch { return ''; }
     }
 
+    function fallbackCopy(text, btn, ok, def) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        try { document.execCommand('copy'); btn.innerHTML = ok; setTimeout(() => btn.innerHTML = def, 1800); } catch {}
+        document.body.removeChild(ta);
+    }
+
     function copyText(text, btn) {
-        navigator.clipboard.writeText(text).then(() => {
-            btn.innerHTML = '<i class="bi bi-check2"></i> Copied!';
-            setTimeout(() => btn.innerHTML = '<i class="bi bi-clipboard"></i> Copy', 1800);
-        });
+        const ok  = '<i class="bi bi-check2"></i> Copied!';
+        const def = '<i class="bi bi-clipboard"></i> Copy';
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text)
+                .then(() => { btn.innerHTML = ok; setTimeout(() => btn.innerHTML = def, 1800); })
+                .catch(() => fallbackCopy(text, btn, ok, def));
+        } else {
+            fallbackCopy(text, btn, ok, def);
+        }
     }
 
     function autoResize() {

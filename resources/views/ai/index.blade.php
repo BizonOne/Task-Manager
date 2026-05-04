@@ -184,10 +184,10 @@ footer { display: none !important; }
 }
 .lina-msg.bot pre {
     margin: 0; padding: 0; overflow-x: auto; font-size: 12.5px;
-    background: transparent; border-radius: 0;
+    background: #282c34; border-radius: 0;
 }
-.lina-msg.bot pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
-.lina-msg.bot pre code.hljs { padding: 14px 16px !important; border-radius: 0 0 10px 10px !important; font-size: 12.5px; line-height: 1.6; }
+.lina-msg.bot pre code { padding: 0; font-size: inherit; }
+.lina-msg.bot pre code.hljs { padding: 14px 16px !important; border-radius: 0 0 10px 10px !important; font-size: 12.5px; line-height: 1.6; display: block; }
 
 /* Code block wrapper with header */
 .code-block-wrap { margin: 10px 0; border-radius: 10px; overflow: hidden; border: 1px solid #2d333b; }
@@ -793,11 +793,26 @@ footer { display: none !important; }
         catch { return ''; }
     }
 
+    function fallbackCopy(text, btn, ok, def) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        try { document.execCommand('copy'); btn.innerHTML = ok; setTimeout(() => btn.innerHTML = def, 1800); } catch {}
+        document.body.removeChild(ta);
+    }
+
     function copyText(text, btn) {
-        navigator.clipboard.writeText(text).then(() => {
-            btn.innerHTML = '<i class="bi bi-check2"></i> Copied!';
-            setTimeout(() => btn.innerHTML = '<i class="bi bi-clipboard"></i> Copy', 1800);
-        });
+        const ok  = '<i class="bi bi-check2"></i> Copied!';
+        const def = '<i class="bi bi-clipboard"></i> Copy';
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text)
+                .then(() => { btn.innerHTML = ok; setTimeout(() => btn.innerHTML = def, 1800); })
+                .catch(() => fallbackCopy(text, btn, ok, def));
+        } else {
+            fallbackCopy(text, btn, ok, def);
+        }
     }
 
     function applyCodeEnhancements(el) {
@@ -827,10 +842,15 @@ footer { display: none !important; }
             copyBtn.type = 'button';
             copyBtn.innerHTML = '<i class="bi bi-clipboard"></i> Copy code';
             copyBtn.addEventListener('click', function () {
-                navigator.clipboard.writeText(codeEl.innerText).then(() => {
-                    this.innerHTML = '<i class="bi bi-check2"></i> Copied!';
-                    setTimeout(() => { this.innerHTML = '<i class="bi bi-clipboard"></i> Copy code'; }, 1800);
-                });
+                const ok  = '<i class="bi bi-check2"></i> Copied!';
+                const def = '<i class="bi bi-clipboard"></i> Copy code';
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(codeEl.innerText)
+                        .then(() => { this.innerHTML = ok; setTimeout(() => { this.innerHTML = def; }, 1800); })
+                        .catch(() => fallbackCopy(codeEl.innerText, this, ok, def));
+                } else {
+                    fallbackCopy(codeEl.innerText, this, ok, def);
+                }
             });
             header.appendChild(langSpan);
             header.appendChild(copyBtn);

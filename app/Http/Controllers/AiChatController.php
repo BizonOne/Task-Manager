@@ -363,7 +363,7 @@ PROMPT;
 
                 if ($status !== 200) {
                     \Log::warning('Groq stream non-200', ['model' => $model, 'status' => $status]);
-                    break;
+                    continue;
                 }
 
                 $workingModel = $model;
