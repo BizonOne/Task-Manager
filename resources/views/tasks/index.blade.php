@@ -152,6 +152,32 @@
     .cu-empty h5{font-weight:700;color:#1a1d23;margin-bottom:6px;}
     .cu-empty p {color:#8a8f98;font-size:13px;margin-bottom:16px;}
 
+    /* ─── Responsive ─────────────────────────────────────────── */
+    @media (max-width: 768px) {
+        /* Header */
+        .cu-header { padding: 10px 14px; }
+        .cu-header-title { font-size: 15px; }
+        .cu-header-sub   { font-size: 11px; }
+
+        /* Toolbar */
+        .cu-toolbar { flex-direction: column; align-items: stretch; gap: 8px; }
+        .cu-toolbar-left  { flex-wrap: wrap; }
+        .cu-toolbar-right { justify-content: space-between; }
+        .cu-search-input  { width: 100%; }
+        .cu-filter-select { flex: 1; min-width: 0; }
+        .cu-btn-new       { width: 100%; justify-content: center; padding: 8px; }
+
+        /* List view columns — hide less important cols */
+        .cu-list-head,
+        .cu-list-row { grid-template-columns: 1fr auto 80px; }
+        .cu-list-head > *:nth-child(2),
+        .cu-list-head > *:nth-child(4),
+        .cu-list-head > *:nth-child(5),
+        .cu-list-row  > *:nth-child(2),
+        .cu-list-row  > *:nth-child(4),
+        .cu-list-row  > *:nth-child(5) { display: none; }
+    }
+
     .cu-modal .modal-content{border:none;border-radius:12px;box-shadow:0 20px 40px rgba(0,0,0,.15);border:1px solid #e3e4e8;}
     .cu-modal .modal-header{background:linear-gradient(135deg,var(--primary-600),var(--primary-700));color:white;border:none;border-radius:12px 12px 0 0;padding:14px 20px;}
     .cu-modal .modal-title{font-weight:700;font-size:15px;}
