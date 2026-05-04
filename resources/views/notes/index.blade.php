@@ -142,6 +142,16 @@
     .cu-count-badge {
         font-size: 11px; color: #8a8f98; font-weight: 600; margin-left: auto;
     }
+
+    /* ── Responsive ───────────────────────────────────────── */
+    @media(max-width:768px) {
+        .cu-header { padding: 10px 14px; }
+        .cu-header .d-flex { flex-direction: column; align-items: flex-start !important; gap: 10px; }
+        .cu-header-title { font-size: 15px; }
+        .cu-header-sub   { font-size: 11px; }
+        .cu-btn-new      { width: 100%; justify-content: center; padding: 8px 14px; }
+        .cu-search-wrap  { min-width: 100%; }
+    }
 </style>
 @endpush
 
