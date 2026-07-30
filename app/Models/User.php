@@ -1,15 +1,31 @@
 <?php
+
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
-
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
-    use HasFactory, Notifiable;
+    use HasFactory, HasRoles, Notifiable;
+
+    /**
+     * Roles that are allowed to sign in to the Filament admin panel.
+     */
+    public const STAFF_ROLES = ['super_admin', 'admin'];
+
+    /**
+     * Gate access to the Filament admin panel: only staff roles get in,
+     * everyone else stays in the regular front-end app.
+     */
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return $this->hasAnyRole(self::STAFF_ROLES);
+    }
 
     /**
      * The attributes that are mass assignable.

@@ -1,10 +1,11 @@
 <?php
+
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
-use Carbon\Carbon;
 
 class Project extends Model
 {
@@ -60,9 +61,10 @@ class Project extends Model
         $base = Str::slug($name);
         $slug = $base;
         $i = 2;
-        while (static::where('slug', $slug)->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId))->exists()) {
-            $slug = $base . '-' . $i++;
+        while (static::where('slug', $slug)->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))->exists()) {
+            $slug = $base.'-'.$i++;
         }
+
         return $slug;
     }
 
@@ -91,6 +93,7 @@ class Project extends Model
 
         if ($this->end_date && $this->end_date->lt($today)) {
             $unfinishedTasks = $this->tasks()->where('status', '!=', 'completed')->count();
+
             return $unfinishedTasks > 0 ? 'unfinished' : 'finished';
         }
 
@@ -104,6 +107,8 @@ class Project extends Model
 
     public function users()
     {
-        return $this->belongsToMany(User::class, 'project_teams', 'project_id', 'user_id');
+        return $this->belongsToMany(User::class, 'project_teams', 'project_id', 'user_id')
+            ->withPivot('role')
+            ->withTimestamps();
     }
 }

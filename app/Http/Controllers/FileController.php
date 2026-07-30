@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\File;
@@ -11,6 +12,7 @@ class FileController extends Controller
     public function index()
     {
         $files = Auth::user()->files()->latest()->get();
+
         return view('files.index', compact('files'));
     }
 
@@ -40,16 +42,21 @@ class FileController extends Controller
 
     public function show(File $file)
     {
+        $this->authorizeOwner($file);
+
         return view('files.show', compact('file'));
     }
 
     public function edit(File $file)
     {
+        $this->authorizeOwner($file);
+
         return view('files.edit', compact('file'));
     }
 
     public function update(Request $request, File $file)
     {
+        $this->authorizeOwner($file);
         $request->validate([
             'name' => 'required|string|max:255',
             'file' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,doc,docx,pdf,txt,html,css,js,php,java,c,cpp',
@@ -70,8 +77,18 @@ class FileController extends Controller
 
     public function destroy(File $file)
     {
+        $this->authorizeOwner($file);
         Storage::disk('public')->delete($file->path);
         $file->delete();
+
         return redirect()->route('files.index')->with('success', 'File deleted successfully.');
+    }
+
+    /**
+     * Ensure the authenticated user owns the given file.
+     */
+    private function authorizeOwner(File $file): void
+    {
+        abort_unless($file->user_id === Auth::id(), 403);
     }
 }

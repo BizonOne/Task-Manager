@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 
 /**
  * Creates (or repairs) the demo account documented in the README.
@@ -36,6 +37,12 @@ class DemoUserSeeder extends Seeder
         if (is_null($user->email_verified_at)) {
             $user->email_verified_at = now();
             $user->save();
+        }
+
+        // Make the demo account a super admin so it can reach /admin. Guarded by
+        // role existence so this seeder still works before RoleSeeder has run.
+        if (Role::where('name', 'super_admin')->exists() && ! $user->hasRole('super_admin')) {
+            $user->assignRole('super_admin');
         }
 
         $this->command?->info("Demo user ready: {$email}");
