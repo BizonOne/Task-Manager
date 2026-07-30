@@ -33,10 +33,6 @@ class ProjectForm
                     ])
                     ->default('not_started')
                     ->required(),
-                TextInput::make('budget')
-                    ->numeric()
-                    ->prefix('$')
-                    ->minValue(0),
                 DatePicker::make('start_date'),
                 DatePicker::make('end_date'),
                 Textarea::make('description')

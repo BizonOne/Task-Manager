@@ -448,10 +448,6 @@
                     <span>Due&nbsp;<strong id="previewEnd">—</strong></span>
                 </div>
                 <div class="cu-meta-row">
-                    <i class="bi bi-currency-dollar"></i>
-                    <span>Budget&nbsp;<strong id="previewBudget">—</strong></span>
-                </div>
-                <div class="cu-meta-row">
                     <i class="bi bi-person"></i>
                     <span>Owner&nbsp;<strong>{{ auth()->user()->name }}</strong></span>
                 </div>
@@ -497,11 +493,11 @@
                     </div>
                 </div>
 
-                {{-- Timeline & Budget --}}
+                {{-- Timeline --}}
                 <div class="cu-section">
                     <div class="cu-section-header">
                         <span class="cu-section-icon blue"><i class="bi bi-calendar3"></i></span>
-                        <span class="cu-section-title">Timeline &amp; Budget</span>
+                        <span class="cu-section-title">Timeline</span>
                     </div>
                     <div class="cu-section-body">
                         <div class="cu-field-row cu-field">
@@ -529,21 +525,6 @@
                                 </div>
                                 @error('end_date')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
-                        </div>
-
-                        <div class="cu-field" style="margin-bottom:0; margin-top:12px;">
-                            <label for="budget" class="cu-label">Budget (USD)</label>
-                            <div class="cu-input-wrap">
-                                <i class="bi bi-currency-dollar"></i>
-                                <input type="number"
-                                       name="budget"
-                                       id="budget"
-                                       class="cu-input {{ $errors->has('budget') ? 'is-invalid' : '' }}"
-                                       value="{{ old('budget') }}"
-                                       step="0.01" min="0"
-                                       placeholder="0.00">
-                            </div>
-                            @error('budget')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                     </div>
                 </div>
@@ -603,7 +584,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const startDateInput = document.getElementById('start_date');
     const endDateInput = document.getElementById('end_date');
     const nameInput = document.getElementById('name');
-    const budgetInput = document.getElementById('budget');
 
     // ── Live preview helpers ──────────────────────────────────
     const avatarColors = ['#6366f1','#8b5cf6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899'];
@@ -612,7 +592,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const previewStatus = document.getElementById('previewStatus');
     const previewStart  = document.getElementById('previewStart');
     const previewEnd    = document.getElementById('previewEnd');
-    const previewBudget = document.getElementById('previewBudget');
 
     function fmtDate(val) {
         if (!val) return '—';
@@ -636,11 +615,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     endDateInput.addEventListener('change', function() {
         previewEnd.textContent = fmtDate(this.value);
-    });
-
-    budgetInput.addEventListener('input', function() {
-        const v = parseFloat(this.value);
-        previewBudget.textContent = isNaN(v) ? '—' : '$' + v.toLocaleString('en-US', {maximumFractionDigits:0});
     });
 
     const statusLabels = { not_started:'Not Started', in_progress:'In Progress', completed:'Completed' };

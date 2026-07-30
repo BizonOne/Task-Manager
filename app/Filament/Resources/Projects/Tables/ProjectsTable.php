@@ -37,9 +37,6 @@ class ProjectsTable
                     ->label('Tasks')
                     ->counts('tasks')
                     ->badge(),
-                TextColumn::make('budget')
-                    ->money('USD')
-                    ->sortable(),
                 TextColumn::make('end_date')
                     ->label('Due')
                     ->date()
