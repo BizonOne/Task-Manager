@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AiChatController;
+use App\Http\Controllers\Auth\InvitationController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\ChecklistItemController;
 use App\Http\Controllers\DashboardController;
@@ -20,6 +21,10 @@ use Illuminate\Support\Facades\Route;
 Route::get('login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('login', [LoginController::class, 'login']);
 Route::post('logout', [LoginController::class, 'logout'])->name('logout');
+
+// Invitation acceptance — an invited user sets their own password here.
+Route::get('invitation/{token}', [InvitationController::class, 'show'])->name('invitation.show');
+Route::post('invitation/{token}', [InvitationController::class, 'accept'])->name('invitation.accept');
 
 Route::middleware(['auth'])->group(function () {
     // Profile routes

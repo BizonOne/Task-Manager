@@ -258,37 +258,6 @@
                                 @error('email')<p class="cu-err">{{ $message }}</p>@enderror
                             </div>
                         </div>
-                        <div class="cu-field-row">
-                            <div class="cu-field">
-                                <label for="phone" class="cu-label">Phone</label>
-                                <input type="tel" id="phone" name="phone"
-                                       class="cu-input @error('phone') is-invalid @enderror"
-                                       value="{{ old('phone', $user->phone) }}" placeholder="+1 555 000 0000">
-                                @error('phone')<p class="cu-err">{{ $message }}</p>@enderror
-                            </div>
-                            <div class="cu-field">
-                                <label for="location" class="cu-label">Location</label>
-                                <input type="text" id="location" name="location"
-                                       class="cu-input @error('location') is-invalid @enderror"
-                                       value="{{ old('location', $user->location) }}" placeholder="City, Country">
-                                @error('location')<p class="cu-err">{{ $message }}</p>@enderror
-                            </div>
-                        </div>
-                        <div class="cu-field">
-                            <label for="website" class="cu-label">Website</label>
-                            <input type="url" id="website" name="website"
-                                   class="cu-input @error('website') is-invalid @enderror"
-                                   value="{{ old('website', $user->website) }}" placeholder="https://example.com">
-                            @error('website')<p class="cu-err">{{ $message }}</p>@enderror
-                        </div>
-                        <div class="cu-field">
-                            <label for="bio" class="cu-label">Bio</label>
-                            <textarea id="bio" name="bio" rows="4"
-                                      class="cu-textarea @error('bio') is-invalid @enderror"
-                                      placeholder="Tell us about yourself…" maxlength="500">{{ old('bio', $user->bio) }}</textarea>
-                            <p class="cu-hint">Max 500 characters</p>
-                            @error('bio')<p class="cu-err">{{ $message }}</p>@enderror
-                        </div>
                     </div>
                 </div>
 

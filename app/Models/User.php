@@ -48,10 +48,6 @@ class User extends Authenticatable implements FilamentUser
         'email',
         'password',
         'avatar',
-        'bio',
-        'phone',
-        'location',
-        'website',
     ];
 
     /**
@@ -62,6 +58,7 @@ class User extends Authenticatable implements FilamentUser
     protected $hidden = [
         'password',
         'remember_token',
+        'invitation_token',
     ];
 
     /**
@@ -71,7 +68,39 @@ class User extends Authenticatable implements FilamentUser
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'invited_at' => 'datetime',
+        'invitation_accepted_at' => 'datetime',
+        'last_active_at' => 'datetime',
     ];
+
+    /**
+     * Whether this user was invited and has not accepted yet — they still have
+     * no password and cannot sign in.
+     */
+    public function isPendingInvitation(): bool
+    {
+        return $this->invitation_token !== null && $this->invitation_accepted_at === null;
+    }
+
+    /**
+     * Lifecycle status shown in the admin panel.
+     */
+    public function getAccountStatusAttribute(): string
+    {
+        if ($this->isPendingInvitation()) {
+            return 'invited';
+        }
+
+        return $this->password === null ? 'no_password' : 'active';
+    }
+
+    /**
+     * Who invited this user, if they came in through an invitation.
+     */
+    public function invitedBy()
+    {
+        return $this->belongsTo(self::class, 'invited_by_id');
+    }
 
     /**
      * Get the projects for the user.
