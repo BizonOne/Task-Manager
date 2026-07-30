@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Task;
+use App\Models\TaskStatus;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
@@ -42,13 +43,8 @@ class LatestTasks extends TableWidget
                     ->formatStateUsing(fn (string $state): string => str($state)->headline()),
                 TextColumn::make('status')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'in_progress' => 'warning',
-                        'in_review' => 'info',
-                        'completed' => 'success',
-                        default => 'gray',
-                    })
-                    ->formatStateUsing(fn (string $state): string => str($state)->headline()),
+                    ->color(fn (string $state): string => TaskStatus::filamentColorFor($state))
+                    ->formatStateUsing(fn (string $state): string => TaskStatus::labelFor($state)),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable(),

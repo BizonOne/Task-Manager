@@ -50,8 +50,9 @@
     }
     .cu-btn-new:hover{background:#6d28d9;}
 
-    .cu-kanban{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-items:start;}
-    @media(max-width:1100px){.cu-kanban{grid-template-columns:repeat(3,1fr);}}
+    /* One column per managed status. */
+    .cu-kanban{display:grid;grid-template-columns:repeat({{ max(\App\Models\TaskStatus::ordered()->count(), 1) }},minmax(0,1fr));gap:12px;align-items:start;}
+    @media(max-width:1100px){.cu-kanban{grid-template-columns:repeat(3,minmax(0,1fr));}}
     @media(max-width:860px){.cu-kanban{grid-template-columns:1fr;}}
     .cu-col{background:#f3f4f6;border-radius:10px;overflow:hidden;}
     .cu-col-head{
@@ -135,11 +136,10 @@
         display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;
         font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;
     }
-    .cu-status-chip.to_do      {background:#f1f5f9;color:#64748b;}
-    .cu-status-chip.in_progress{background:#ede9fe;color:#7c3aed;}
-    .cu-status-chip.on_hold    {background:#fef3c7;color:#b45309;}
-    .cu-status-chip.in_review  {background:#dbeafe;color:#1d4ed8;}
-    .cu-status-chip.completed  {background:#dcfce7;color:#16a34a;}
+    @foreach(\App\Models\TaskStatus::ordered() as $s)
+    @php $p = \App\Models\TaskStatus::palette()[$s->color] ?? \App\Models\TaskStatus::palette()['gray']; @endphp
+    .cu-status-chip.{{ $s->key }} {background:{{ $p['bg'] }};color:{{ $p['text'] }};}
+    @endforeach
 
     .cu-empty{
         text-align:center;padding:60px 20px;background:white;
@@ -216,13 +216,11 @@
     </div>
 
     @php
-        $todoCnt     = count($tasks['to_do'] ?? []);
-        $progressCnt = count($tasks['in_progress'] ?? []);
-        $onHoldCnt   = count($tasks['on_hold'] ?? []);
-        $inReviewCnt = count($tasks['in_review'] ?? []);
-        $completedCnt= count($tasks['completed'] ?? []);
-        $totalCnt    = $todoCnt + $progressCnt + $onHoldCnt + $inReviewCnt + $completedCnt;
-        $hasAny      = $totalCnt > 0;
+        // Board columns come from the admin-managed status list, so a new
+        // status shows up here (and in the total) without touching this view.
+        $statuses = $statuses ?? \App\Models\TaskStatus::ordered();
+        $totalCnt = collect($tasks)->flatten()->count();
+        $hasAny   = $totalCnt > 0;
     @endphp
 
     <div class="cu-toolbar">
@@ -267,105 +265,28 @@
     {{-- KANBAN --}}
     <div class="cu-kanban" id="cuKanban">
 
-        <div class="cu-col">
-            <div class="cu-col-head">
-                <div class="cu-col-head-left">
-                    <span class="cu-col-dot" style="background:#94a3b8;"></span>
-                    To Do
-                    <span class="cu-col-count" id="cnt-to_do">{{ $todoCnt }}</span>
+        @foreach($statuses as $status)
+            @php $palette = \App\Models\TaskStatus::palette()[$status->color] ?? \App\Models\TaskStatus::palette()['gray']; @endphp
+            <div class="cu-col">
+                <div class="cu-col-head">
+                    <div class="cu-col-head-left">
+                        <span class="cu-col-dot" style="background:{{ $palette['dot'] }};"></span>
+                        {{ $status->label }}
+                        <span class="cu-col-count" id="cnt-{{ $status->key }}">{{ count($tasks[$status->key] ?? []) }}</span>
+                    </div>
+                    <button class="cu-col-add" data-bs-toggle="modal" data-bs-target="#createTaskModal" data-status="{{ $status->key }}">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
                 </div>
-                <button class="cu-col-add" data-bs-toggle="modal" data-bs-target="#createTaskModal" data-status="to_do">
-                    <i class="bi bi-plus-lg"></i>
-                </button>
-            </div>
-            <div class="cu-col-body" id="col-to_do" data-status="to_do">
-                @forelse($tasks['to_do'] ?? [] as $task)
-                    @include('tasks._card', ['task' => $task])
-                @empty
-                    <div class="cu-col-empty"><i class="bi bi-circle" style="font-size:22px;display:block;margin-bottom:6px;"></i>No tasks here</div>
-                @endforelse
-            </div>
-        </div>
-
-        <div class="cu-col">
-            <div class="cu-col-head">
-                <div class="cu-col-head-left">
-                    <span class="cu-col-dot" style="background:#7c3aed;"></span>
-                    In Progress
-                    <span class="cu-col-count" id="cnt-in_progress">{{ $progressCnt }}</span>
+                <div class="cu-col-body" id="col-{{ $status->key }}" data-status="{{ $status->key }}">
+                    @forelse($tasks[$status->key] ?? [] as $task)
+                        @include('tasks._card', ['task' => $task])
+                    @empty
+                        <div class="cu-col-empty"><i class="bi bi-circle" style="font-size:22px;display:block;margin-bottom:6px;"></i>No tasks here</div>
+                    @endforelse
                 </div>
-                <button class="cu-col-add" data-bs-toggle="modal" data-bs-target="#createTaskModal" data-status="in_progress">
-                    <i class="bi bi-plus-lg"></i>
-                </button>
             </div>
-            <div class="cu-col-body" id="col-in_progress" data-status="in_progress">
-                @forelse($tasks['in_progress'] ?? [] as $task)
-                    @include('tasks._card', ['task' => $task])
-                @empty
-                    <div class="cu-col-empty"><i class="bi bi-arrow-clockwise" style="font-size:22px;display:block;margin-bottom:6px;"></i>Nothing active</div>
-                @endforelse
-            </div>
-        </div>
-
-        <div class="cu-col">
-            <div class="cu-col-head">
-                <div class="cu-col-head-left">
-                    <span class="cu-col-dot" style="background:#b45309;"></span>
-                    On Hold
-                    <span class="cu-col-count" id="cnt-on_hold">{{ $onHoldCnt }}</span>
-                </div>
-                <button class="cu-col-add" data-bs-toggle="modal" data-bs-target="#createTaskModal" data-status="on_hold">
-                    <i class="bi bi-plus-lg"></i>
-                </button>
-            </div>
-            <div class="cu-col-body" id="col-on_hold" data-status="on_hold">
-                @forelse($tasks['on_hold'] ?? [] as $task)
-                    @include('tasks._card', ['task' => $task])
-                @empty
-                    <div class="cu-col-empty"><i class="bi bi-pause-circle" style="font-size:22px;display:block;margin-bottom:6px;"></i>None on hold</div>
-                @endforelse
-            </div>
-        </div>
-
-        <div class="cu-col">
-            <div class="cu-col-head">
-                <div class="cu-col-head-left">
-                    <span class="cu-col-dot" style="background:#1d4ed8;"></span>
-                    In Review
-                    <span class="cu-col-count" id="cnt-in_review">{{ $inReviewCnt }}</span>
-                </div>
-                <button class="cu-col-add" data-bs-toggle="modal" data-bs-target="#createTaskModal" data-status="in_review">
-                    <i class="bi bi-plus-lg"></i>
-                </button>
-            </div>
-            <div class="cu-col-body" id="col-in_review" data-status="in_review">
-                @forelse($tasks['in_review'] ?? [] as $task)
-                    @include('tasks._card', ['task' => $task])
-                @empty
-                    <div class="cu-col-empty"><i class="bi bi-eye" style="font-size:22px;display:block;margin-bottom:6px;"></i>Nothing to review</div>
-                @endforelse
-            </div>
-        </div>
-
-        <div class="cu-col">
-            <div class="cu-col-head">
-                <div class="cu-col-head-left">
-                    <span class="cu-col-dot" style="background:#16a34a;"></span>
-                    Completed
-                    <span class="cu-col-count" id="cnt-completed">{{ $completedCnt }}</span>
-                </div>
-                <button class="cu-col-add" data-bs-toggle="modal" data-bs-target="#createTaskModal" data-status="completed">
-                    <i class="bi bi-plus-lg"></i>
-                </button>
-            </div>
-            <div class="cu-col-body" id="col-completed" data-status="completed">
-                @forelse($tasks['completed'] ?? [] as $task)
-                    @include('tasks._card', ['task' => $task])
-                @empty
-                    <div class="cu-col-empty"><i class="bi bi-check-circle" style="font-size:22px;display:block;margin-bottom:6px;"></i>Nothing done yet</div>
-                @endforelse
-            </div>
-        </div>
+        @endforeach
 
     </div>
 
@@ -382,7 +303,7 @@
                 <div class="cu-list-sub">
                     <span class="cu-status-chip {{ $task->status }}">
                         <i class="bi bi-circle-fill" style="font-size:5px;"></i>
-                        {{ ucwords(str_replace('_',' ',$task->status)) }}
+                        {{ \App\Models\TaskStatus::labelFor($task->status) }}
                     </span>
                 </div>
             </div>
@@ -496,7 +417,7 @@
                             </div>
                         </div>
                     </div>
-                    <input type="hidden" name="status" id="task_status" value="to_do">
+                    <input type="hidden" name="status" id="task_status" value="{{ \App\Models\TaskStatus::defaultKey() }}">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -513,6 +434,10 @@
 @push('scripts')
 <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 <script>
+/* Board columns are admin-managed, so the keys come from the server. */
+const STATUS_KEYS    = @json(\App\Models\TaskStatus::keys());
+const DEFAULT_STATUS = @json(\App\Models\TaskStatus::defaultKey());
+
 document.addEventListener('DOMContentLoaded', function () {
     const kanban = document.getElementById('cuKanban');
     const list   = document.getElementById('cuList');
@@ -556,7 +481,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let taskQuill = null;
     const modal = document.getElementById('createTaskModal');
     modal?.addEventListener('show.bs.modal', e => {
-        const status = e.relatedTarget?.dataset.status || 'to_do';
+        const status = e.relatedTarget?.dataset.status || DEFAULT_STATUS;
         const si = document.getElementById('task_status');
         if (si) si.value = status;
         if (!taskQuill) {
@@ -603,7 +528,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     function updateCounts() {
-        ['to_do','in_progress','on_hold','in_review','completed'].forEach(s => {
+        STATUS_KEYS.forEach(s => {
             const col = document.getElementById(`col-${s}`);
             const cnt = document.getElementById(`cnt-${s}`);
             if (col && cnt) {

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\TaskStatus;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -50,8 +51,10 @@ class TaskController extends Controller
             ->whereNotIn('status', ['completed', 'closed'])
             ->get();
         $users = User::all();
+        // Board columns come from the admin-managed status list.
+        $statuses = TaskStatus::ordered();
 
-        return view('tasks.index', compact('tasks', 'projects', 'users', 'project'));
+        return view('tasks.index', compact('tasks', 'projects', 'users', 'project', 'statuses'));
     }
 
     public function create()
@@ -71,7 +74,7 @@ class TaskController extends Controller
             'description' => 'nullable|string',
             'due_date' => 'nullable|date',
             'priority' => 'required|in:low,medium,high',
-            'status' => 'required|in:to_do,in_progress,on_hold,in_review,completed',
+            'status' => ['required', TaskStatus::validationRule()],
             'estimated_hours' => 'nullable|numeric|min:0.5',
         ]);
 
@@ -103,8 +106,9 @@ class TaskController extends Controller
         // Everyone who can be mentioned or assigned.
         $mentionables = $task->participants();
         $assignableUsers = User::orderBy('name')->get(['id', 'name']);
+        $statuses = TaskStatus::ordered();
 
-        return view('tasks.show', compact('task', 'canManageAssignees', 'mentionables', 'assignableUsers'));
+        return view('tasks.show', compact('task', 'canManageAssignees', 'mentionables', 'assignableUsers', 'statuses'));
     }
 
     public function edit(Task $task)
@@ -124,7 +128,7 @@ class TaskController extends Controller
             'description' => 'nullable|string',
             'due_date' => 'nullable|date',
             'priority' => 'required|in:low,medium,high',
-            'status' => 'required|in:to_do,in_progress,on_hold,in_review,completed',
+            'status' => ['required', TaskStatus::validationRule()],
             'estimated_hours' => 'nullable|numeric|min:0.5',
         ]);
 
@@ -146,7 +150,7 @@ class TaskController extends Controller
         // Collaborators (assignees, project team) can move the task too.
         abort_unless($task->isAccessibleBy(Auth::user()), 403);
         $request->validate([
-            'status' => 'required|in:to_do,in_progress,on_hold,in_review,completed',
+            'status' => ['required', TaskStatus::validationRule()],
         ]);
 
         $task->status = $request->input('status');

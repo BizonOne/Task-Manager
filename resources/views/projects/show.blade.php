@@ -432,9 +432,9 @@
         $projectColor = $colors[strlen($project->name) % count($colors)];
 
         $totalTasks     = $project->tasks->count();
-        $completedTasks = $project->tasks->where('status', 'completed')->count();
+        $completedTasks = $project->tasks->whereIn('status', \App\Models\TaskStatus::completedKeys())->count();
         $inProgressTasks= $project->tasks->where('status', 'in_progress')->count();
-        $todoTasks      = $project->tasks->whereNotIn('status', ['completed','in_progress'])->count();
+        $todoTasks      = $project->tasks->count() - $completedTasks - $inProgressTasks;
         $progress       = $totalTasks > 0 ? ($completedTasks / $totalTasks) * 100 : 0;
         $ringOffset     = 238.76 - (238.76 * $progress / 100);
 

@@ -89,11 +89,7 @@
         padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600;
         margin: 0 auto 10px;
     }
-    .cu-status-badge.to-do       { background:#f3f4f6; color:#374151; }
-    .cu-status-badge.in-progress { background:#ede9fe; color:#5b21b6; }
-    .cu-status-badge.on-hold     { background:#fef3c7; color:#b45309; }
-    .cu-status-badge.in-review   { background:#dbeafe; color:#1d4ed8; }
-    .cu-status-badge.completed   { background:#dcfce7; color:#15803d; }
+    /* Colours are applied inline from the status' palette. */
 
     .cu-priority-badge {
         display: inline-flex; align-items: center; gap: 5px;
@@ -189,17 +185,12 @@
     .cu-chip-label:hover { border-color: #7c3aed; color: #7c3aed; background: #faf5ff; }
     .cu-chip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
-    /* Status chips */
-    .chip-to-do       .cu-chip-dot { background: #9ca3af; }
-    .chip-in-progress .cu-chip-dot { background: #7c3aed; }
-    .chip-on-hold     .cu-chip-dot { background: #b45309; }
-    .chip-in-review   .cu-chip-dot { background: #1d4ed8; }
-    .chip-completed   .cu-chip-dot { background: #16a34a; }
-    .chip-to-do       input:checked + .cu-chip-label { color:#374151; border-color:#9ca3af; background:#f3f4f6; }
-    .chip-in-progress input:checked + .cu-chip-label { color:#5b21b6; border-color:#7c3aed; background:#ede9fe; }
-    .chip-on-hold     input:checked + .cu-chip-label { color:#b45309; border-color:#b45309; background:#fef3c7; }
-    .chip-in-review   input:checked + .cu-chip-label { color:#1d4ed8; border-color:#1d4ed8; background:#dbeafe; }
-    .chip-completed   input:checked + .cu-chip-label { color:#15803d; border-color:#16a34a; background:#dcfce7; }
+    /* Status chips — colours come from each status' palette via CSS vars,
+       so admin-defined statuses style themselves. */
+    .cu-chip-option[style] .cu-chip-dot { background: var(--chip-dot); }
+    .cu-chip-option[style] input:checked + .cu-chip-label {
+        color: var(--chip-text); border-color: var(--chip-dot); background: var(--chip-bg);
+    }
 
     /* Priority chips */
     .chip-low    .cu-chip-dot { background: #16a34a; }
@@ -274,13 +265,7 @@
 
     {{-- ── Two-Panel Layout ──────────────────────────────────── --}}
     @php
-        $statusMap = [
-            'to_do'       => ['label'=>'To Do',       'class'=>'to-do'],
-            'in_progress' => ['label'=>'In Progress', 'class'=>'in-progress'],
-            'on_hold'     => ['label'=>'On Hold',     'class'=>'on-hold'],
-            'in_review'   => ['label'=>'In Review',   'class'=>'in-review'],
-            'completed'   => ['label'=>'Completed',   'class'=>'completed'],
-        ];
+        $statuses = \App\Models\TaskStatus::ordered();
         $priorityMap = [
             'low'    => ['label'=>'Low',    'class'=>'low'],
             'medium' => ['label'=>'Medium', 'class'=>'medium'],
@@ -288,7 +273,8 @@
         ];
         $priorityColors  = ['high'=>'#dc2626','medium'=>'#f59e0b','low'=>'#16a34a'];
         $avatarColor     = $priorityColors[$task->priority] ?? '#7c3aed';
-        $statusInfo      = $statusMap[$task->status]     ?? $statusMap['to_do'];
+        $statusPalette   = \App\Models\TaskStatus::paletteFor($task->status);
+        $statusInfo      = ['label' => \App\Models\TaskStatus::labelFor($task->status), 'class' => $task->status];
         $priorityInfo    = $priorityMap[$task->priority] ?? $priorityMap['medium'];
     @endphp
 
@@ -306,7 +292,7 @@
                 <div class="cu-task-name">{{ $task->title }}</div>
 
                 <div class="text-center mb-1">
-                    <span class="cu-status-badge {{ $statusInfo['class'] }}">
+                    <span class="cu-status-badge" style="background:{{ $statusPalette['bg'] }};color:{{ $statusPalette['text'] }};">
                         <i class="bi bi-circle-fill" style="font-size:7px;"></i>
                         {{ $statusInfo['label'] }}
                     </span>
@@ -466,41 +452,16 @@
                     </div>
                     <div class="cu-section-body">
                         <div class="cu-status-chips">
-                            <div class="cu-chip-option chip-to-do">
-                                <input type="radio" name="status" id="status_to_do" value="to_do"
-                                    {{ old('status', $task->status) == 'to_do' ? 'checked' : '' }}>
-                                <label for="status_to_do" class="cu-chip-label">
-                                    <span class="cu-chip-dot"></span> To Do
-                                </label>
-                            </div>
-                            <div class="cu-chip-option chip-in-progress">
-                                <input type="radio" name="status" id="status_in_progress" value="in_progress"
-                                    {{ old('status', $task->status) == 'in_progress' ? 'checked' : '' }}>
-                                <label for="status_in_progress" class="cu-chip-label">
-                                    <span class="cu-chip-dot"></span> In Progress
-                                </label>
-                            </div>
-                            <div class="cu-chip-option chip-on-hold">
-                                <input type="radio" name="status" id="status_on_hold" value="on_hold"
-                                    {{ old('status', $task->status) == 'on_hold' ? 'checked' : '' }}>
-                                <label for="status_on_hold" class="cu-chip-label">
-                                    <span class="cu-chip-dot"></span> On Hold
-                                </label>
-                            </div>
-                            <div class="cu-chip-option chip-in-review">
-                                <input type="radio" name="status" id="status_in_review" value="in_review"
-                                    {{ old('status', $task->status) == 'in_review' ? 'checked' : '' }}>
-                                <label for="status_in_review" class="cu-chip-label">
-                                    <span class="cu-chip-dot"></span> In Review
-                                </label>
-                            </div>
-                            <div class="cu-chip-option chip-completed">
-                                <input type="radio" name="status" id="status_completed" value="completed"
-                                    {{ old('status', $task->status) == 'completed' ? 'checked' : '' }}>
-                                <label for="status_completed" class="cu-chip-label">
-                                    <span class="cu-chip-dot"></span> Completed
-                                </label>
-                            </div>
+                            @foreach($statuses as $status)
+                                @php $pal = \App\Models\TaskStatus::palette()[$status->color] ?? \App\Models\TaskStatus::palette()['gray']; @endphp
+                                <div class="cu-chip-option" style="--chip-bg:{{ $pal['bg'] }};--chip-text:{{ $pal['text'] }};--chip-dot:{{ $pal['dot'] }};">
+                                    <input type="radio" name="status" id="status_{{ $status->key }}" value="{{ $status->key }}"
+                                        {{ old('status', $task->status) == $status->key ? 'checked' : '' }}>
+                                    <label for="status_{{ $status->key }}" class="cu-chip-label">
+                                        <span class="cu-chip-dot"></span> {{ $status->label }}
+                                    </label>
+                                </div>
+                            @endforeach
                         </div>
                         @error('status')<div class="invalid-feedback mt-2">{{ $message }}</div>@enderror
                     </div>

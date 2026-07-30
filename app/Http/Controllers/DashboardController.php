@@ -2,16 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Task;
+use App\Models\TaskStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\User;
-use App\Models\Project;
-use App\Models\Task;
-use App\Models\Note;
-use App\Models\Reminder;
-use App\Models\Routine;
-use App\Models\File;
-use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
@@ -58,12 +52,12 @@ class DashboardController extends Controller
 
         // Additional statistics for analytics
         $completedTasksThisWeek = $user->tasks()
-            ->where('status', 'completed')
+            ->completed()
             ->whereDate('updated_at', '>=', now()->startOfWeek())
             ->count();
 
         $totalTasks = max($user->tasks()->count(), 1);
-        $completedTasks = $user->tasks()->where('status', 'completed')->count();
+        $completedTasks = $user->tasks()->completed()->count();
         $completionRate = round(($completedTasks / $totalTasks) * 100);
 
         $activeProjects = $user->projects()
@@ -72,25 +66,32 @@ class DashboardController extends Controller
 
         $overdueTasks = $user->tasks()
             ->where('due_date', '<', now())
-            ->where('status', '!=', 'completed')
+            ->notCompleted()
             ->count();
 
-        // Task status distribution
-        $taskStatusDistribution = [
-            'to_do' => $user->tasks()->where('status', 'to_do')->count(),
-            'in_progress' => $user->tasks()->where('status', 'in_progress')->count(),
-            'completed' => $user->tasks()->where('status', 'completed')->count(),
-        ];
+        // Task status distribution — one entry per admin-managed status, so a
+        // new status shows up in the chart instead of silently vanishing.
+        $countsByStatus = $user->tasks()
+            ->selectRaw('status, COUNT(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+
+        $taskStatusDistribution = TaskStatus::ordered()->map(fn (TaskStatus $status): array => [
+            'key' => $status->key,
+            'label' => $status->label,
+            'count' => (int) ($countsByStatus[$status->key] ?? 0),
+            'color' => TaskStatus::palette()[$status->color]['dot'] ?? '#9ca3af',
+        ])->values();
 
         // Priority distribution (only non-completed tasks)
         $priorityDistribution = [
-            'high' => $user->tasks()->where('priority', 'high')->where('status', '!=', 'completed')->count(),
-            'medium' => $user->tasks()->where('priority', 'medium')->where('status', '!=', 'completed')->count(),
-            'low' => $user->tasks()->where('priority', 'low')->where('status', '!=', 'completed')->count(),
+            'high' => $user->tasks()->where('priority', 'high')->notCompleted()->count(),
+            'medium' => $user->tasks()->where('priority', 'medium')->notCompleted()->count(),
+            'low' => $user->tasks()->where('priority', 'low')->notCompleted()->count(),
         ];
 
         // Calculate priority percentages for progress bars
-        $totalNonCompletedTasks = max($user->tasks()->where('status', '!=', 'completed')->count(), 1);
+        $totalNonCompletedTasks = max($user->tasks()->notCompleted()->count(), 1);
         $priorityPercentages = [
             'high' => round(($priorityDistribution['high'] / $totalNonCompletedTasks) * 100),
             'medium' => round(($priorityDistribution['medium'] / $totalNonCompletedTasks) * 100),
@@ -136,7 +137,7 @@ class DashboardController extends Controller
                     $date = $startDate->copy()->addDays($i);
                     $labels[] = $date->format('M j');
                     $data[] = $user->tasks()
-                        ->where('status', 'completed')
+                        ->completed()
                         ->whereDate('updated_at', $date)
                         ->count();
                 }
@@ -149,7 +150,7 @@ class DashboardController extends Controller
                     $date = $startDate->copy()->addDays($i);
                     $labels[] = $date->format('j');
                     $data[] = $user->tasks()
-                        ->where('status', 'completed')
+                        ->completed()
                         ->whereDate('updated_at', $date)
                         ->count();
                 }
@@ -160,7 +161,7 @@ class DashboardController extends Controller
                     $date = now()->startOfYear()->addMonths($i);
                     $labels[] = $date->format('M');
                     $data[] = $user->tasks()
-                        ->where('status', 'completed')
+                        ->completed()
                         ->whereYear('updated_at', now()->year)
                         ->whereMonth('updated_at', $date->month)
                         ->count();
@@ -170,7 +171,7 @@ class DashboardController extends Controller
 
         return response()->json([
             'labels' => $labels,
-            'data' => $data
+            'data' => $data,
         ]);
     }
 }

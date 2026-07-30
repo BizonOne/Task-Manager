@@ -40,6 +40,7 @@ class AdminResourcesSmokeTest extends TestCase
             'users' => ['/admin/users'],
             'projects' => ['/admin/projects'],
             'tasks' => ['/admin/tasks'],
+            'task-statuses' => ['/admin/task-statuses'],
             'notes' => ['/admin/notes'],
             'reminders' => ['/admin/reminders'],
             'routines' => ['/admin/routines'],
