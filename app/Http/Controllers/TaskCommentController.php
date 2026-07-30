@@ -46,8 +46,10 @@ class TaskCommentController extends Controller
         $user = Auth::user();
         $task = $comment->task;
 
-        // The comment author, the task owner or the project owner may delete it.
-        $canDelete = $comment->user_id === $user->id
+        // The comment author, the task owner, the project owner or a super
+        // admin may delete it.
+        $canDelete = $user->isSuperAdmin()
+            || $comment->user_id === $user->id
             || $task->user_id === $user->id
             || $task->project?->user_id === $user->id;
 

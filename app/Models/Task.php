@@ -90,7 +90,8 @@ class Task extends Model
      */
     public function isAccessibleBy(User $user): bool
     {
-        return $this->participants()->contains('id', $user->id);
+        return $user->isSuperAdmin()
+            || $this->participants()->contains('id', $user->id);
     }
 
     /**
@@ -99,7 +100,8 @@ class Task extends Model
      */
     public function isManageableBy(User $user): bool
     {
-        return $this->user_id === $user->id
+        return $user->isSuperAdmin()
+            || $this->user_id === $user->id
             || ($this->project && $this->project->isManagedBy($user));
     }
 }

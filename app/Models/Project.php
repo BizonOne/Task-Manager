@@ -123,7 +123,8 @@ class Project extends Model
      */
     public function isAccessibleBy(User $user): bool
     {
-        return $this->user_id === $user->id
+        return $user->isSuperAdmin()
+            || $this->user_id === $user->id
             || $this->users()->where('users.id', $user->id)->exists();
     }
 
@@ -133,7 +134,7 @@ class Project extends Model
      */
     public function isManagedBy(User $user): bool
     {
-        if ($this->user_id === $user->id) {
+        if ($user->isSuperAdmin() || $this->user_id === $user->id) {
             return true;
         }
 

@@ -279,11 +279,27 @@
 .ts-comment-input:focus { border-color:#7c3aed; }
 .ts-comment-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; flex-wrap:wrap; }
 .ts-mention-hint { font-size:11px; color:#9ca3af; display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
-.ts-mention-tag {
-    border:1px solid #e5e7eb; background:#fff; color:#7c3aed; border-radius:999px;
-    padding:2px 8px; font-size:11px; cursor:pointer; font-weight:600;
+/* @mention autocomplete */
+.ts-mention-box { position:relative; }
+.ts-mention-menu {
+    position:absolute; left:0; right:0; bottom:calc(100% + 4px);
+    background:#fff; border:1px solid #e5e7eb; border-radius:10px;
+    box-shadow:0 10px 30px rgba(0,0,0,.14); max-height:220px; overflow-y:auto;
+    z-index:50; padding:5px; display:none;
 }
-.ts-mention-tag:hover { background:#f5f3ff; border-color:#ddd6fe; }
+.ts-mention-menu.open { display:block; }
+.ts-mention-item {
+    display:flex; align-items:center; gap:9px; padding:7px 9px;
+    border-radius:8px; cursor:pointer;
+}
+.ts-mention-item.active, .ts-mention-item:hover { background:#f5f3ff; }
+.ts-mention-item-av {
+    width:26px; height:26px; border-radius:50%; background:#7c3aed; color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0;
+}
+.ts-mention-item-name { font-size:13px; font-weight:600; color:#374151; line-height:1.2; }
+.ts-mention-item-handle { font-size:11px; color:#9ca3af; }
+.ts-mention-empty-row { padding:9px; font-size:12px; color:#9ca3af; text-align:center; }
 
 /* Status change modal */
 .ts-modal-overlay {
@@ -389,6 +405,13 @@
         : ($task->status === 'in_review'  ? 80
         : ($task->status === 'in_progress' ? 50
         : ($task->status === 'on_hold'    ? 30 : 0)));
+
+    // Mentionable participants for the discussion @autocomplete.
+    $mentionData = $mentionables->map(fn ($u) => [
+        'name' => $u->name,
+        'handle' => \Illuminate\Support\Str::slug($u->name),
+        'initial' => \Illuminate\Support\Str::upper(mb_substr($u->name, 0, 1)),
+    ])->values();
 @endphp
 
 <div class="ts-wrap">
@@ -727,14 +750,20 @@
                     </div>
 
                     <form class="ts-comment-form" onsubmit="addComment(event)">
-                        <textarea id="comment-input" class="ts-comment-input" rows="2"
-                                  placeholder="Write a comment… use @name to mention someone" required></textarea>
+                        <div class="ts-mention-box">
+                            <textarea id="comment-input" class="ts-comment-input" rows="2"
+                                      placeholder="Write a comment… type @ to mention a teammate" required
+                                      autocomplete="off"></textarea>
+                            <div id="mention-menu" class="ts-mention-menu" role="listbox"></div>
+                        </div>
                         <div class="ts-comment-foot">
                             <span class="ts-mention-hint">
-                                Mention:
-                                @foreach($mentionables as $m)
-                                    <button type="button" class="ts-mention-tag" onclick="insertMention('{{ \Illuminate\Support\Str::slug($m->name) }}')">@{{ \Illuminate\Support\Str::slug($m->name) }}</button>
-                                @endforeach
+                                <i class="bi bi-at"></i>
+                                @if($mentionables->isEmpty())
+                                    No teammates to mention yet.
+                                @else
+                                    Type <strong>@</strong> to mention someone.
+                                @endif
                             </span>
                             <button type="submit" class="ts-cl-btn"><i class="bi bi-send"></i> Comment</button>
                         </div>
@@ -922,13 +951,108 @@ function deleteChecklistItem(id) {
 document.addEventListener('DOMContentLoaded', updateChecklistUI);
 
 /* ── Discussion / comments ─────────────────────────────── */
-const TASK_ID = {{ $task->id }};
+/* TASK_ID is already declared above; reuse it here. */
 
-function insertMention(handle) {
-    const ta = document.getElementById('comment-input');
-    const prefix = ta.value.length && !ta.value.endsWith(' ') ? ' ' : '';
-    ta.value += prefix + '@' + handle + ' ';
-    ta.focus();
+/* ── @mention autocomplete ─────────────────────────────── */
+const MENTIONABLES = @json($mentionData);
+
+const mentionMenu = document.getElementById('mention-menu');
+const commentInput = document.getElementById('comment-input');
+let mentionMatches = [];
+let mentionActive = 0;
+let mentionStart = -1; // index of the '@' currently being completed
+
+/* Find an @token immediately before the caret (letters/digits/-/_ only). */
+function currentMentionQuery() {
+    const caret = commentInput.selectionStart;
+    const upto = commentInput.value.slice(0, caret);
+    const match = upto.match(/@([\p{L}0-9_-]*)$/u);
+    if (!match) return null;
+    // Require the '@' to start the string or follow whitespace, so emails
+    // and mid-word '@' don't trigger the menu.
+    const at = caret - match[1].length - 1;
+    if (at > 0 && !/\s/.test(commentInput.value[at - 1])) return null;
+
+    return { at, query: match[1].toLowerCase() };
+}
+
+function closeMentionMenu() {
+    mentionMenu.classList.remove('open');
+    mentionMenu.innerHTML = '';
+    mentionMatches = [];
+    mentionStart = -1;
+}
+
+function renderMentionMenu() {
+    if (!mentionMatches.length) {
+        mentionMenu.innerHTML = '<div class="ts-mention-empty-row">No match</div>';
+        mentionMenu.classList.add('open');
+        return;
+    }
+    mentionMenu.innerHTML = mentionMatches.map((m, i) => `
+        <div class="ts-mention-item ${i === mentionActive ? 'active' : ''}" data-i="${i}" role="option">
+            <span class="ts-mention-item-av">${m.initial}</span>
+            <span>
+                <span class="ts-mention-item-name">${m.name}</span>
+                <span class="ts-mention-item-handle">&nbsp;@${m.handle}</span>
+            </span>
+        </div>`).join('');
+    mentionMenu.classList.add('open');
+
+    mentionMenu.querySelectorAll('.ts-mention-item').forEach(el => {
+        el.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // keep textarea focus
+            chooseMention(parseInt(el.dataset.i, 10));
+        });
+    });
+}
+
+function updateMentionMenu() {
+    const ctx = currentMentionQuery();
+    if (!ctx) { closeMentionMenu(); return; }
+
+    mentionStart = ctx.at;
+    mentionMatches = MENTIONABLES.filter(m =>
+        m.handle.includes(ctx.query) || m.name.toLowerCase().includes(ctx.query)
+    ).slice(0, 8);
+    mentionActive = 0;
+    renderMentionMenu();
+}
+
+function chooseMention(i) {
+    const m = mentionMatches[i];
+    if (!m) return;
+    const caret = commentInput.selectionStart;
+    const before = commentInput.value.slice(0, mentionStart);
+    const after = commentInput.value.slice(caret);
+    const insert = '@' + m.handle + ' ';
+    commentInput.value = before + insert + after;
+    const pos = before.length + insert.length;
+    commentInput.setSelectionRange(pos, pos);
+    commentInput.focus();
+    closeMentionMenu();
+}
+
+if (commentInput) {
+    commentInput.addEventListener('input', updateMentionMenu);
+    commentInput.addEventListener('keydown', (e) => {
+        if (!mentionMenu.classList.contains('open') || !mentionMatches.length) return;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            mentionActive = (mentionActive + 1) % mentionMatches.length;
+            renderMentionMenu();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            mentionActive = (mentionActive - 1 + mentionMatches.length) % mentionMatches.length;
+            renderMentionMenu();
+        } else if (e.key === 'Enter' || e.key === 'Tab') {
+            e.preventDefault();
+            chooseMention(mentionActive);
+        } else if (e.key === 'Escape') {
+            closeMentionMenu();
+        }
+    });
+    commentInput.addEventListener('blur', () => setTimeout(closeMentionMenu, 120));
 }
 
 function buildCommentNode(c) {

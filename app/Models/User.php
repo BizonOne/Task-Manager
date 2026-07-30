@@ -28,6 +28,17 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * A super admin oversees the whole workspace: they can view and act on
+     * every project and task in the front-end, not just the ones they own or
+     * are a member of. This mirrors the Gate::before bypass used in the admin
+     * panel so support/ownership can always step into any project.
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasRole('super_admin');
+    }
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var array

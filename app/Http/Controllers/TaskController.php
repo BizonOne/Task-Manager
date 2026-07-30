@@ -23,10 +23,13 @@ class TaskController extends Controller
                 ->get()
                 ->groupBy('status');
         } else {
-            // "My tasks": tasks the user owns or is assigned to, in active projects.
-            $tasks = Task::where(function ($query) use ($user) {
-                $query->where('user_id', $user->id)
-                    ->orWhereHas('assignees', fn ($a) => $a->where('users.id', $user->id));
+            // "My tasks": tasks the user owns or is assigned to, in active
+            // projects. A super admin oversees everything and sees every task.
+            $tasks = Task::when(! $user->isSuperAdmin(), function ($query) use ($user) {
+                $query->where(function ($q) use ($user) {
+                    $q->where('user_id', $user->id)
+                        ->orWhereHas('assignees', fn ($a) => $a->where('users.id', $user->id));
+                });
             })
                 ->whereHas('project', function ($query) {
                     $query->whereNotIn('status', ['completed', 'closed']);
@@ -36,10 +39,13 @@ class TaskController extends Controller
                 ->groupBy('status');
         }
 
-        // Projects the user can pick from: ones they own or are a member of.
-        $projects = Project::where(function ($query) use ($user) {
-            $query->where('user_id', $user->id)
-                ->orWhereHas('users', fn ($q) => $q->where('users.id', $user->id));
+        // Projects the user can pick from: ones they own or are a member of —
+        // or every active project, for a super admin.
+        $projects = Project::when(! $user->isSuperAdmin(), function ($query) use ($user) {
+            $query->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)
+                    ->orWhereHas('users', fn ($sub) => $sub->where('users.id', $user->id));
+            });
         })
             ->whereNotIn('status', ['completed', 'closed'])
             ->get();
