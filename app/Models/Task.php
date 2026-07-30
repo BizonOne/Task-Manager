@@ -92,4 +92,14 @@ class Task extends Model
     {
         return $this->participants()->contains('id', $user->id);
     }
+
+    /**
+     * Whether the given user may edit or delete this task: its creator, or a
+     * user who manages the parent project (owner or project manager).
+     */
+    public function isManageableBy(User $user): bool
+    {
+        return $this->user_id === $user->id
+            || ($this->project && $this->project->isManagedBy($user));
+    }
 }

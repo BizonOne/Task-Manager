@@ -47,11 +47,10 @@ class TaskAssigneeController extends Controller
     }
 
     /**
-     * Only the task owner or the project owner may manage assignees.
+     * The task owner or a project manager may manage assignees.
      */
     private function authorizeManage(Task $task): void
     {
-        $userId = Auth::id();
-        abort_unless($task->user_id === $userId || $task->project?->user_id === $userId, 403);
+        abort_unless($task->isManageableBy(Auth::user()), 403);
     }
 }

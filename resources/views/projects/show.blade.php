@@ -503,18 +503,22 @@
                 <a href="{{ route('projects.tasks.index', $project) }}" class="cu-panel-action-btn primary">
                     <i class="bi bi-list-task"></i> View Tasks
                 </a>
+                @if($canManage)
                 <a href="{{ route('projects.edit', $project) }}" class="cu-panel-action-btn">
                     <i class="bi bi-pencil"></i> Edit Project
                 </a>
                 <button type="button" class="cu-panel-action-btn" data-bs-toggle="modal" data-bs-target="#addMemberModal">
                     <i class="bi bi-person-plus"></i> Add Member
                 </button>
+                @endif
+                @if($project->user_id === auth()->id())
                 <button type="button" class="cu-panel-action-btn danger" onclick="confirmDelete()">
                     <i class="bi bi-trash"></i> Delete Project
                 </button>
                 <form id="deleteForm" action="{{ route('projects.destroy', $project) }}" method="POST" class="d-none">
                     @csrf @method('DELETE')
                 </form>
+                @endif
             </div>
         </div>
 
@@ -597,30 +601,46 @@
                         <span class="cu-section-icon orange"><i class="bi bi-people"></i></span>
                         <span class="cu-section-title">Team Members ({{ $teamMembers->count() }})</span>
                     </div>
+                    @if($canManage)
                     <button class="cu-panel-action-btn" style="padding:4px 10px;font-size:11px;"
                             data-bs-toggle="modal" data-bs-target="#addMemberModal">
                         <i class="bi bi-plus-lg"></i> Add
                     </button>
+                    @endif
                 </div>
                 <div class="cu-section-body" style="padding-top:8px;padding-bottom:8px;">
                     @forelse($teamMembers as $member)
-                        <div class="cu-member">
+                        <div class="cu-member" style="display:flex;align-items:center;gap:10px;">
                             <div class="cu-member-av" style="background:{{ $colors[strlen($member->name) % count($colors)] }};">
                                 {{ strtoupper(substr($member->name,0,1)) }}
                             </div>
-                            <div>
-                                <div class="cu-member-name">{{ $member->name }}</div>
+                            <div style="flex:1;min-width:0;">
+                                <div class="cu-member-name">
+                                    {{ $member->name }}
+                                    <span style="font-size:10px;font-weight:600;color:#7c3aed;background:#f5f3ff;border-radius:999px;padding:1px 7px;margin-left:4px;">{{ ucfirst($member->pivot->role ?? 'member') }}</span>
+                                </div>
                                 <div class="cu-member-email">{{ $member->email }}</div>
                             </div>
+                            @if($canManage)
+                            <form action="{{ route('projects.removeMember', [$project, $member]) }}" method="POST"
+                                  onsubmit="return confirm('Remove {{ $member->name }} from this project?');">
+                                @csrf @method('DELETE')
+                                <button type="submit" title="Remove" style="border:none;background:none;color:#c4b5d4;cursor:pointer;font-size:14px;">
+                                    <i class="bi bi-x-circle"></i>
+                                </button>
+                            </form>
+                            @endif
                         </div>
                     @empty
                         <div class="text-center py-4">
                             <i class="bi bi-people" style="font-size:28px;color:#e3e4e8;display:block;margin-bottom:8px;"></i>
                             <p style="font-size:13px;color:#8a8f98;margin-bottom:10px;">No team members yet.</p>
+                            @if($canManage)
                             <button class="cu-panel-action-btn primary" style="display:inline-flex;max-width:160px;margin:0 auto;"
                                     data-bs-toggle="modal" data-bs-target="#addMemberModal">
                                 <i class="bi bi-person-plus"></i> Add First Member
                             </button>
+                            @endif
                         </div>
                     @endforelse
                 </div>
@@ -631,6 +651,7 @@
 </div>
 
 {{-- ── Add Member Modal ──────────────────────────────────────────── --}}
+@if($canManage)
 <div class="modal fade" id="addMemberModal" tabindex="-1" aria-labelledby="addMemberModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -647,11 +668,20 @@
                     <label for="user_id" class="form-label" style="font-size:13px;font-weight:600;color:#3d4149;">
                         Select User
                     </label>
-                    <select class="form-select" name="user_id" id="user_id" required style="font-size:13px;">
+                    <select class="form-select mb-3" name="user_id" id="user_id" required style="font-size:13px;">
                         <option value="">Choose a user…</option>
                         @foreach($users as $u)
-                            <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->email }})</option>
+                            @if($u->id !== $project->user_id)
+                                <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->email }})</option>
+                            @endif
                         @endforeach
+                    </select>
+                    <label for="role" class="form-label" style="font-size:13px;font-weight:600;color:#3d4149;">
+                        Project role
+                    </label>
+                    <select class="form-select" name="role" id="role" style="font-size:13px;">
+                        <option value="member">Member — can view and work on the project</option>
+                        <option value="manager">Manager — can also edit the project and manage members</option>
                     </select>
                 </div>
                 <div class="modal-footer">
@@ -662,6 +692,7 @@
         </div>
     </div>
 </div>
+@endif
 @endsection
 
 @push('scripts')

@@ -53,6 +53,12 @@ class Project extends Model
                 $project->slug = static::uniqueSlug($project->name, $project->id);
             }
         });
+
+        // The project_teams pivot has no ON DELETE CASCADE on project_id, so
+        // detach members before deleting to avoid a foreign-key violation.
+        static::deleting(function (Project $project) {
+            $project->users()->detach();
+        });
     }
 
     private static function uniqueSlug(string $name, ?int $excludeId = null): string
@@ -109,5 +115,31 @@ class Project extends Model
         return $this->belongsToMany(User::class, 'project_teams', 'project_id', 'user_id')
             ->withPivot('role')
             ->withTimestamps();
+    }
+
+    /**
+     * Whether the given user may view and work with this project: its owner
+     * or any of its team members.
+     */
+    public function isAccessibleBy(User $user): bool
+    {
+        return $this->user_id === $user->id
+            || $this->users()->where('users.id', $user->id)->exists();
+    }
+
+    /**
+     * Whether the given user may manage this project (edit details, add/remove
+     * members): the owner or a member with the "manager" project role.
+     */
+    public function isManagedBy(User $user): bool
+    {
+        if ($this->user_id === $user->id) {
+            return true;
+        }
+
+        return $this->users()
+            ->where('users.id', $user->id)
+            ->wherePivot('role', 'manager')
+            ->exists();
     }
 }

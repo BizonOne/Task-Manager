@@ -629,7 +629,7 @@
                         'closed'      => 'Closed',
                         default       => 'Not Started'
                     };
-                    $teamCount = $project->teamMembers ? $project->teamMembers->count() : 0;
+                    $teamCount = $project->users ? $project->users->count() : 0;
                     $isOverdue = $project->end_date && $project->end_date->isPast() && !in_array($project->status, ['completed','closed']);
                 @endphp
                 <div class="cu-card project-item"
@@ -644,7 +644,12 @@
                                 {{ strtoupper(substr($project->name, 0, 1)) }}
                             </div>
                             <div class="flex-grow-1 min-w-0">
-                                <div class="cu-card-name" title="{{ $project->name }}">{{ $project->name }}</div>
+                                <div class="cu-card-name" title="{{ $project->name }}">
+                                    {{ $project->name }}
+                                    @if($project->user_id !== auth()->id())
+                                        <span style="font-size:9px;font-weight:700;color:#7c3aed;background:#f5f3ff;border-radius:999px;padding:1px 6px;vertical-align:middle;">MEMBER</span>
+                                    @endif
+                                </div>
                                 <div class="cu-card-desc">{{ strip_tags($project->description) ?: 'No description' }}</div>
                             </div>
                         </div>
@@ -677,7 +682,7 @@
                             @if($teamCount > 0)
                                 <span class="d-flex align-items-center gap-1">
                                     <div class="cu-team-avatars">
-                                        @foreach($project->teamMembers->take(3) as $member)
+                                        @foreach($project->users->take(3) as $member)
                                             <div class="cu-team-avatar" title="{{ $member->name }}">{{ strtoupper(substr($member->name,0,1)) }}</div>
                                         @endforeach
                                         @if($teamCount > 3)<div class="cu-team-avatar">+{{ $teamCount - 3 }}</div>@endif
