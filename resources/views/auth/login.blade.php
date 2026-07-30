@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign In — Task Manager</title>
-    <link rel="shortcut icon" href="{{ asset('assets/img/logo-circle.png') }}" type="image/x-icon">
+    <title>Sign In — {{ \App\Support\Brand::name() }}</title>
+    <link rel="shortcut icon" href="{{ \App\Support\Brand::faviconUrl() ?? asset('assets/img/logo-circle.png') }}" type="image/x-icon">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -202,7 +202,7 @@
 <body>
 
 <div class="lc-wrap">
-    <div class="lc-app-tag"><i class="bi bi-check2-square"></i> &nbsp;Task Manager</div>
+    <div class="lc-app-tag"><i class="bi bi-check2-square"></i> &nbsp;{{ \App\Support\Brand::name() }}</div>
 
     <div class="lc-card">
         <div class="lc-header">

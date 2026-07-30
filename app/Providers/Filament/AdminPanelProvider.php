@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Support\Brand;
 use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -29,8 +30,11 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->brandName(Brand::name())
+            ->brandLogo(Brand::logoUrl())
+            ->favicon(Brand::faviconUrl())
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::hex(Brand::primaryColor()),
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
