@@ -85,6 +85,40 @@ class Brand
     }
 
     /**
+     * Decode the stored logo data URI into raw bytes plus its MIME type.
+     *
+     * Email clients block `data:` URIs in <img src>, so mail has to link the
+     * logo over HTTP instead — see the `brand.logo` route.
+     *
+     * @return array{mime: string, bytes: string}|null
+     */
+    public static function logoBinary(): ?array
+    {
+        $uri = static::logoUrl();
+        if ($uri === null) {
+            return null;
+        }
+
+        if (! preg_match('#^data:(?<mime>[-\w.+/]+);base64,(?<data>.+)$#s', $uri, $m)) {
+            return null;
+        }
+
+        $bytes = base64_decode($m['data'], true);
+
+        return $bytes === false || $bytes === ''
+            ? null
+            : ['mime' => $m['mime'], 'bytes' => $bytes];
+    }
+
+    /**
+     * Absolute URL of the logo for use in emails, or null when no logo is set.
+     */
+    public static function emailLogoUrl(): ?string
+    {
+        return static::logoBinary() === null ? null : route('brand.logo');
+    }
+
+    /**
      * Darken a hex colour by a fraction (0–1). Used to derive the 600/700
      * shades of the primary colour for the front-end CSS variables.
      */

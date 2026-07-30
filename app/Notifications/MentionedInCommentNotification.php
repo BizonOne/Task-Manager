@@ -3,7 +3,9 @@
 namespace App\Notifications;
 
 use App\Models\TaskComment;
+use App\Models\TaskStatus;
 use App\Support\Brand;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -29,13 +31,32 @@ class MentionedInCommentNotification extends Notification
     {
         $task = $this->comment->task;
         $author = $this->comment->user;
+        $project = $task->project;
+        $taskUrl = route('tasks.show', $task->id);
 
         return (new MailMessage)
-            ->subject('You were mentioned in a comment · '.Brand::name())
-            ->greeting("Hi {$notifiable->name},")
-            ->line("{$author->name} mentioned you on the task \"{$task->title}\":")
-            ->line('"'.Str::limit($this->comment->body, 200).'"')
-            ->action('View discussion', route('tasks.show', $task->id));
+            // Name the person and the task in the subject — that is what makes
+            // the mail scannable in a busy inbox.
+            ->subject($author->name.' mentioned you on "'.Str::limit($task->title, 60).'" · '.Brand::name())
+            ->view('emails.mentioned-in-comment', [
+                'recipient' => $notifiable,
+                'comment' => $this->comment,
+                'author' => $author,
+                'task' => $task,
+                'project' => $project,
+                'taskUrl' => $taskUrl,
+                'projectUrl' => $project ? route('projects.show', $project) : null,
+                'boardUrl' => $project ? route('projects.tasks.index', $project) : route('tasks.index'),
+                'rows' => [
+                    ['label' => 'Task', 'value' => $task->title, 'url' => $taskUrl],
+                    ['label' => 'Project', 'value' => $project?->name, 'url' => $project ? route('projects.show', $project) : null],
+                    ['label' => 'Status', 'value' => TaskStatus::labelFor($task->status)],
+                    ['label' => 'Priority', 'value' => ucfirst((string) $task->priority)],
+                    ['label' => 'Due date', 'value' => $task->due_date
+                        ? Carbon::parse($task->due_date)->format('D, j M Y')
+                        : null],
+                ],
+            ]);
     }
 
     /**
