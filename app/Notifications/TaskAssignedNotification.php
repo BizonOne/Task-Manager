@@ -4,7 +4,9 @@ namespace App\Notifications;
 
 use App\Models\Task;
 use App\Models\User;
+use App\Support\Brand;
 use Illuminate\Bus\Queueable;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class TaskAssignedNotification extends Notification
@@ -21,7 +23,17 @@ class TaskAssignedNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', 'mail'];
+    }
+
+    public function toMail(object $notifiable): MailMessage
+    {
+        return (new MailMessage)
+            ->subject('You were assigned to a task · '.Brand::name())
+            ->greeting("Hi {$notifiable->name},")
+            ->line("{$this->assignedBy->name} assigned you to the task \"{$this->task->title}\".")
+            ->action('View task', route('tasks.show', $this->task->id))
+            ->line('You can view the task, update its status and join the discussion.');
     }
 
     /**
