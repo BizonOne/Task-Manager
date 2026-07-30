@@ -384,6 +384,30 @@
             color: var(--gray-800);
         }
 
+        /* Notifications bell */
+        .notif-bell { position: relative; }
+        .notif-dot {
+            position: absolute; top: -5px; right: -4px;
+            background: #ef4444; color: #fff; font-size: 10px; font-weight: 700;
+            min-width: 17px; height: 17px; line-height: 17px; text-align: center;
+            border-radius: 999px; padding: 0 4px;
+        }
+        .notif-menu { min-width: 320px; max-width: 340px; max-height: 420px; overflow-y: auto; padding: 0; }
+        .notif-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px; border-bottom: 1px solid var(--gray-200);
+        }
+        .notif-head strong { font-size: 13px; color: var(--gray-800); }
+        .notif-readall {
+            background: none; border: none; color: #7c3aed; font-size: 11px;
+            font-weight: 600; cursor: pointer; padding: 0;
+        }
+        .notif-item { display: block; padding: 10px 14px !important; border-bottom: 1px solid var(--gray-100); white-space: normal; }
+        .notif-msg { font-size: 13px; font-weight: 500; color: var(--gray-800); line-height: 1.35; }
+        .notif-time { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
+        .notif-empty { padding: 18px 14px; text-align: center; color: var(--gray-500); font-size: 12px; }
+        .notif-viewall { text-align: center; color: #7c3aed !important; font-size: 12px; font-weight: 600; padding: 10px !important; }
+
         main {
             flex-grow: 1;
             overflow-y: auto;
@@ -674,6 +698,40 @@
                 </button>
                 <div class="topnav-actions">
                     <span class="current-time" id="currentDateTime"></span>
+                    @auth
+                    @php $notifUnread = auth()->user()->unreadNotifications; @endphp
+                    <div class="dropdown">
+                        <button class="btn btn-outline dropdown-toggle notif-bell" type="button" data-bs-toggle="dropdown"
+                            aria-expanded="false" title="Notifications">
+                            <i class="bi bi-bell"></i>
+                            @if($notifUnread->count())
+                                <span class="notif-dot">{{ $notifUnread->count() > 9 ? '9+' : $notifUnread->count() }}</span>
+                            @endif
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end notif-menu">
+                            <li class="notif-head">
+                                <strong>Notifications</strong>
+                                @if($notifUnread->count())
+                                <form method="POST" action="{{ route('notifications.readAll') }}" class="m-0">
+                                    @csrf
+                                    <button type="submit" class="notif-readall">Mark all read</button>
+                                </form>
+                                @endif
+                            </li>
+                            @forelse($notifUnread->take(8) as $n)
+                                <li>
+                                    <a class="dropdown-item notif-item" href="{{ route('notifications.read', $n->id) }}">
+                                        <div class="notif-msg">{{ $n->data['message'] ?? 'Notification' }}</div>
+                                        <div class="notif-time">{{ $n->created_at->diffForHumans() }}</div>
+                                    </a>
+                                </li>
+                            @empty
+                                <li class="notif-empty">You're all caught up</li>
+                            @endforelse
+                            <li><a class="dropdown-item notif-viewall" href="{{ route('notifications.index') }}">View all notifications</a></li>
+                        </ul>
+                    </div>
+                    @endauth
                     <div class="dropdown">
                         <button class="btn btn-outline dropdown-toggle" type="button" data-bs-toggle="dropdown"
                             aria-expanded="false">

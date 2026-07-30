@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Policies\RolePolicy;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\Models\Role;
@@ -25,5 +26,8 @@ class AppServiceProvider extends ServiceProvider
         // Spatie's Role model lives in the vendor namespace, so Laravel's
         // policy auto-discovery can't map it — register it explicitly.
         Gate::policy(Role::class, RolePolicy::class);
+
+        // The front-end is built on Bootstrap, so paginators should be too.
+        Paginator::useBootstrapFive();
     }
 }

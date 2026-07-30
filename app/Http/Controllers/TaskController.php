@@ -77,10 +77,18 @@ class TaskController extends Controller
 
     public function show(Task $task)
     {
-        $this->authorizeOwner($task);
-        $task->load('user', 'project', 'checklistItems');
+        // Owner, project owner, assignees and project team can all view a task.
+        abort_unless($task->isAccessibleBy(Auth::user()), 403);
+        $task->load('user', 'project', 'checklistItems', 'assignees', 'comments.user');
 
-        return view('tasks.show', compact('task'));
+        // Only the task owner or project owner may add/remove assignees.
+        $canManageAssignees = $task->user_id === Auth::id() || $task->project?->user_id === Auth::id();
+
+        // Everyone who can be mentioned or assigned.
+        $mentionables = $task->participants();
+        $assignableUsers = User::orderBy('name')->get(['id', 'name']);
+
+        return view('tasks.show', compact('task', 'canManageAssignees', 'mentionables', 'assignableUsers'));
     }
 
     public function edit(Task $task)
@@ -119,7 +127,8 @@ class TaskController extends Controller
 
     public function updateStatus(Request $request, Task $task)
     {
-        $this->authorizeOwner($task);
+        // Collaborators (assignees, project team) can move the task too.
+        abort_unless($task->isAccessibleBy(Auth::user()), 403);
         $request->validate([
             'status' => 'required|in:to_do,in_progress,on_hold,in_review,completed',
         ]);

@@ -5,7 +5,9 @@ namespace App\Filament\Resources\Tasks;
 use App\Filament\Resources\Tasks\Pages\CreateTask;
 use App\Filament\Resources\Tasks\Pages\EditTask;
 use App\Filament\Resources\Tasks\Pages\ListTasks;
+use App\Filament\Resources\Tasks\RelationManagers\AssigneesRelationManager;
 use App\Filament\Resources\Tasks\RelationManagers\ChecklistItemsRelationManager;
+use App\Filament\Resources\Tasks\RelationManagers\CommentsRelationManager;
 use App\Filament\Resources\Tasks\Schemas\TaskForm;
 use App\Filament\Resources\Tasks\Tables\TasksTable;
 use App\Models\Task;
@@ -42,6 +44,8 @@ class TaskResource extends Resource
     {
         return [
             ChecklistItemsRelationManager::class,
+            AssigneesRelationManager::class,
+            CommentsRelationManager::class,
         ];
     }
 
