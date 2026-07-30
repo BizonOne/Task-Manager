@@ -528,13 +528,6 @@
                 </div>
                 @endif
 
-                @if($project->budget)
-                <div class="cu-meta-row">
-                    <i class="bi bi-currency-dollar"></i>
-                    <span>Budget&nbsp;<strong>${{ number_format($project->budget, 0) }}</strong></span>
-                </div>
-                @endif
-
                 <div class="cu-meta-row">
                     <i class="bi bi-clock-history"></i>
                     <span>Updated&nbsp;<strong>{{ $project->updated_at->diffForHumans() }}</strong></span>
@@ -587,11 +580,11 @@
                     </div>
                 </div>
 
-                {{-- Timeline & Budget --}}
+                {{-- Timeline --}}
                 <div class="cu-section">
                     <div class="cu-section-header">
                         <span class="cu-section-icon blue"><i class="bi bi-calendar3"></i></span>
-                        <span class="cu-section-title">Timeline &amp; Budget</span>
+                        <span class="cu-section-title">Timeline</span>
                     </div>
                     <div class="cu-section-body">
                         <div class="cu-field-row cu-field">
@@ -619,21 +612,6 @@
                                 </div>
                                 @error('end_date')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
-                        </div>
-
-                        <div class="cu-field" style="margin-bottom:0; margin-top:12px;">
-                            <label for="budget" class="cu-label">Budget (USD)</label>
-                            <div class="cu-input-wrap">
-                                <i class="bi bi-currency-dollar"></i>
-                                <input type="number"
-                                       name="budget"
-                                       id="budget"
-                                       class="cu-input {{ $errors->has('budget') ? 'is-invalid' : '' }}"
-                                       value="{{ old('budget', $project->budget) }}"
-                                       step="0.01" min="0"
-                                       placeholder="0.00">
-                            </div>
-                            @error('budget')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                     </div>
                 </div>

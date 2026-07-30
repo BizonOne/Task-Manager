@@ -212,7 +212,7 @@ PROMPT;
     private function buildContext($user): string
     {
         // Projects
-        $projects = Project::where('user_id', $user->id)->get(['name', 'status', 'end_date', 'budget']);
+        $projects = Project::where('user_id', $user->id)->get(['name', 'status', 'end_date']);
         $projectLines = $projects->map(fn($p) =>
             "- {$p->name} (status: {$p->status}" . ($p->end_date ? ", due: {$p->end_date->format('Y-m-d')}" : '') . ")"
         )->join("\n");

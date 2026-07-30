@@ -486,10 +486,6 @@
                     </span>
                 </div>
                 <div class="cu-panel-row">
-                    <span class="cu-panel-row-label"><i class="bi bi-currency-dollar"></i> Budget</span>
-                    <span class="cu-panel-row-value">${{ number_format($project->budget ?? 0, 0) }}</span>
-                </div>
-                <div class="cu-panel-row">
                     <span class="cu-panel-row-label"><i class="bi bi-list-task"></i> Tasks</span>
                     <span class="cu-panel-row-value">{{ $totalTasks }}</span>
                 </div>

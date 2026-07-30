@@ -39,7 +39,6 @@ class TestDataSeeder extends Seeder
                 'status' => 'in_progress',
                 'start_date' => now()->subDays(10),
                 'end_date' => now()->addDays(20),
-                'budget' => 5000.00,
             ]
         );
 
@@ -50,7 +49,6 @@ class TestDataSeeder extends Seeder
                 'status' => 'not_started',
                 'start_date' => now()->subDays(5),
                 'end_date' => now()->addDays(30),
-                'budget' => 8000.00,
             ]
         );
 
