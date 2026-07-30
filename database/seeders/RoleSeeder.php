@@ -33,7 +33,18 @@ class RoleSeeder extends Seeder
     /**
      * Entities exposed in the admin panel.
      */
-    private const ENTITIES = ['Project', 'Task', 'User', 'Role'];
+    private const ENTITIES = [
+        'Project', 'Task', 'User', 'Role',
+        'Note', 'Reminder', 'Routine', 'File', 'AiConversation',
+    ];
+
+    /**
+     * Non-resource permissions (dashboard widgets) Shield gates by name.
+     */
+    private const EXTRA_PERMISSIONS = [
+        'View:StatsOverview',
+        'View:LatestTasks',
+    ];
 
     public function run(): void
     {
@@ -46,6 +57,11 @@ class RoleSeeder extends Seeder
                 Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
                 $allPermissions[] = $name;
             }
+        }
+
+        foreach (self::EXTRA_PERMISSIONS as $name) {
+            Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
+            $allPermissions[] = $name;
         }
 
         // super_admin bypasses every check via Shield's gate, so it needs no
