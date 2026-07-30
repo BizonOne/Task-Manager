@@ -81,10 +81,19 @@ class TestDataSeeder extends Seeder
                     'status' => $data['status'],
                     'priority' => $data['priority'],
                     'due_date' => now()->addDays(rand(1, 30)),
-                    'created_at' => now()->subDays($data['days_ago']),
-                    'updated_at' => $data['status'] === 'completed' ? now()->subDays($data['days_ago']) : now(),
                 ]
             );
+
+            // Timestamps are not mass assignable, so backdate them separately —
+            // the productivity chart groups completed tasks by day.
+            if ($task->wasRecentlyCreated) {
+                $task->forceFill([
+                    'created_at' => now()->subDays($data['days_ago']),
+                    'updated_at' => $data['status'] === 'completed'
+                        ? now()->subDays($data['days_ago'])
+                        : now(),
+                ])->save();
+            }
         }
 
         // Add checklist items for some tasks

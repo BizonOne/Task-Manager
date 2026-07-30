@@ -23,7 +23,7 @@ Task Manager **v2.0** is an open-source Laravel 12 application for managing proj
 - **File manager** — file upload with type detection, preview (image/PDF/generic), and a dedicated file detail page
 - **Full profile module** — avatar upload with live preview, bio, phone, location, website, password change with strength meter and live requirement checklist
 - **Redesigned login page** — clean card layout with password show/hide toggle, no external CSS framework dependency
-- **Rich test data seeder** — 4 projects, 31 tasks, 8 notes, 9 reminders, 4 routines, 6 files, and a fully populated user profile out of the box
+- **Test data seeder** — 2 projects, 11 tasks (backdated so the productivity chart has history), 4 checklist items, 2 notes, 2 reminders, 1 routine, and 1 file out of the box
 
 ## Features
 
@@ -91,7 +91,7 @@ php artisan key:generate
 php artisan migrate --seed
 ```
 
-This will run the `TestDataSeeder` and populate the app with realistic demo data (4 projects, 31 tasks, 8 notes, 9 reminders, 4 routines, and 6 files).
+This runs `DemoUserSeeder` (the demo account below) followed by `TestDataSeeder`, which populates the app with demo data (2 projects, 11 tasks, 4 checklist items, 2 notes, 2 reminders, 1 routine, and 1 file). Both seeders are idempotent, so re-running them will not create duplicates.
 
 ### Step 6: Build Frontend Assets
 
@@ -122,7 +122,17 @@ Email:    admin@example.com
 Password: secret
 ```
 
-> Credentials are created by the seeder. Run `php artisan migrate:fresh --seed` to reset.
+> Credentials are created by `DemoUserSeeder`. Run `php artisan migrate:fresh --seed` to reset everything.
+
+To create or repair the demo account on a deployed environment **without dropping any data**:
+
+```bash
+php artisan db:seed --class=DemoUserSeeder --force
+```
+
+The seeder rewrites the password on every run, so this also doubles as a password reset. Override the defaults with `DEMO_USER_EMAIL`, `DEMO_USER_PASSWORD`, and `DEMO_USER_NAME` if you do not want the documented credentials in a public deployment.
+
+> Seeders must stay factory-free: `fakerphp/faker` (which provides `fake()`) is a `require-dev` package, and production deploys install with `--no-dev`. Using `User::factory()` in a seeder fails on a deployed environment with `Call to undefined function Database\Factories\fake()`.
 
 ## How to Use
 
