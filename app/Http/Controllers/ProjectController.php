@@ -14,11 +14,15 @@ class ProjectController extends Controller
     public function index()
     {
         $me = Auth::id();
+        $user = Auth::user();
 
-        // Projects the user owns OR is a team member of.
-        $projects = Project::where(function ($query) use ($me) {
-            $query->where('user_id', $me)
-                ->orWhereHas('users', fn ($q) => $q->where('users.id', $me));
+        // Projects the user owns OR is a team member of. A super admin oversees
+        // the whole workspace and sees every project.
+        $projects = Project::when(! $user->isSuperAdmin(), function ($query) use ($me) {
+            $query->where(function ($q) use ($me) {
+                $q->where('user_id', $me)
+                    ->orWhereHas('users', fn ($sub) => $sub->where('users.id', $me));
+            });
         })
             ->withCount([
                 'tasks as to_do_tasks' => fn ($query) => $query->where('status', 'to_do'),
@@ -152,6 +156,6 @@ class ProjectController extends Controller
      */
     private function authorizeOwner(Project $project): void
     {
-        abort_unless($project->user_id === Auth::id(), 403);
+        abort_unless(Auth::user()->isSuperAdmin() || $project->user_id === Auth::id(), 403);
     }
 }
