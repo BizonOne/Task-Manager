@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\Project;
@@ -9,26 +10,26 @@ use Illuminate\Support\Facades\Auth;
 
 class TaskController extends Controller
 {
-    public function index(Project $project = null)
+    public function index(?Project $project = null)
     {
         $user = Auth::user();
 
         if ($project) {
             // Show tasks for a specific project (closed projects still accessible directly)
             $tasks = Task::where('user_id', $user->id)
-                        ->where('project_id', $project->id)
-                        ->with('project')
-                        ->get()
-                        ->groupBy('status');
+                ->where('project_id', $project->id)
+                ->with('project')
+                ->get()
+                ->groupBy('status');
         } else {
             // Show all tasks — exclude tasks from completed or closed projects
             $tasks = Task::where('user_id', $user->id)
-                        ->whereHas('project', function ($query) {
-                            $query->whereNotIn('status', ['completed', 'closed']);
-                        })
-                        ->with('project')
-                        ->get()
-                        ->groupBy('status');
+                ->whereHas('project', function ($query) {
+                    $query->whereNotIn('status', ['completed', 'closed']);
+                })
+                ->with('project')
+                ->get()
+                ->groupBy('status');
         }
 
         // Only show projects whose tasks are actually loaded (exclude completed & closed)
@@ -46,7 +47,7 @@ class TaskController extends Controller
         return view('tasks.create', compact('projects', 'users'));
     }
 
-    public function store(Request $request, Project $project = null)
+    public function store(Request $request, ?Project $project = null)
     {
         $request->validate([
             'project_id' => 'required|exists:projects,id',
@@ -59,7 +60,12 @@ class TaskController extends Controller
             'estimated_hours' => 'nullable|numeric|min:0.5',
         ]);
 
-        Task::create($request->all());
+        // Only allow creating tasks inside a project the user owns, and always
+        // own the created task — never trust an arbitrary user_id from the form.
+        $targetProject = Project::findOrFail($request->project_id);
+        abort_unless($targetProject->user_id === Auth::id(), 403);
+
+        Task::create(array_merge($request->all(), ['user_id' => Auth::id()]));
 
         // Redirect based on context
         if ($project) {
@@ -71,12 +77,15 @@ class TaskController extends Controller
 
     public function show(Task $task)
     {
+        $this->authorizeOwner($task);
         $task->load('user', 'project', 'checklistItems');
+
         return view('tasks.show', compact('task'));
     }
 
     public function edit(Task $task)
     {
+        $this->authorizeOwner($task);
         $projects = Project::all();
         $users = User::all();
 
@@ -85,6 +94,7 @@ class TaskController extends Controller
 
     public function update(Request $request, Task $task)
     {
+        $this->authorizeOwner($task);
         $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -101,6 +111,7 @@ class TaskController extends Controller
 
     public function destroy(Task $task)
     {
+        $this->authorizeOwner($task);
         $task->delete();
 
         return redirect()->route('tasks.index')->with('success', 'Task deleted successfully.');
@@ -108,9 +119,22 @@ class TaskController extends Controller
 
     public function updateStatus(Request $request, Task $task)
     {
+        $this->authorizeOwner($task);
+        $request->validate([
+            'status' => 'required|in:to_do,in_progress,on_hold,in_review,completed',
+        ]);
+
         $task->status = $request->input('status');
         $task->save();
 
         return response()->json(['message' => 'Task status updated successfully.']);
+    }
+
+    /**
+     * Ensure the authenticated user owns the given task.
+     */
+    private function authorizeOwner(Task $task): void
+    {
+        abort_unless($task->user_id === Auth::id(), 403);
     }
 }

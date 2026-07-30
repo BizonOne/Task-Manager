@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\Project;
@@ -44,17 +45,23 @@ class ProjectController extends Controller
 
     public function show(Project $project)
     {
+        $this->authorizeOwner($project);
         $teamMembers = $project->users()->get();
         $users = User::all();
+
         return view('projects.show', compact('project', 'teamMembers', 'users'));
     }
+
     public function edit(Project $project)
     {
+        $this->authorizeOwner($project);
+
         return view('projects.edit', compact('project'));
     }
 
     public function update(Request $request, Project $project)
     {
+        $this->authorizeOwner($project);
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -71,6 +78,7 @@ class ProjectController extends Controller
 
     public function destroy(Project $project)
     {
+        $this->authorizeOwner($project);
         $project->delete();
 
         return redirect()->route('projects.index')->with('success', 'Project deleted successfully.');
@@ -83,8 +91,18 @@ class ProjectController extends Controller
             'user_id' => 'required|exists:users,id',
         ]);
 
-        $project = Project::find($request->project_id);
+        $project = Project::findOrFail($request->project_id);
+        $this->authorizeOwner($project);
         $project->teamProjects()->attach($request->user_id);
+
         return redirect()->back()->with('success', 'User added successfully.');
+    }
+
+    /**
+     * Ensure the authenticated user owns the given project.
+     */
+    private function authorizeOwner(Project $project): void
+    {
+        abort_unless($project->user_id === Auth::id(), 403);
     }
 }

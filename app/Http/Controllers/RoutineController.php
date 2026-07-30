@@ -1,10 +1,10 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\Routine;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
 
 class RoutineController extends Controller
 {
@@ -64,11 +64,14 @@ class RoutineController extends Controller
 
     public function edit(Routine $routine)
     {
+        $this->authorizeOwner($routine);
+
         return view('routines.edit', compact('routine'));
     }
 
     public function update(Request $request, Routine $routine)
     {
+        $this->authorizeOwner($routine);
         $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -98,8 +101,18 @@ class RoutineController extends Controller
 
     public function destroy(Routine $routine)
     {
+        $this->authorizeOwner($routine);
         $routine->delete();
+
         return redirect()->route('routines.index')->with('success', 'Routine deleted successfully.');
+    }
+
+    /**
+     * Ensure the authenticated user owns the given routine.
+     */
+    private function authorizeOwner(Routine $routine): void
+    {
+        abort_unless($routine->user_id === Auth::id(), 403);
     }
 
     public function showAll()
@@ -114,18 +127,21 @@ class RoutineController extends Controller
     public function showDaily()
     {
         $dailyRoutines = Auth::user()->routines()->where('frequency', 'daily')->get();
+
         return view('routines.daily', compact('dailyRoutines'));
     }
 
     public function showWeekly()
     {
         $weeklyRoutines = Auth::user()->routines()->where('frequency', 'weekly')->get();
+
         return view('routines.weekly', compact('weeklyRoutines'));
     }
 
     public function showMonthly()
     {
         $monthlyRoutines = Auth::user()->routines()->where('frequency', 'monthly')->get();
+
         return view('routines.monthly', compact('monthlyRoutines'));
     }
 }
