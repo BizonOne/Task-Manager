@@ -16,6 +16,7 @@ class ProfileController extends Controller
     public function show()
     {
         $user = Auth::user();
+
         return view('profile.show', compact('user'));
     }
 
@@ -25,6 +26,7 @@ class ProfileController extends Controller
     public function edit()
     {
         $user = Auth::user();
+
         return view('profile.edit', compact('user'));
     }
 
@@ -37,21 +39,13 @@ class ProfileController extends Controller
 
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,'.$user->id],
             'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
-            'bio' => ['nullable', 'string', 'max:500'],
-            'phone' => ['nullable', 'string', 'max:20'],
-            'location' => ['nullable', 'string', 'max:255'],
-            'website' => ['nullable', 'url', 'max:255'],
         ]);
 
         $updateData = [
             'name' => $request->name,
             'email' => $request->email,
-            'bio' => $request->bio,
-            'phone' => $request->phone,
-            'location' => $request->location,
-            'website' => $request->website,
         ];
 
         // Handle avatar upload

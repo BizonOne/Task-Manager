@@ -187,15 +187,6 @@
                 <div class="cu-panel-name">{{ $user->name }}</div>
                 <div class="cu-panel-email">{{ $user->email }}</div>
 
-                @if($user->location)
-                <div class="cu-meta-row"><i class="bi bi-geo-alt"></i><span>{{ $user->location }}</span></div>
-                @endif
-                @if($user->phone)
-                <div class="cu-meta-row"><i class="bi bi-telephone"></i><span>{{ $user->phone }}</span></div>
-                @endif
-                @if($user->website)
-                <div class="cu-meta-row"><i class="bi bi-globe"></i><a href="{{ $user->website }}" target="_blank" style="color:#6366f1;font-size:11px;word-break:break-all;">{{ Str::limit($user->website,30) }}</a></div>
-                @endif
                 <div class="cu-meta-row"><i class="bi bi-calendar3"></i><span>Joined <strong>{{ $user->created_at->format('M Y') }}</strong></span></div>
 
                 <div class="cu-panel-nav">
@@ -263,43 +254,12 @@
                             <td>{{ $user->email }}</td>
                         </tr>
                         <tr>
-                            <td><i class="bi bi-telephone text-muted"></i> Phone</td>
-                            <td>{{ $user->phone ?: '—' }}</td>
-                        </tr>
-                        <tr>
-                            <td><i class="bi bi-geo-alt text-muted"></i> Location</td>
-                            <td>{{ $user->location ?: '—' }}</td>
-                        </tr>
-                        <tr>
-                            <td><i class="bi bi-globe text-muted"></i> Website</td>
-                            <td>
-                                @if($user->website)
-                                    <a href="{{ $user->website }}" target="_blank" style="color:#6366f1;">{{ Str::limit($user->website,40) }}</a>
-                                @else
-                                    —
-                                @endif
-                            </td>
-                        </tr>
-                        <tr>
                             <td><i class="bi bi-calendar3 text-muted"></i> Member Since</td>
                             <td>{{ $user->created_at->format('F d, Y') }}</td>
                         </tr>
                     </table>
                 </div>
             </div>
-
-            {{-- Bio --}}
-            @if($user->bio)
-            <div class="cu-section">
-                <div class="cu-section-header">
-                    <span class="cu-section-icon amber"><i class="bi bi-chat-quote"></i></span>
-                    <span class="cu-section-title">Bio</span>
-                </div>
-                <div class="cu-section-body">
-                    <p style="font-size:13px;color:#374151;line-height:1.7;margin:0;">{{ $user->bio }}</p>
-                </div>
-            </div>
-            @endif
 
             {{-- Security --}}
             <div class="cu-section">
