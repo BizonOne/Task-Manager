@@ -15,15 +15,19 @@ class TaskController extends Controller
         $user = Auth::user();
 
         if ($project) {
-            // Show tasks for a specific project (closed projects still accessible directly)
-            $tasks = Task::where('user_id', $user->id)
-                ->where('project_id', $project->id)
+            // A project's board shows every task in the project to any member,
+            // not just the viewer's own — that's the point of collaborating.
+            abort_unless($project->isAccessibleBy($user), 403);
+            $tasks = Task::where('project_id', $project->id)
                 ->with('project')
                 ->get()
                 ->groupBy('status');
         } else {
-            // Show all tasks — exclude tasks from completed or closed projects
-            $tasks = Task::where('user_id', $user->id)
+            // "My tasks": tasks the user owns or is assigned to, in active projects.
+            $tasks = Task::where(function ($query) use ($user) {
+                $query->where('user_id', $user->id)
+                    ->orWhereHas('assignees', fn ($a) => $a->where('users.id', $user->id));
+            })
                 ->whereHas('project', function ($query) {
                     $query->whereNotIn('status', ['completed', 'closed']);
                 })
@@ -32,8 +36,13 @@ class TaskController extends Controller
                 ->groupBy('status');
         }
 
-        // Only show projects whose tasks are actually loaded (exclude completed & closed)
-        $projects = Project::whereNotIn('status', ['completed', 'closed'])->get();
+        // Projects the user can pick from: ones they own or are a member of.
+        $projects = Project::where(function ($query) use ($user) {
+            $query->where('user_id', $user->id)
+                ->orWhereHas('users', fn ($q) => $q->where('users.id', $user->id));
+        })
+            ->whereNotIn('status', ['completed', 'closed'])
+            ->get();
         $users = User::all();
 
         return view('tasks.index', compact('tasks', 'projects', 'users', 'project'));
@@ -60,10 +69,11 @@ class TaskController extends Controller
             'estimated_hours' => 'nullable|numeric|min:0.5',
         ]);
 
-        // Only allow creating tasks inside a project the user owns, and always
-        // own the created task — never trust an arbitrary user_id from the form.
+        // Allow creating tasks inside any project the user owns or is a member
+        // of, and always own the created task — never trust an arbitrary
+        // user_id from the form.
         $targetProject = Project::findOrFail($request->project_id);
-        abort_unless($targetProject->user_id === Auth::id(), 403);
+        abort_unless($targetProject->isAccessibleBy(Auth::user()), 403);
 
         Task::create(array_merge($request->all(), ['user_id' => Auth::id()]));
 
@@ -81,8 +91,8 @@ class TaskController extends Controller
         abort_unless($task->isAccessibleBy(Auth::user()), 403);
         $task->load('user', 'project', 'checklistItems', 'assignees', 'comments.user');
 
-        // Only the task owner or project owner may add/remove assignees.
-        $canManageAssignees = $task->user_id === Auth::id() || $task->project?->user_id === Auth::id();
+        // The task owner or a project manager may add/remove assignees.
+        $canManageAssignees = $task->isManageableBy(Auth::user());
 
         // Everyone who can be mentioned or assigned.
         $mentionables = $task->participants();
@@ -93,7 +103,7 @@ class TaskController extends Controller
 
     public function edit(Task $task)
     {
-        $this->authorizeOwner($task);
+        $this->authorizeManage($task);
         $projects = Project::all();
         $users = User::all();
 
@@ -102,7 +112,7 @@ class TaskController extends Controller
 
     public function update(Request $request, Task $task)
     {
-        $this->authorizeOwner($task);
+        $this->authorizeManage($task);
         $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -119,7 +129,7 @@ class TaskController extends Controller
 
     public function destroy(Task $task)
     {
-        $this->authorizeOwner($task);
+        $this->authorizeManage($task);
         $task->delete();
 
         return redirect()->route('tasks.index')->with('success', 'Task deleted successfully.');
@@ -140,10 +150,11 @@ class TaskController extends Controller
     }
 
     /**
-     * Ensure the authenticated user owns the given task.
+     * Ensure the authenticated user may manage the task: its creator, or a
+     * manager of the parent project.
      */
-    private function authorizeOwner(Task $task): void
+    private function authorizeManage(Task $task): void
     {
-        abort_unless($task->user_id === Auth::id(), 403);
+        abort_unless($task->isManageableBy(Auth::user()), 403);
     }
 }
