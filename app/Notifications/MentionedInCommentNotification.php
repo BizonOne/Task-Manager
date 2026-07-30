@@ -3,7 +3,9 @@
 namespace App\Notifications;
 
 use App\Models\TaskComment;
+use App\Support\Brand;
 use Illuminate\Bus\Queueable;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Str;
 
@@ -20,7 +22,20 @@ class MentionedInCommentNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', 'mail'];
+    }
+
+    public function toMail(object $notifiable): MailMessage
+    {
+        $task = $this->comment->task;
+        $author = $this->comment->user;
+
+        return (new MailMessage)
+            ->subject('You were mentioned in a comment · '.Brand::name())
+            ->greeting("Hi {$notifiable->name},")
+            ->line("{$author->name} mentioned you on the task \"{$task->title}\":")
+            ->line('"'.Str::limit($this->comment->body, 200).'"')
+            ->action('View discussion', route('tasks.show', $task->id));
     }
 
     /**

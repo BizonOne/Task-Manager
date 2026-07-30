@@ -6,6 +6,7 @@ use App\Models\Task;
 use App\Models\TaskComment;
 use App\Notifications\MentionedInCommentNotification;
 use App\Support\MentionParser;
+use App\Support\Notifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -66,7 +67,7 @@ class TaskCommentController extends Controller
             ->reject(fn ($user) => $user->id === $comment->user_id);
 
         foreach ($mentioned as $user) {
-            $user->notify(new MentionedInCommentNotification($comment));
+            Notifier::send($user, new MentionedInCommentNotification($comment));
         }
     }
 

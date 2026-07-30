@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Task;
 use App\Models\User;
 use App\Notifications\TaskAssignedNotification;
+use App\Support\Notifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -25,7 +26,7 @@ class TaskAssigneeController extends Controller
 
         // Only notify on a genuinely new assignment, and never self-notify.
         if (! empty($changed['attached']) && $assignee->id !== Auth::id()) {
-            $assignee->notify(new TaskAssignedNotification($task, Auth::user()));
+            Notifier::send($assignee, new TaskAssignedNotification($task, Auth::user()));
         }
 
         return response()->json([

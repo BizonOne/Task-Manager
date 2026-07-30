@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Project;
 use App\Models\User;
 use App\Notifications\AddedToProjectNotification;
+use App\Support\Notifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -115,8 +116,8 @@ class ProjectController extends Controller
         $changed = $project->users()->syncWithoutDetaching([$userId => ['role' => $role]]);
 
         // Notify only on a genuinely new membership, never yourself.
-        if (! empty($changed['attached']) && $userId !== Auth::id()) {
-            User::find($userId)?->notify(new AddedToProjectNotification($project, Auth::user()));
+        if (! empty($changed['attached']) && $userId !== Auth::id() && $member = User::find($userId)) {
+            Notifier::send($member, new AddedToProjectNotification($project, Auth::user()));
         }
 
         return back()->with('success', 'Member added successfully.');
