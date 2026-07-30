@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> @yield('title') | Task Manager </title>
-    <link rel="shortcut icon" href="{{ asset('assets/img/logo-circle.png') }}" type="image/x-icon">
+    <title> @yield('title') | {{ \App\Support\Brand::name() }} </title>
+    <link rel="shortcut icon" href="{{ \App\Support\Brand::faviconUrl() ?? asset('assets/img/logo-circle.png') }}" type="image/x-icon">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -562,6 +562,15 @@
             .topnav { padding: 0.5rem 0.75rem; }
         }
     </style>
+    {{-- Brand primary colour override (later declaration wins over :root above) --}}
+    @php $__brandPrimary = \App\Support\Brand::primaryColor(); @endphp
+    <style>
+        :root {
+            --primary-500: {{ $__brandPrimary }};
+            --primary-600: {{ \App\Support\Brand::darken($__brandPrimary, 0.08) }};
+            --primary-700: {{ \App\Support\Brand::darken($__brandPrimary, 0.16) }};
+        }
+    </style>
 </head>
 
 <body>
@@ -569,8 +578,8 @@
     <div class="sidebar" id="appSidebar">
         <div class="sidebar-header">
             <a href="{{ route('dashboard') }}" class="sidebar-brand">
-                <img src="{{ asset('assets/img/logo-circle.png') }}" alt="TaskManager">
-                TaskManager
+                <img src="{{ \App\Support\Brand::logoUrl() ?? asset('assets/img/logo-circle.png') }}" alt="{{ \App\Support\Brand::name() }}">
+                {{ \App\Support\Brand::name() }}
             </a>
         </div>
 
