@@ -3,6 +3,7 @@
 use App\Http\Controllers\AiChatController;
 use App\Http\Controllers\Auth\InvitationController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\BrandAssetController;
 use App\Http\Controllers\ChecklistItemController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FileController;
@@ -21,6 +22,9 @@ use Illuminate\Support\Facades\Route;
 Route::get('login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('login', [LoginController::class, 'login']);
 Route::post('logout', [LoginController::class, 'logout'])->name('logout');
+
+// Brand logo over HTTP, so emails can show it (data: URIs are blocked in mail).
+Route::get('brand/logo', [BrandAssetController::class, 'logo'])->name('brand.logo');
 
 // Invitation acceptance — an invited user sets their own password here.
 Route::get('invitation/{token}', [InvitationController::class, 'show'])->name('invitation.show');

@@ -32,16 +32,28 @@ class UserInvitationNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $brand = Brand::name();
-        $inviter = $this->invitedBy?->name;
+        $inviter = $this->invitedBy;
+
+        // Roles are what the invitee actually gains, so name them.
+        $roles = $notifiable->roles?->pluck('name')
+            ->map(fn (string $r) => str_replace('_', ' ', $r))
+            ->implode(', ');
 
         return (new MailMessage)
-            ->subject("You're invited to join ".$brand)
-            ->greeting("Hi {$notifiable->name},")
-            ->line($inviter
-                ? "{$inviter} invited you to join {$brand}."
-                : "You've been invited to join {$brand}.")
-            ->line('Choose your own password to activate your account.')
-            ->action('Accept invitation', route('invitation.show', $this->token))
-            ->line('This link is personal to you — please do not share it.');
+            ->subject($inviter
+                ? $inviter->name.' invited you to join '.$brand
+                : "You're invited to join ".$brand)
+            ->view('emails.user-invitation', [
+                'recipient' => $notifiable,
+                'author' => $inviter,
+                'brandName' => $brand,
+                'acceptUrl' => route('invitation.show', $this->token),
+                'rows' => [
+                    ['label' => 'Workspace', 'value' => $brand, 'url' => url('/')],
+                    ['label' => 'Your email', 'value' => $notifiable->email],
+                    ['label' => 'Access level', 'value' => $roles !== '' ? $roles : null],
+                    ['label' => 'Invited by', 'value' => $inviter?->name],
+                ],
+            ]);
     }
 }

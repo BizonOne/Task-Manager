@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Notifications\UserInvitationNotification;
+use App\Support\Brand;
 use App\Support\Invitations;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -47,7 +48,16 @@ class UserInvitationTest extends TestCase
         $mail = (new UserInvitationNotification('tok-123', $admin))->toMail($user);
 
         $this->assertStringContainsString('invited', strtolower($mail->subject));
-        $this->assertSame(route('invitation.show', 'tok-123'), $mail->actionUrl);
+        $this->assertStringContainsString($admin->name, $mail->subject);
+
+        // The invite link is the whole point of this email, so assert it is
+        // actually in the rendered body (as a button and as pasteable text).
+        $html = (string) $mail->render();
+        $this->assertStringContainsString(route('invitation.show', 'tok-123'), $html);
+        $this->assertStringContainsString($user->name, $html);
+        $this->assertStringContainsString($user->email, $html);
+        $this->assertStringContainsString(Brand::name(), $html);
+
         // Mail only — an invited user has no account to see a bell notification in.
         $this->assertSame(['mail'], (new UserInvitationNotification('tok-123'))->via($user));
     }
