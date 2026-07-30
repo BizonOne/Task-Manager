@@ -1,7 +1,7 @@
 @php
     $overdue = $task->due_date
         && \Carbon\Carbon::parse($task->due_date)->isPast()
-        && $task->status !== 'completed';
+        && ! $task->isCompleted();
     $priorityColors = ['high' => '#dc2626', 'medium' => '#d97706', 'low' => '#16a34a'];
     $leftColor = $priorityColors[$task->priority] ?? '#94a3b8';
 @endphp

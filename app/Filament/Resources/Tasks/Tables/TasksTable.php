@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Tasks\Tables;
 
+use App\Models\TaskStatus;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -41,15 +42,8 @@ class TasksTable
                     ->sortable(),
                 TextColumn::make('status')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'to_do' => 'gray',
-                        'in_progress' => 'warning',
-                        'on_hold' => 'secondary',
-                        'in_review' => 'info',
-                        'completed' => 'success',
-                        default => 'gray',
-                    })
-                    ->formatStateUsing(fn (string $state): string => str($state)->headline())
+                    ->color(fn (string $state): string => TaskStatus::filamentColorFor($state))
+                    ->formatStateUsing(fn (string $state): string => TaskStatus::labelFor($state))
                     ->sortable(),
                 TextColumn::make('due_date')
                     ->date()
@@ -57,13 +51,7 @@ class TasksTable
             ])
             ->filters([
                 SelectFilter::make('status')
-                    ->options([
-                        'to_do' => 'To do',
-                        'in_progress' => 'In progress',
-                        'on_hold' => 'On hold',
-                        'in_review' => 'In review',
-                        'completed' => 'Completed',
-                    ]),
+                    ->options(fn (): array => TaskStatus::options()),
                 SelectFilter::make('priority')
                     ->options([
                         'low' => 'Low',

@@ -605,7 +605,7 @@
                     <li class="nav-item">
                         @php
                             $hasProjects = \App\Models\Project::where('user_id', auth()->id())->exists();
-                            $taskCount = $hasProjects ? \App\Models\Task::where('user_id', auth()->id())->whereHas('project', function ($q) {$q->where('status', '!=', 'completed');})->where('status', '!=', 'completed')->count() : 0;
+                            $taskCount = $hasProjects ? \App\Models\Task::where('user_id', auth()->id())->whereHas('project', function ($q) {$q->where('status', '!=', 'completed');})->notCompleted()->count() : 0;
                         @endphp
                         <a class="nav-link {{ request()->is('tasks*') ? 'active' : '' }}"
                             href="{{ $hasProjects ? route('tasks.index') : route('projects.index') . '?message=create_project_first' }}">

@@ -102,17 +102,12 @@
     cursor:pointer; transition:opacity .2s; margin-bottom:10px;
 }
 .ts-status:hover { opacity:.8; }
-.ts-status.to_do    { background:#f3f4f6; color:#374151; }
-.ts-status.in_progress { background:#ede9fe; color:#5b21b6; }
-.ts-status.on_hold  { background:#fef3c7; color:#b45309; }
-.ts-status.in_review { background:#dbeafe; color:#1d4ed8; }
-.ts-status.completed { background:#dcfce7; color:#15803d; }
 .ts-status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-.ts-status.to_do    .ts-status-dot { background:#9ca3af; }
-.ts-status.in_progress .ts-status-dot { background:#7c3aed; }
-.ts-status.on_hold  .ts-status-dot { background:#b45309; }
-.ts-status.in_review .ts-status-dot { background:#1d4ed8; }
-.ts-status.completed .ts-status-dot { background:#16a34a; }
+@foreach(\App\Models\TaskStatus::ordered() as $s)
+@php $p = \App\Models\TaskStatus::palette()[$s->color] ?? \App\Models\TaskStatus::palette()['gray']; @endphp
+.ts-status.{{ $s->key }} { background:{{ $p['bg'] }}; color:{{ $p['text'] }}; }
+.ts-status.{{ $s->key }} .ts-status-dot { background:{{ $p['dot'] }}; }
+@endforeach
 
 /* Priority chip */
 .ts-priority {
@@ -329,11 +324,10 @@
     display:inline-flex; align-items:center; gap:6px;
     padding:5px 10px; border-radius:20px; font-size:12px; font-weight:600;
 }
-.ts-status-chip.to_do    { background:#f3f4f6; color:#374151; }
-.ts-status-chip.in_progress { background:#ede9fe; color:#5b21b6; }
-.ts-status-chip.on_hold  { background:#fef3c7; color:#b45309; }
-.ts-status-chip.in_review { background:#dbeafe; color:#1d4ed8; }
-.ts-status-chip.completed { background:#dcfce7; color:#15803d; }
+@foreach(\App\Models\TaskStatus::ordered() as $s)
+@php $p = \App\Models\TaskStatus::palette()[$s->color] ?? \App\Models\TaskStatus::palette()['gray']; @endphp
+.ts-status-chip.{{ $s->key }} { background:{{ $p['bg'] }}; color:{{ $p['text'] }}; }
+@endforeach
 .ts-modal-foot {
     padding:12px 20px; border-top:1px solid #f3f4f6;
     display:flex; justify-content:flex-end; gap:8px;
@@ -389,8 +383,10 @@
 
 @section('content')
 @php
-    $statusClass = str_replace('_', '_', $task->status);
-    $statusLabel = ucwords(str_replace('_', ' ', $task->status));
+    $statuses = $statuses ?? \App\Models\TaskStatus::ordered();
+    $statusClass = $task->status;
+    $statusLabel = \App\Models\TaskStatus::labelFor($task->status);
+    $isDone = $task->isCompleted();
     $priorityColor = ['high' => '#dc2626', 'medium' => '#f59e0b', 'low' => '#16a34a'][$task->priority] ?? '#7c3aed';
 
     $checklistTotal = $task->checklistItems->count();
@@ -399,12 +395,15 @@
 
     $overdue = $task->due_date
         && \Carbon\Carbon::parse($task->due_date)->isPast()
-        && $task->status !== 'completed';
+        && ! $isDone;
 
-    $progressPct = $task->status === 'completed' ? 100
-        : ($task->status === 'in_review'  ? 80
-        : ($task->status === 'in_progress' ? 50
-        : ($task->status === 'on_hold'    ? 30 : 0)));
+    // Progress follows the status' position on the board, so it stays sensible
+    // however many statuses an admin defines.
+    $statusIndex = $statuses->search(fn ($s) => $s->key === $task->status);
+    $progressPct = $isDone ? 100
+        : ($statusIndex === false || $statuses->count() < 2
+            ? 0
+            : (int) round($statusIndex / ($statuses->count() - 1) * 100));
 
     // Mentionable participants for the discussion @autocomplete.
     $mentionData = $mentionables->map(fn ($u) => [
@@ -589,7 +588,7 @@
                                 @if($overdue)
                                     <div class="ts-stat-val" style="color:#dc2626;">{{ $daysCount }}d</div>
                                     <div class="ts-stat-lbl" style="color:#dc2626;">Overdue</div>
-                                @elseif($task->status === 'completed')
+                                @elseif($isDone)
                                     <div class="ts-stat-val" style="color:#16a34a; font-size:28px;">✓</div>
                                     <div class="ts-stat-lbl">Completed</div>
                                 @elseif($daysCount === 0)
@@ -788,21 +787,18 @@
             <button onclick="closeStatusModal()" style="background:rgba(255,255,255,.2); border:none; color:#fff; border-radius:6px; width:28px; height:28px; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center;"><i class="bi bi-x"></i></button>
         </div>
         <div class="ts-modal-body">
-            @foreach([
-                'to_do'       => ['label'=>'To Do',       'dot'=>'#9ca3af', 'desc'=>'Task is ready to start'],
-                'in_progress' => ['label'=>'In Progress', 'dot'=>'#7c3aed', 'desc'=>'Currently being worked on'],
-                'on_hold'     => ['label'=>'On Hold',     'dot'=>'#b45309', 'desc'=>'Paused, waiting on a blocker'],
-                'in_review'   => ['label'=>'In Review',   'dot'=>'#1d4ed8', 'desc'=>'Awaiting review or approval'],
-                'completed'   => ['label'=>'Completed',   'dot'=>'#16a34a', 'desc'=>'Task is finished'],
-            ] as $val => $opt)
-            <div class="ts-status-opt {{ $task->status === $val ? 'selected' : '' }}" onclick="selectStatus('{{ $val }}', this)" data-status="{{ $val }}">
-                <input type="radio" name="status" value="{{ $val }}" {{ $task->status === $val ? 'checked' : '' }}>
-                <span class="ts-status-chip {{ $val }}">
-                    <span style="width:7px;height:7px;border-radius:50%;background:{{ $opt['dot'] }};display:inline-block;"></span>
-                    {{ $opt['label'] }}
-                </span>
-                <span style="font-size:12px; color:#6b7280;">{{ $opt['desc'] }}</span>
-            </div>
+            @foreach($statuses as $status)
+                @php $pal = \App\Models\TaskStatus::palette()[$status->color] ?? \App\Models\TaskStatus::palette()['gray']; @endphp
+                <div class="ts-status-opt {{ $task->status === $status->key ? 'selected' : '' }}" onclick="selectStatus('{{ $status->key }}', this)" data-status="{{ $status->key }}">
+                    <input type="radio" name="status" value="{{ $status->key }}" {{ $task->status === $status->key ? 'checked' : '' }}>
+                    <span class="ts-status-chip {{ $status->key }}">
+                        <span style="width:7px;height:7px;border-radius:50%;background:{{ $pal['dot'] }};display:inline-block;"></span>
+                        {{ $status->label }}
+                    </span>
+                    @if($status->is_completed)
+                        <span style="font-size:12px; color:#6b7280;">Counts as finished</span>
+                    @endif
+                </div>
             @endforeach
         </div>
         <div class="ts-modal-foot">

@@ -34,7 +34,7 @@ class RoleSeeder extends Seeder
      * Entities exposed in the admin panel.
      */
     private const ENTITIES = [
-        'Project', 'Task', 'User', 'Role',
+        'Project', 'Task', 'TaskStatus', 'User', 'Role',
         'Note', 'Reminder', 'Routine', 'File', 'AiConversation',
     ];
 

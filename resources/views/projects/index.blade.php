@@ -613,7 +613,7 @@
             @foreach($projects as $project)
                 @php
                     $totalTasks     = $project->tasks->count();
-                    $completedTasks = $project->tasks->where('status', 'completed')->count();
+                    $completedTasks = $project->tasks->whereIn('status', \App\Models\TaskStatus::completedKeys())->count();
                     $progress       = $totalTasks > 0 ? ($completedTasks / $totalTasks) * 100 : 0;
                     $colors         = ['#6366f1','#8b5cf6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899'];
                     $projectColor   = $colors[strlen($project->name) % count($colors)];
@@ -719,7 +719,7 @@
             @foreach($projects as $project)
                 @php
                     $totalTasks     = $project->tasks->count();
-                    $completedTasks = $project->tasks->where('status', 'completed')->count();
+                    $completedTasks = $project->tasks->whereIn('status', \App\Models\TaskStatus::completedKeys())->count();
                     $progress       = $totalTasks > 0 ? ($completedTasks / $totalTasks) * 100 : 0;
                     $colors         = ['#6366f1','#8b5cf6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899'];
                     $projectColor   = $colors[strlen($project->name) % count($colors)];

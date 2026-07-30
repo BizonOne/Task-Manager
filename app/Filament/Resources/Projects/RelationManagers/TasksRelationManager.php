@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Projects\RelationManagers;
 
 use App\Filament\Resources\Tasks\Schemas\TaskForm;
+use App\Models\TaskStatus;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -46,26 +47,15 @@ class TasksRelationManager extends RelationManager
                     ->formatStateUsing(fn (string $state): string => str($state)->headline()),
                 TextColumn::make('status')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'in_progress' => 'warning',
-                        'in_review' => 'info',
-                        'completed' => 'success',
-                        default => 'gray',
-                    })
-                    ->formatStateUsing(fn (string $state): string => str($state)->headline()),
+                    ->color(fn (string $state): string => TaskStatus::filamentColorFor($state))
+                    ->formatStateUsing(fn (string $state): string => TaskStatus::labelFor($state)),
                 TextColumn::make('due_date')
                     ->date()
                     ->sortable(),
             ])
             ->filters([
                 SelectFilter::make('status')
-                    ->options([
-                        'to_do' => 'To do',
-                        'in_progress' => 'In progress',
-                        'on_hold' => 'On hold',
-                        'in_review' => 'In review',
-                        'completed' => 'Completed',
-                    ]),
+                    ->options(fn (): array => TaskStatus::options()),
             ])
             ->headerActions([
                 CreateAction::make(),

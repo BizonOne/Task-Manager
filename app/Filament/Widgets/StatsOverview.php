@@ -17,7 +17,7 @@ class StatsOverview extends StatsOverviewWidget
     protected function getStats(): array
     {
         $totalTasks = Task::count();
-        $completedTasks = Task::where('status', 'completed')->count();
+        $completedTasks = Task::completed()->count();
         $completionRate = $totalTasks > 0 ? round($completedTasks / $totalTasks * 100) : 0;
 
         return [

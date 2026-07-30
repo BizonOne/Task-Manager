@@ -97,7 +97,7 @@ class Project extends Model
         }
 
         if ($this->end_date && $this->end_date->lt($today)) {
-            $unfinishedTasks = $this->tasks()->where('status', '!=', 'completed')->count();
+            $unfinishedTasks = $this->tasks()->notCompleted()->count();
 
             return $unfinishedTasks > 0 ? 'unfinished' : 'finished';
         }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Tasks\Schemas;
 
+use App\Models\TaskStatus;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -39,14 +40,8 @@ class TaskForm
                     ->default('medium')
                     ->required(),
                 Select::make('status')
-                    ->options([
-                        'to_do' => 'To do',
-                        'in_progress' => 'In progress',
-                        'on_hold' => 'On hold',
-                        'in_review' => 'In review',
-                        'completed' => 'Completed',
-                    ])
-                    ->default('to_do')
+                    ->options(fn (): array => TaskStatus::options())
+                    ->default(fn (): string => TaskStatus::defaultKey())
                     ->required(),
                 DatePicker::make('due_date'),
                 TextInput::make('estimated_hours')

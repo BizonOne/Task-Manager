@@ -204,18 +204,12 @@
                         <canvas id="taskStatusChart" width="200" height="200"></canvas>
                     </div>
                     <div class="status-distribution-legend">
+                        @foreach($taskStatusDistribution as $slice)
                         <div class="legend-item">
-                            <span class="legend-color" style="background-color: var(--primary-500);"></span>
-                            <span class="legend-label">To Do ({{ $taskStatusDistribution['to_do'] }})</span>
+                            <span class="legend-color" style="background-color: {{ $slice['color'] }};"></span>
+                            <span class="legend-label">{{ $slice['label'] }} ({{ $slice['count'] }})</span>
                         </div>
-                        <div class="legend-item">
-                            <span class="legend-color" style="background-color: var(--warning-500);"></span>
-                            <span class="legend-label">In Progress ({{ $taskStatusDistribution['in_progress'] }})</span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-color" style="background-color: var(--success-500);"></span>
-                            <span class="legend-label">Completed ({{ $taskStatusDistribution['completed'] }})</span>
-                        </div>
+                        @endforeach
                     </div>
                 </div>
             </div>
@@ -305,8 +299,9 @@
                                 <div class="activity-item-content">
                                     <div class="activity-item-title">{{ $task->title }}</div>
                                     <div class="activity-item-meta">
-                                        <span class="task-status-badge status-{{ $task->status }}">
-                                            {{ ucwords(str_replace('_', ' ', $task->status)) }}
+                                        @php $sp = \App\Models\TaskStatus::paletteFor($task->status); @endphp
+                                        <span class="task-status-badge" style="background:{{ $sp['bg'] }};color:{{ $sp['text'] }};">
+                                            {{ \App\Models\TaskStatus::labelFor($task->status) }}
                                         </span>
                                         @if($task->due_date != null)
                                             <span class="activity-item-date">{{ \Carbon\Carbon::parse($task->due_date)->format('M d') }}</span>
@@ -523,26 +518,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const statusCtx = statusChartCanvas.getContext('2d');
 
-        // Data from controller
-        const statusData = {
-            to_do: {{ $taskStatusDistribution['to_do'] }},
-            in_progress: {{ $taskStatusDistribution['in_progress'] }},
-            completed: {{ $taskStatusDistribution['completed'] }}
-        };
+        // Data from controller — one slice per admin-managed status.
+        const statusData = @json($taskStatusDistribution);
 
         console.log('Status chart data:', statusData);
 
         new Chart(statusCtx, {
             type: 'doughnut',
             data: {
-                labels: ['To Do', 'In Progress', 'Completed'],
+                labels: statusData.map(s => s.label),
                 datasets: [{
-                    data: [statusData.to_do, statusData.in_progress, statusData.completed],
-                    backgroundColor: [
-                        '#6366f1',  // Primary color
-                        '#f59e0b',  // Warning color
-                        '#10b981'   // Success color
-                    ],
+                    data: statusData.map(s => s.count),
+                    backgroundColor: statusData.map(s => s.color),
                     borderWidth: 0,
                     cutout: '65%'
                 }]

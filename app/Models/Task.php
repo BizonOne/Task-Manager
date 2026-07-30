@@ -31,22 +31,44 @@ class Task extends Model
         return $this->belongsTo(Project::class);
     }
 
-    public function getStatusColorAttribute()
+    /**
+     * The status row this task's `status` key points at.
+     */
+    public function taskStatus()
     {
-        switch ($this->status) {
-            case 'to_do':
-                return 'primary';
-            case 'in_progress':
-                return 'warning';
-            case 'on_hold':
-                return 'secondary';
-            case 'in_review':
-                return 'info';
-            case 'completed':
-                return 'success';
-            default:
-                return 'secondary';
-        }
+        return $this->belongsTo(TaskStatus::class, 'status', 'key');
+    }
+
+    /**
+     * Human label for this task's status.
+     */
+    public function getStatusLabelAttribute(): string
+    {
+        return TaskStatus::labelFor($this->status);
+    }
+
+    /**
+     * Whether this task sits in a status that counts as finished.
+     */
+    public function isCompleted(): bool
+    {
+        return in_array($this->status, TaskStatus::completedKeys(), true);
+    }
+
+    /**
+     * Limit to tasks that are finished.
+     */
+    public function scopeCompleted($query)
+    {
+        return $query->whereIn('status', TaskStatus::completedKeys());
+    }
+
+    /**
+     * Limit to tasks that are not finished yet.
+     */
+    public function scopeNotCompleted($query)
+    {
+        return $query->whereNotIn('status', TaskStatus::completedKeys());
     }
 
     public function checklistItems()
