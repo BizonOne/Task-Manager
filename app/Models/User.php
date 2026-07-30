@@ -111,4 +111,12 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->belongsToMany(Project::class, 'project_teams', 'user_id', 'project_id');
     }
+
+    /**
+     * Tasks this user has been assigned to collaborate on.
+     */
+    public function assignedTasks()
+    {
+        return $this->belongsToMany(Task::class, 'task_user')->withTimestamps();
+    }
 }

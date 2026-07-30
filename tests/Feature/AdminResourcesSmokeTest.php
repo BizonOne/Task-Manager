@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\Project;
 use App\Models\Routine;
+use App\Models\Task;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -50,6 +52,22 @@ class AdminResourcesSmokeTest extends TestCase
     public function test_admin_page_renders_for_super_admin(string $path): void
     {
         $this->actingAs($this->superAdmin())->get($path)->assertSuccessful();
+    }
+
+    public function test_task_edit_page_renders_with_collaboration_relation_managers(): void
+    {
+        $admin = $this->superAdmin();
+        $project = Project::create(['user_id' => $admin->id, 'name' => 'P', 'status' => 'in_progress']);
+        $task = Task::create([
+            'user_id' => $admin->id,
+            'project_id' => $project->id,
+            'title' => 'Edit me',
+            'priority' => 'high',
+            'status' => 'to_do',
+        ]);
+
+        // Edit page mounts the Checklist, Assignees and Discussion relation managers.
+        $this->actingAs($admin)->get("/admin/tasks/{$task->id}/edit")->assertSuccessful();
     }
 
     public function test_routine_edit_page_renders_with_json_encoded_lists(): void

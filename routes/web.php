@@ -1,4 +1,5 @@
 <?php
+
 use App\Http\Controllers\AiChatController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\ChecklistItemController;
@@ -6,13 +7,14 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\NoteController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
-use App\Http\Controllers\ProjectFileController;
 use App\Http\Controllers\ReminderController;
 use App\Http\Controllers\RoutineController;
+use App\Http\Controllers\TaskAssigneeController;
+use App\Http\Controllers\TaskCommentController;
 use App\Http\Controllers\TaskController;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('login', [LoginController::class, 'showLoginForm'])->name('login');
@@ -44,6 +46,17 @@ Route::middleware(['auth'])->group(function () {
     Route::put('tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
     Route::delete('tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
     Route::post('tasks/{task}/update-status', [TaskController::class, 'updateStatus']);
+
+    // Task collaboration: comments, @mentions and assignees
+    Route::post('tasks/{task}/comments', [TaskCommentController::class, 'store'])->name('tasks.comments.store');
+    Route::delete('comments/{comment}', [TaskCommentController::class, 'destroy'])->name('comments.destroy');
+    Route::post('tasks/{task}/assignees', [TaskAssigneeController::class, 'store'])->name('tasks.assignees.store');
+    Route::delete('tasks/{task}/assignees/{user}', [TaskAssigneeController::class, 'destroy'])->name('tasks.assignees.destroy');
+
+    // Notifications
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('notifications/{id}/read', [NotificationController::class, 'read'])->name('notifications.read');
+    Route::post('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.readAll');
 
     Route::resource('routines', RoutineController::class)->except(['show']);
     Route::get('routines/showAll', [RoutineController::class, 'showAll'])->name('routines.showAll');

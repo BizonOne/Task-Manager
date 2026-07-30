@@ -235,6 +235,56 @@
 }
 .ts-cl-btn:hover { background:#6d28d9; }
 
+/* Assignees */
+.ts-assignees { display:flex; flex-wrap:wrap; gap:8px; }
+.ts-assignee-chip {
+    display:inline-flex; align-items:center; gap:7px;
+    background:#f5f3ff; border:1px solid #ddd6fe; border-radius:999px;
+    padding:4px 10px 4px 4px; font-size:13px; color:#4c1d95; font-weight:500;
+}
+.ts-assignee-av {
+    width:24px; height:24px; border-radius:50%; background:#7c3aed; color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;
+}
+.ts-assignee-x {
+    display:flex; align-items:center; justify-content:center; width:18px; height:18px;
+    border:none; background:none; color:#a78bda; cursor:pointer; border-radius:50%; padding:0;
+}
+.ts-assignee-x:hover { background:#ede9fe; color:#ef4444; }
+.ts-assignee-empty { font-size:13px; color:#9ca3af; }
+
+/* Comments / discussion */
+.ts-comments { display:flex; flex-direction:column; gap:14px; margin-bottom:16px; }
+.ts-comment { display:flex; gap:10px; }
+.ts-comment-av {
+    flex-shrink:0; width:34px; height:34px; border-radius:50%; background:#7c3aed; color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700;
+}
+.ts-comment-main { flex:1; min-width:0; background:#f8f9fa; border-radius:10px; padding:10px 12px; }
+.ts-comment-head { display:flex; align-items:center; gap:8px; margin-bottom:3px; }
+.ts-comment-author { font-size:13px; font-weight:700; color:#374151; }
+.ts-comment-time { font-size:11px; color:#9ca3af; }
+.ts-comment-del {
+    margin-left:auto; border:none; background:none; color:#c4b5d4; cursor:pointer;
+    font-size:12px; opacity:0; transition:opacity .15s;
+}
+.ts-comment:hover .ts-comment-del { opacity:1; }
+.ts-comment-del:hover { color:#ef4444; }
+.ts-comment-body { font-size:13px; color:#374151; line-height:1.5; word-wrap:break-word; }
+.ts-comment-form { border-top:1px solid #f0f0f3; padding-top:14px; }
+.ts-comment-input {
+    width:100%; border:1px solid #e5e7eb; border-radius:8px; padding:10px 12px;
+    font-size:13px; font-family:inherit; resize:vertical; outline:none;
+}
+.ts-comment-input:focus { border-color:#7c3aed; }
+.ts-comment-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; flex-wrap:wrap; }
+.ts-mention-hint { font-size:11px; color:#9ca3af; display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+.ts-mention-tag {
+    border:1px solid #e5e7eb; background:#fff; color:#7c3aed; border-radius:999px;
+    padding:2px 8px; font-size:11px; cursor:pointer; font-weight:600;
+}
+.ts-mention-tag:hover { background:#f5f3ff; border-color:#ddd6fe; }
+
 /* Status change modal */
 .ts-modal-overlay {
     position:fixed; inset:0; background:rgba(0,0,0,.45);
@@ -608,6 +658,90 @@
                 </div>
             </div>
 
+            {{-- Assignees card --}}
+            <div class="ts-card">
+                <div class="ts-card-header">
+                    <div class="ts-card-title"><i class="bi bi-people"></i> Assignees</div>
+                </div>
+                <div class="ts-card-body">
+                    <div id="assignee-list" class="ts-assignees">
+                        @forelse($task->assignees as $assignee)
+                            <span class="ts-assignee-chip" data-id="{{ $assignee->id }}">
+                                <span class="ts-assignee-av">{{ strtoupper(mb_substr($assignee->name, 0, 1)) }}</span>
+                                {{ $assignee->name }}
+                                @if($canManageAssignees)
+                                    <button type="button" class="ts-assignee-x" onclick="removeAssignee({{ $assignee->id }})" title="Remove">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                @endif
+                            </span>
+                        @empty
+                            <span id="assignee-empty" class="ts-assignee-empty">No one assigned yet.</span>
+                        @endforelse
+                    </div>
+
+                    @if($canManageAssignees)
+                    <form class="ts-cl-add" style="margin-top:14px;" onsubmit="addAssignee(event)">
+                        <select id="assignee-select" class="ts-cl-input" style="cursor:pointer;">
+                            <option value="">Assign a collaborator…</option>
+                            @foreach($assignableUsers as $u)
+                                <option value="{{ $u->id }}">{{ $u->name }}</option>
+                            @endforeach
+                        </select>
+                        <button type="submit" class="ts-cl-btn"><i class="bi bi-plus"></i> Assign</button>
+                    </form>
+                    @endif
+                </div>
+            </div>
+
+            {{-- Discussion card --}}
+            <div class="ts-card">
+                <div class="ts-card-header">
+                    <div class="ts-card-title">
+                        <i class="bi bi-chat-dots"></i> Discussion
+                        <span id="comment-count" style="font-size:12px; color:#9ca3af; font-weight:400; margin-left:4px;">({{ $task->comments->count() }})</span>
+                    </div>
+                </div>
+                <div class="ts-card-body">
+                    <div id="comment-list" class="ts-comments">
+                        @forelse($task->comments as $comment)
+                            <div class="ts-comment" data-id="{{ $comment->id }}">
+                                <div class="ts-comment-av">{{ strtoupper(mb_substr($comment->user->name, 0, 1)) }}</div>
+                                <div class="ts-comment-main">
+                                    <div class="ts-comment-head">
+                                        <span class="ts-comment-author">{{ $comment->user->name }}</span>
+                                        <span class="ts-comment-time">{{ $comment->created_at->diffForHumans() }}</span>
+                                        @if($comment->user_id === auth()->id() || $task->user_id === auth()->id() || $task->project?->user_id === auth()->id())
+                                            <button type="button" class="ts-comment-del" onclick="deleteComment({{ $comment->id }})" title="Delete"><i class="bi bi-trash"></i></button>
+                                        @endif
+                                    </div>
+                                    <div class="ts-comment-body">{!! nl2br(e($comment->body)) !!}</div>
+                                </div>
+                            </div>
+                        @empty
+                            <div id="comment-empty" class="ts-empty" style="padding:20px 0;">
+                                <i class="bi bi-chat-dots"></i>
+                                <p>No comments yet. Start the discussion below.</p>
+                            </div>
+                        @endforelse
+                    </div>
+
+                    <form class="ts-comment-form" onsubmit="addComment(event)">
+                        <textarea id="comment-input" class="ts-comment-input" rows="2"
+                                  placeholder="Write a comment… use @name to mention someone" required></textarea>
+                        <div class="ts-comment-foot">
+                            <span class="ts-mention-hint">
+                                Mention:
+                                @foreach($mentionables as $m)
+                                    <button type="button" class="ts-mention-tag" onclick="insertMention('{{ \Illuminate\Support\Str::slug($m->name) }}')">@{{ \Illuminate\Support\Str::slug($m->name) }}</button>
+                                @endforeach
+                            </span>
+                            <button type="submit" class="ts-cl-btn"><i class="bi bi-send"></i> Comment</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
         </div>{{-- end .ts-content --}}
     </div>{{-- end .ts-body --}}
 </div>{{-- end .ts-wrap --}}
@@ -786,5 +920,162 @@ function deleteChecklistItem(id) {
 }
 
 document.addEventListener('DOMContentLoaded', updateChecklistUI);
+
+/* ── Discussion / comments ─────────────────────────────── */
+const TASK_ID = {{ $task->id }};
+
+function insertMention(handle) {
+    const ta = document.getElementById('comment-input');
+    const prefix = ta.value.length && !ta.value.endsWith(' ') ? ' ' : '';
+    ta.value += prefix + '@' + handle + ' ';
+    ta.focus();
+}
+
+function buildCommentNode(c) {
+    const wrap = document.createElement('div');
+    wrap.className = 'ts-comment';
+    wrap.setAttribute('data-id', c.id);
+
+    const av = document.createElement('div');
+    av.className = 'ts-comment-av';
+    av.textContent = c.initials;
+
+    const main = document.createElement('div');
+    main.className = 'ts-comment-main';
+
+    const head = document.createElement('div');
+    head.className = 'ts-comment-head';
+    const author = document.createElement('span');
+    author.className = 'ts-comment-author';
+    author.textContent = c.user_name;
+    const time = document.createElement('span');
+    time.className = 'ts-comment-time';
+    time.textContent = c.created_at;
+    head.appendChild(author);
+    head.appendChild(time);
+    if (c.is_author) {
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'ts-comment-del';
+        del.title = 'Delete';
+        del.innerHTML = '<i class="bi bi-trash"></i>';
+        del.onclick = () => deleteComment(c.id);
+        head.appendChild(del);
+    }
+
+    const body = document.createElement('div');
+    body.className = 'ts-comment-body';
+    body.textContent = c.body; // textContent avoids any HTML injection
+
+    main.appendChild(head);
+    main.appendChild(body);
+    wrap.appendChild(av);
+    wrap.appendChild(main);
+    return wrap;
+}
+
+function bumpCommentCount(delta) {
+    const el = document.getElementById('comment-count');
+    const n = Math.max(0, (parseInt(el.textContent.replace(/\D/g, '')) || 0) + delta);
+    el.textContent = '(' + n + ')';
+}
+
+function addComment(event) {
+    event.preventDefault();
+    const ta = document.getElementById('comment-input');
+    const body = ta.value.trim();
+    if (!body) return;
+
+    fetch(`/tasks/${TASK_ID}/comments`, {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ body })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (!d.success) return showToast('Failed to post comment', false);
+        const empty = document.getElementById('comment-empty');
+        if (empty) empty.remove();
+        document.getElementById('comment-list').appendChild(buildCommentNode(d.comment));
+        bumpCommentCount(1);
+        ta.value = '';
+        showToast('Comment posted');
+    })
+    .catch(() => showToast('Failed to post comment', false));
+}
+
+function deleteComment(id) {
+    if (!confirm('Delete this comment?')) return;
+    fetch(`/comments/${id}`, {
+        method: 'DELETE',
+        headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (!d.success) return showToast('Failed to delete', false);
+        document.querySelector(`.ts-comment[data-id="${id}"]`)?.remove();
+        bumpCommentCount(-1);
+        showToast('Comment removed');
+    })
+    .catch(() => showToast('Failed to delete', false));
+}
+
+/* ── Assignees ─────────────────────────────────────────── */
+function addAssignee(event) {
+    event.preventDefault();
+    const select = document.getElementById('assignee-select');
+    const userId = select.value;
+    if (!userId) return;
+
+    fetch(`/tasks/${TASK_ID}/assignees`, {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (!d.success) return showToast('Failed to assign', false);
+        const empty = document.getElementById('assignee-empty');
+        if (empty) empty.remove();
+        const list = document.getElementById('assignee-list');
+        if (list.querySelector(`.ts-assignee-chip[data-id="${d.assignee.id}"]`)) {
+            showToast('Already assigned', false);
+            return;
+        }
+        const chip = document.createElement('span');
+        chip.className = 'ts-assignee-chip';
+        chip.setAttribute('data-id', d.assignee.id);
+        const av = document.createElement('span');
+        av.className = 'ts-assignee-av';
+        av.textContent = d.assignee.name.charAt(0).toUpperCase();
+        chip.appendChild(av);
+        chip.appendChild(document.createTextNode(' ' + d.assignee.name + ' '));
+        const x = document.createElement('button');
+        x.type = 'button';
+        x.className = 'ts-assignee-x';
+        x.title = 'Remove';
+        x.innerHTML = '<i class="bi bi-x"></i>';
+        x.onclick = () => removeAssignee(d.assignee.id);
+        chip.appendChild(x);
+        list.appendChild(chip);
+        select.value = '';
+        showToast('Collaborator assigned');
+    })
+    .catch(() => showToast('Failed to assign', false));
+}
+
+function removeAssignee(userId) {
+    fetch(`/tasks/${TASK_ID}/assignees/${userId}`, {
+        method: 'DELETE',
+        headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (!d.success) return showToast('Failed to remove', false);
+        document.querySelector(`.ts-assignee-chip[data-id="${userId}"]`)?.remove();
+        showToast('Collaborator removed');
+    })
+    .catch(() => showToast('Failed to remove', false));
+}
 </script>
 @endpush
