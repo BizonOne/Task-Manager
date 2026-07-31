@@ -272,6 +272,14 @@
                     <i class="bi bi-calendar3"></i>
                     {{ $file->created_at->format('M d, Y') }}
                 </div>
+                @if($file->task)
+                    <div class="cu-file-info">
+                        <i class="bi bi-paperclip"></i>
+                        <a href="{{ route('tasks.show', $file->task) }}" style="color:#7c3aed; text-decoration:none;">
+                            {{ Str::limit($file->task->title, 30) }}
+                        </a>
+                    </div>
+                @endif
                 <div class="cu-file-actions">
                     <a href="{{ route('files.show', $file->id) }}" class="cu-file-btn view" title="View Details">
                         <i class="bi bi-eye"></i> View

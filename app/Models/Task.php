@@ -94,6 +94,15 @@ class Task extends Model
     }
 
     /**
+     * Everything attached to this task, including files posted in the
+     * discussion — the task page is the one place to look for them.
+     */
+    public function files()
+    {
+        return $this->hasMany(File::class)->latest();
+    }
+
+    /**
      * The task's audit trail, oldest first.
      */
     public function activities()
@@ -113,7 +122,7 @@ class Task extends Model
      */
     public function timeline(): Collection
     {
-        $this->loadMissing(['activities.user', 'comments.user']);
+        $this->loadMissing(['activities.user', 'comments.user', 'comments.files']);
 
         $commentsById = $this->comments->keyBy('id');
         $shownCommentIds = [];
@@ -151,6 +160,7 @@ class Task extends Model
                     'text' => 'commented',
                     'icon' => 'chat-dots',
                     'body' => $comment->body,
+                    'files' => $comment->files,
                 ];
             })
             ->filter()
@@ -167,6 +177,7 @@ class Task extends Model
                 'text' => 'commented',
                 'icon' => 'chat-dots',
                 'body' => $c->body,
+                'files' => $c->files,
             ]);
 
         return $orphans->isEmpty()

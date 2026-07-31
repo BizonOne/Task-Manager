@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\File;
+use App\Models\Task;
+use App\Support\Uploads;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -10,30 +13,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FileController extends Controller
 {
-    /**
-     * Where uploads live. Private on purpose: files are served through
-     * download() so ownership is checked, instead of being fetchable by
-     * anyone who has the URL. Configurable so production can point at a
-     * bucket without a code change.
-     */
-    private static function disk(): string
-    {
-        return config('filesystems.uploads', 'local');
-    }
-
-    /**
-     * Uploads made before that change sat on the public disk. Reads fall back
-     * to it so existing rows keep working.
-     */
-    private const LEGACY_DISK = 'public';
-
-    private const MAX_KILOBYTES = 20480;
-
-    private const ALLOWED_MIMES = 'jpeg,png,jpg,gif,svg,doc,docx,xls,xlsx,pdf,txt,csv,zip,html,css,js';
-
     public function index()
     {
-        $files = Auth::user()->files()->latest()->get();
+        $files = Auth::user()->files()->with('task')->latest()->get();
 
         return view('files.index', compact('files'));
     }
@@ -47,33 +29,49 @@ class FileController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'file' => 'required|file|max:'.self::MAX_KILOBYTES.'|mimes:'.self::ALLOWED_MIMES,
+            'file' => Uploads::rule(),
             'type' => 'required|string|in:project,docs,txt,code,image',
         ]);
 
-        $upload = $request->file('file');
-
-        Auth::user()->files()->create([
-            'name' => $request->name,
-            'path' => $upload->store('uploads', self::disk()),
-            'type' => $request->type,
-            'original_name' => $upload->getClientOriginalName(),
-            'mime_type' => $upload->getClientMimeType(),
-            'size' => $upload->getSize(),
-        ]);
+        Uploads::store(
+            $request->file('file'),
+            Auth::user(),
+            name: $request->name,
+            type: $request->type,
+        );
 
         return redirect()->route('files.index')->with('success', 'File uploaded successfully.');
     }
 
+    /**
+     * Attach files to a task, from the task page.
+     */
+    public function attach(Request $request, Task $task): JsonResponse
+    {
+        $user = Auth::user();
+        abort_unless($task->isAccessibleBy($user), 403);
+
+        $request->validate([
+            'files' => 'required|array|max:10',
+            'files.*' => Uploads::rule(),
+        ]);
+
+        $stored = collect($request->file('files'))
+            ->map(fn ($upload) => Uploads::store($upload, $user, task: $task))
+            ->map(fn (File $file) => $this->toJson($file));
+
+        return response()->json(['success' => true, 'files' => $stored]);
+    }
+
     public function show(File $file)
     {
-        $this->authorizeOwner($file);
+        $this->authorizeView($file);
 
         return view('files.show', compact('file'));
     }
 
     /**
-     * Stream the file to its owner.
+     * Stream the file to anyone allowed to see it.
      *
      * The download link used to be a plain Storage::url(), which needs the
      * public symlink (never created on deploy, so every download 404'd) and
@@ -81,9 +79,9 @@ class FileController extends Controller
      */
     public function download(File $file, Request $request): StreamedResponse
     {
-        $this->authorizeOwner($file);
+        $this->authorizeView($file);
 
-        $disk = $this->diskHolding($file);
+        $disk = Uploads::diskHolding($file);
 
         // The row can outlive the file itself — say so plainly instead of
         // throwing a 500.
@@ -104,27 +102,27 @@ class FileController extends Controller
 
     public function edit(File $file)
     {
-        $this->authorizeOwner($file);
+        $this->authorizeManage($file);
 
         return view('files.edit', compact('file'));
     }
 
     public function update(Request $request, File $file)
     {
-        $this->authorizeOwner($file);
+        $this->authorizeManage($file);
         $request->validate([
             'name' => 'required|string|max:255',
-            'file' => 'nullable|file|max:'.self::MAX_KILOBYTES.'|mimes:'.self::ALLOWED_MIMES,
+            'file' => Uploads::rule(required: false),
             'type' => 'required|string|in:project,docs,txt,code,image',
         ]);
 
         $data = $request->only(['name', 'type']);
 
         if ($request->hasFile('file')) {
-            $this->deleteStoredFile($file);
+            Uploads::deleteStored($file);
 
             $upload = $request->file('file');
-            $data['path'] = $upload->store('uploads', self::disk());
+            $data['path'] = $upload->store('uploads', Uploads::disk());
             $data['original_name'] = $upload->getClientOriginalName();
             $data['mime_type'] = $upload->getClientMimeType();
             $data['size'] = $upload->getSize();
@@ -135,43 +133,45 @@ class FileController extends Controller
         return redirect()->route('files.index')->with('success', 'File updated successfully.');
     }
 
-    public function destroy(File $file)
+    public function destroy(Request $request, File $file)
     {
-        $this->authorizeOwner($file);
-        $this->deleteStoredFile($file);
+        $this->authorizeManage($file);
+        Uploads::deleteStored($file);
         $file->delete();
+
+        // Deleting from a task page should stay on the task page.
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
 
         return redirect()->route('files.index')->with('success', 'File deleted successfully.');
     }
 
     /**
-     * Which disk actually holds this file, or null if it is gone.
+     * What the task page needs to render a freshly uploaded attachment.
+     *
+     * @return array<string, mixed>
      */
-    private function diskHolding(File $file): ?string
+    public function toJson(File $file): array
     {
-        foreach ([self::disk(), self::LEGACY_DISK] as $disk) {
-            if ($file->path && Storage::disk($disk)->exists($file->path)) {
-                return $disk;
-            }
-        }
-
-        return null;
+        return [
+            'id' => $file->id,
+            'name' => $file->original_name ?: $file->name,
+            'size' => $file->readable_size,
+            'icon' => $file->icon,
+            'inline' => $file->isViewableInline(),
+            'url' => route('files.download', $file),
+            'uploader' => $file->user?->name ?? Auth::user()->name,
+        ];
     }
 
-    private function deleteStoredFile(File $file): void
+    private function authorizeView(File $file): void
     {
-        $disk = $this->diskHolding($file);
-
-        if ($disk !== null) {
-            Storage::disk($disk)->delete($file->path);
-        }
+        abort_unless($file->isAccessibleBy(Auth::user()), 403);
     }
 
-    /**
-     * Ensure the authenticated user owns the given file.
-     */
-    private function authorizeOwner(File $file): void
+    private function authorizeManage(File $file): void
     {
-        abort_unless($file->user_id === Auth::id(), 403);
+        abort_unless($file->isManageableBy(Auth::user()), 403);
     }
 }

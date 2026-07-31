@@ -303,6 +303,58 @@
    to it; the shared editor styles do the rest. */
 #comment-editor .ql-editor { font-size:13px; }
 
+/* Attachments */
+.ts-file-add {
+    display:inline-flex; align-items:center; gap:6px; cursor:pointer;
+    padding:6px 12px; border-radius:8px; font-size:12px; font-weight:600;
+    background:#f5f3ff; color:#7c3aed; border:1px solid #ede9fe;
+}
+.ts-file-add:hover { background:#ede9fe; }
+.ts-file-list { display:flex; flex-direction:column; gap:6px; }
+.ts-file {
+    display:flex; align-items:center; gap:10px;
+    padding:8px 10px; border:1px solid #f3f4f6; border-radius:9px;
+    transition:background .15s;
+}
+.ts-file:hover { background:#f8f9fa; }
+.ts-file-icon { font-size:18px; color:#7c3aed; flex-shrink:0; }
+.ts-file-main { flex:1; min-width:0; text-decoration:none; display:block; }
+.ts-file-name {
+    display:block; font-size:13px; font-weight:600; color:#374151;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.ts-file-main:hover .ts-file-name { color:#7c3aed; }
+.ts-file-meta { display:block; font-size:11px; color:#9ca3af; }
+.ts-file-del {
+    background:none; border:none; color:#d1d5db; cursor:pointer;
+    padding:3px 6px; border-radius:6px; font-size:13px; flex-shrink:0;
+}
+.ts-file-del:hover { color:#dc2626; background:#fef2f2; }
+.ts-file.is-uploading { opacity:.55; }
+
+/* Attachments inside a comment */
+.ts-comment-files { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.ts-chip {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:4px 10px; border-radius:20px; font-size:12px; font-weight:500;
+    background:#f5f3ff; color:#6d28d9; text-decoration:none; max-width:100%;
+}
+.ts-chip:hover { background:#ede9fe; color:#5b21b6; }
+.ts-chip span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* Pending attachments in the composer */
+.ts-pending { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.ts-pending .ts-chip { background:#f3f4f6; color:#4b5563; }
+.ts-pending button {
+    background:none; border:none; color:#9ca3af; cursor:pointer; padding:0 0 0 2px; line-height:1;
+}
+.ts-pending button:hover { color:#dc2626; }
+.ts-attach-btn {
+    display:inline-flex; align-items:center; gap:6px; cursor:pointer;
+    font-size:12px; color:#6b7280; font-weight:500;
+}
+.ts-attach-btn:hover { color:#7c3aed; }
+
 /* @mention autocomplete */
 .ts-mention-box { position:relative; }
 .ts-mention-menu {
@@ -656,6 +708,47 @@
                 </div>
             </div>
 
+            {{-- Attachments card --}}
+            <div class="ts-card">
+                <div class="ts-card-header">
+                    <div class="ts-card-title">
+                        <i class="bi bi-paperclip"></i> Attachments
+                        <span id="file-count" style="font-size:12px; color:#9ca3af; font-weight:400; margin-left:4px;">({{ $task->files->count() }})</span>
+                    </div>
+                    <label class="ts-file-add">
+                        <i class="bi bi-upload"></i> Upload
+                        <input type="file" id="file-input" multiple hidden onchange="uploadTaskFiles(this)">
+                    </label>
+                </div>
+                <div class="ts-card-body">
+                    <div id="file-list" class="ts-file-list">
+                        @foreach($task->files as $file)
+                            <div class="ts-file" data-id="{{ $file->id }}">
+                                <i class="bi {{ $file->icon }} ts-file-icon"></i>
+                                <a class="ts-file-main"
+                                   href="{{ route('files.download', $file) }}{{ $file->isViewableInline() ? '?inline=1' : '' }}"
+                                   @if($file->isViewableInline()) target="_blank" rel="noopener" @endif>
+                                    <span class="ts-file-name">{{ $file->original_name ?: $file->name }}</span>
+                                    <span class="ts-file-meta">
+                                        {{ $file->readable_size }}
+                                        @if($file->user) &middot; {{ $file->user->name }} @endif
+                                        @if($file->task_comment_id) &middot; from the discussion @endif
+                                    </span>
+                                </a>
+                                @if($file->isManageableBy(auth()->user()))
+                                    <button type="button" class="ts-file-del" title="Remove"
+                                            onclick="deleteTaskFile({{ $file->id }})"><i class="bi bi-trash"></i></button>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                    <div id="file-empty" class="ts-empty" style="padding:20px 0; {{ $task->files->count() ? 'display:none;' : '' }}">
+                        <i class="bi bi-paperclip"></i>
+                        <p>Nothing attached yet. Upload a file or drop one into the discussion.</p>
+                    </div>
+                </div>
+            </div>
+
             {{-- Checklist card --}}
             <div class="ts-card">
                 <div class="ts-card-header">
@@ -767,6 +860,18 @@
                                         @endif
                                     </div>
                                     <div class="ts-comment-body rich-text">{!! $comment->body !!}</div>
+                                    @if($comment->files->isNotEmpty())
+                                        <div class="ts-comment-files">
+                                            @foreach($comment->files as $file)
+                                                <a class="ts-chip"
+                                                   href="{{ route('files.download', $file) }}{{ $file->isViewableInline() ? '?inline=1' : '' }}"
+                                                   @if($file->isViewableInline()) target="_blank" rel="noopener" @endif>
+                                                    <i class="bi {{ $file->icon }}"></i>
+                                                    <span>{{ $file->original_name ?: $file->name }}</span>
+                                                </a>
+                                            @endforeach
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         @empty
@@ -783,8 +888,13 @@
                                            placeholder="Write a comment… type @ to mention a teammate" />
                             <div id="mention-menu" class="ts-mention-menu" role="listbox"></div>
                         </div>
+                        <div id="comment-pending" class="ts-pending"></div>
                         <div class="ts-comment-foot">
                             <span class="ts-mention-hint">
+                                <label class="ts-attach-btn" title="Attach files">
+                                    <i class="bi bi-paperclip"></i> Attach
+                                    <input type="file" id="comment-files" multiple hidden onchange="stagePendingFiles(this)">
+                                </label>
                                 <i class="bi bi-at"></i>
                                 @if($mentionables->isEmpty())
                                     No teammates to mention yet.
@@ -822,6 +932,18 @@
                                 </div>
                                 @if($entry['body'])
                                     <div class="ts-tl-body rich-text">{!! $entry['body'] !!}</div>
+                                @endif
+                                @if(!empty($entry['files']) && count($entry['files']))
+                                    <div class="ts-comment-files">
+                                        @foreach($entry['files'] as $file)
+                                            <a class="ts-chip"
+                                               href="{{ route('files.download', $file) }}{{ $file->isViewableInline() ? '?inline=1' : '' }}"
+                                               @if($file->isViewableInline()) target="_blank" rel="noopener" @endif>
+                                                <i class="bi {{ $file->icon }}"></i>
+                                                <span>{{ $file->original_name ?: $file->name }}</span>
+                                            </a>
+                                        @endforeach
+                                    </div>
                                 @endif
                             </div>
                         </div>
@@ -1179,8 +1301,13 @@ function buildCommentNode(c) {
     // markup the page would have rendered on a reload.
     body.innerHTML = c.body;
 
+    const files = document.createElement('div');
+    files.className = 'ts-comment-files';
+    (c.files || []).forEach(f => files.appendChild(fileChip(f)));
+
     main.appendChild(head);
     main.appendChild(body);
+    if ((c.files || []).length) main.appendChild(files);
     wrap.appendChild(av);
     wrap.appendChild(main);
     return wrap;
@@ -1192,28 +1319,177 @@ function bumpCommentCount(delta) {
     el.textContent = '(' + n + ')';
 }
 
+/* ── Attachments ───────────────────────────────────────── */
+/* Files staged in the composer, posted together with the comment. */
+let pendingFiles = [];
+
+function fileChip(f) {
+    const a = document.createElement('a');
+    a.className = 'ts-chip';
+    a.href = f.url + (f.inline ? '?inline=1' : '');
+    if (f.inline) { a.target = '_blank'; a.rel = 'noopener'; }
+    const icon = document.createElement('i');
+    icon.className = 'bi ' + f.icon;
+    const label = document.createElement('span');
+    label.textContent = f.name;          // textContent: a filename is not markup
+    a.appendChild(icon);
+    a.appendChild(label);
+    return a;
+}
+
+function buildFileRow(f) {
+    const row = document.createElement('div');
+    row.className = 'ts-file';
+    row.setAttribute('data-id', f.id);
+
+    const icon = document.createElement('i');
+    icon.className = 'bi ' + f.icon + ' ts-file-icon';
+
+    const main = document.createElement('a');
+    main.className = 'ts-file-main';
+    main.href = f.url + (f.inline ? '?inline=1' : '');
+    if (f.inline) { main.target = '_blank'; main.rel = 'noopener'; }
+    const name = document.createElement('span');
+    name.className = 'ts-file-name';
+    name.textContent = f.name;
+    const meta = document.createElement('span');
+    meta.className = 'ts-file-meta';
+    meta.textContent = [f.size, f.uploader].filter(Boolean).join(' · ');
+    main.appendChild(name);
+    main.appendChild(meta);
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'ts-file-del';
+    del.title = 'Remove';
+    del.innerHTML = '<i class="bi bi-trash"></i>';
+    del.onclick = () => deleteTaskFile(f.id);
+
+    row.appendChild(icon);
+    row.appendChild(main);
+    row.appendChild(del);
+    return row;
+}
+
+function addFileRow(f) {
+    document.getElementById('file-list').prepend(buildFileRow(f));
+    document.getElementById('file-empty').style.display = 'none';
+    bumpFileCount(1);
+}
+
+function bumpFileCount(delta) {
+    const el = document.getElementById('file-count');
+    const n = Math.max(0, (parseInt(el.textContent.replace(/\D/g, '')) || 0) + delta);
+    el.textContent = '(' + n + ')';
+    if (n === 0) document.getElementById('file-empty').style.display = '';
+}
+
+function uploadTaskFiles(input) {
+    if (!input.files.length) return;
+
+    const data = new FormData();
+    Array.from(input.files).forEach(f => data.append('files[]', f));
+    input.value = '';   // so picking the same file twice still fires change
+
+    fetch(`/tasks/${TASK_ID}/files`, {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+        body: data
+    })
+    .then(r => r.json().then(d => ({ ok: r.ok, d })))
+    .then(({ ok, d }) => {
+        if (!ok || !d.success) return showToast(firstError(d) || 'Upload failed', false);
+        d.files.forEach(addFileRow);
+        showToast(d.files.length > 1 ? 'Files uploaded' : 'File uploaded');
+    })
+    .catch(() => showToast('Upload failed', false));
+}
+
+function deleteTaskFile(id) {
+    if (!confirm('Remove this file?')) return;
+    fetch(`/files/${id}`, {
+        method: 'DELETE',
+        headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (!d.success) return showToast('Failed to remove', false);
+        document.querySelector(`.ts-file[data-id="${id}"]`)?.remove();
+        bumpFileCount(-1);
+        showToast('File removed');
+    })
+    .catch(() => showToast('Failed to remove', false));
+}
+
+/* Laravel answers a rejected upload with {errors: {'files.0': [...]}}. */
+function firstError(d) {
+    const bag = d && d.errors;
+    if (!bag) return d && d.message;
+    const first = Object.values(bag)[0];
+    return Array.isArray(first) ? first[0] : first;
+}
+
+function stagePendingFiles(input) {
+    pendingFiles = pendingFiles.concat(Array.from(input.files));
+    input.value = '';
+    renderPendingFiles();
+}
+
+function renderPendingFiles() {
+    const box = document.getElementById('comment-pending');
+    box.innerHTML = '';
+    pendingFiles.forEach((file, i) => {
+        const chip = document.createElement('span');
+        chip.className = 'ts-chip';
+        const icon = document.createElement('i');
+        icon.className = 'bi bi-paperclip';
+        const label = document.createElement('span');
+        label.textContent = file.name;
+        const x = document.createElement('button');
+        x.type = 'button';
+        x.innerHTML = '<i class="bi bi-x"></i>';
+        x.title = 'Remove';
+        x.onclick = () => { pendingFiles.splice(i, 1); renderPendingFiles(); };
+        chip.appendChild(icon);
+        chip.appendChild(label);
+        chip.appendChild(x);
+        box.appendChild(chip);
+    });
+}
+
 function addComment(event) {
     event.preventDefault();
     if (!commentQuill) return;
 
     // An "empty" editor still holds a paragraph and a newline, so ask the
     // editor whether there is anything in it rather than trimming the HTML.
-    if (window.RichEditor.isBlank(commentQuill)) return;
-    const body = commentQuill.root.innerHTML;
+    // A file on its own is a fine comment, so an empty box is only a problem
+    // when nothing is attached either.
+    const blank = window.RichEditor.isBlank(commentQuill);
+    if (blank && !pendingFiles.length) return;
+
+    // Multipart rather than JSON, because the comment may carry files.
+    const data = new FormData();
+    data.append('body', blank ? '' : commentQuill.root.innerHTML);
+    pendingFiles.forEach(f => data.append('attachments[]', f));
 
     fetch(`/tasks/${TASK_ID}/comments`, {
         method: 'POST',
-        headers: { 'X-CSRF-TOKEN': CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ body })
+        headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+        body: data
     })
-    .then(r => r.json())
-    .then(d => {
-        if (!d.success) return showToast('Failed to post comment', false);
+    .then(r => r.json().then(d => ({ ok: r.ok, d })))
+    .then(({ ok, d }) => {
+        if (!ok || !d.success) return showToast(firstError(d) || 'Failed to post comment', false);
         const empty = document.getElementById('comment-empty');
         if (empty) empty.remove();
         document.getElementById('comment-list').appendChild(buildCommentNode(d.comment));
         bumpCommentCount(1);
+        // Anything posted with the comment also belongs to the task.
+        (d.comment.files || []).forEach(addFileRow);
         commentQuill.setText('');
+        pendingFiles = [];
+        renderPendingFiles();
         closeMentionMenu();
         showToast('Comment posted');
     })
@@ -1231,6 +1507,11 @@ function deleteComment(id) {
         if (!d.success) return showToast('Failed to delete', false);
         document.querySelector(`.ts-comment[data-id="${id}"]`)?.remove();
         bumpCommentCount(-1);
+        // Its attachments went with it.
+        (d.removed_file_ids || []).forEach(fid => {
+            document.querySelector(`.ts-file[data-id="${fid}"]`)?.remove();
+            bumpFileCount(-1);
+        });
         showToast('Comment removed');
     })
     .catch(() => showToast('Failed to delete', false));

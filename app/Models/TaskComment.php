@@ -33,6 +33,14 @@ class TaskComment extends Model
         return RichText::toText($this->body);
     }
 
+    /**
+     * Files posted with this comment.
+     */
+    public function files()
+    {
+        return $this->hasMany(File::class, 'task_comment_id')->oldest();
+    }
+
     public function task()
     {
         return $this->belongsTo(Task::class);
