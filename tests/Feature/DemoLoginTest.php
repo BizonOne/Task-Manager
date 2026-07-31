@@ -21,7 +21,10 @@ class DemoLoginTest extends TestCase
             'password' => 'secret',
         ]);
 
-        $response->assertRedirect('dashboard');
+        // Assert the destination actually resolves — the previous version
+        // asserted the literal path 'dashboard', which 404s.
+        $response->assertRedirect(route('dashboard'));
+        $this->followRedirects($response)->assertSuccessful();
         $this->assertAuthenticatedAs(User::where('email', 'admin@example.com')->first());
     }
 

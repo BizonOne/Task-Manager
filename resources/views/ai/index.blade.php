@@ -4,7 +4,21 @@
 
 @push('styles')
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script>if(typeof marked!=='undefined') marked.setOptions({ breaks: true, gfm: true });</script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
+<script>
+if (typeof marked !== 'undefined') marked.setOptions({ breaks: true, gfm: true });
+
+/* Assistant replies are stored and re-rendered on every page load, so raw
+   marked output would be persistent XSS. Everything goes through DOMPurify;
+   if it failed to load we fall back to plain text rather than trusting HTML. */
+function renderMarkdown(el, text) {
+    if (typeof marked === 'undefined') { el.textContent = text; return; }
+    const html = marked.parse(text);
+    if (typeof DOMPurify === 'undefined') { el.textContent = text; return; }
+    el.innerHTML = DOMPurify.sanitize(html, { ADD_ATTR: ['target', 'rel'] });
+    el.querySelectorAll('a[href]').forEach(a => { a.target = '_blank'; a.rel = 'noopener noreferrer'; });
+}
+</script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
@@ -605,7 +619,7 @@ footer { display: none !important; }
         const bubble = document.createElement('div');
         bubble.className = 'lina-msg ' + (role === 'user' ? 'user' : 'bot');
         if (role !== 'user' && typeof marked !== 'undefined') {
-            bubble.innerHTML = marked.parse(content);
+            renderMarkdown(bubble, content);
             applyCodeEnhancements(bubble);
         } else {
             bubble.textContent = content;
@@ -676,11 +690,6 @@ footer { display: none !important; }
         const typingEl = appendTyping();
         isBusy = true; sendBtn.disabled = true;
 
-        const historyPayload = activeMessages.slice(0, -1).slice(-MAX_HISTORY).map(m => ({
-            role: m.role === 'assistant' ? 'assistant' : 'user',
-            content: m.content,
-        }));
-
         let accumulatedText = '';
         let selectedModel   = null;
         let streamWrap      = null;
@@ -691,7 +700,7 @@ footer { display: none !important; }
             const res = await fetch(STREAM_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
-                body: JSON.stringify({ message: text, conversation_id: activeConvId, history: historyPayload }),
+                body: JSON.stringify({ message: text, conversation_id: activeConvId }),
             });
 
             typingEl.remove();
@@ -722,10 +731,32 @@ footer { display: none !important; }
             requestAnimationFrame(() => { streamWrap.style.opacity='1'; streamWrap.style.transform='translateY(0)'; });
             scrollBottom();
 
-            // Read SSE stream
+            // Read SSE stream. The server emits one JSON object per frame:
+            //   {event:'start'|'tool'|'delta'|'error'|'done', ...}
             const reader  = res.body.getReader();
             const decoder = new TextDecoder();
-            let sseBuffer  = '';
+            let sseBuffer = '';
+            let streamError = null;
+
+            /* Tool activity is shown live: the assistant looks things up
+               server-side before it can answer, and silence there reads as a
+               hang. */
+            const toolLabels = {
+                search_tasks: 'Looking through tasks',
+                get_task: 'Opening the task',
+                create_task: 'Creating the task',
+                update_task: 'Updating the task',
+                comment_on_task: 'Posting the comment',
+                list_projects: 'Checking projects',
+                list_reminders: 'Checking reminders',
+                create_reminder: 'Creating the reminder',
+                workspace_summary: 'Adding up your workspace',
+            };
+            const showActivity = (name) => {
+                streamBubbleEl.classList.add('lina-streaming');
+                streamBubbleEl.textContent = (toolLabels[name] || 'Working') + '…';
+                scrollBottom();
+            };
 
             outer: while (true) {
                 const { done, value } = await reader.read();
@@ -738,13 +769,27 @@ footer { display: none !important; }
                 for (const line of lines) {
                     const trimmed = line.trim();
                     if (!trimmed.startsWith('data: ')) continue;
-                    const data = trimmed.slice(6);
-                    if (data === '[DONE]') break outer;
 
-                    try {
-                        const json = JSON.parse(data);
-                        if (json.conversation_id !== undefined && json.choices === undefined) {
-                            // Our metadata packet: { model, conversation_id }
+                    let json;
+                    try { json = JSON.parse(trimmed.slice(6)); } catch { continue; }
+
+                    switch (json.event) {
+                        case 'start':
+                            if (json.conversation_id) activeConvId = json.conversation_id;
+                            break;
+                        case 'tool':
+                            showActivity(json.name);
+                            break;
+                        case 'delta':
+                            if (accumulatedText === '') streamBubbleEl.textContent = '';
+                            accumulatedText += json.text || '';
+                            streamBubbleEl.textContent = accumulatedText;
+                            scrollBottom();
+                            break;
+                        case 'error':
+                            streamError = json.message || 'Something went wrong.';
+                            break;
+                        case 'done':
                             if (json.model) {
                                 selectedModel = json.model;
                                 const tag = document.createElement('span');
@@ -752,28 +797,22 @@ footer { display: none !important; }
                                 tag.textContent = friendlyModel(selectedModel);
                                 streamMetaEl.prepend(tag);
                             }
-                        } else if (json.error) {
-                            streamBubbleEl.classList.remove('lina-streaming');
-                            const errMsg = typeof json.error === 'string' ? json.error : (json.error?.message || 'Something went wrong. Please try again.');
-                            streamBubbleEl.textContent = '⚠ ' + errMsg;
-                        } else {
-                            const token = json.choices?.[0]?.delta?.content || '';
-                            if (token) {
-                                accumulatedText += token;
-                                streamBubbleEl.textContent = accumulatedText;
-                                scrollBottom();
-                            }
-                        }
-                    } catch (e) { /* ignore parse errors */ }
+                            break outer;
+                    }
                 }
+            }
+
+            if (streamError) {
+                streamBubbleEl.classList.remove('lina-streaming');
+                streamBubbleEl.textContent = '⚠ ' + streamError;
+                activeMessages.pop();
+                return;
             }
 
             // Final markdown render
             streamBubbleEl.classList.remove('lina-streaming');
             if (accumulatedText) {
-                streamBubbleEl.innerHTML = typeof marked !== 'undefined'
-                    ? marked.parse(accumulatedText)
-                    : accumulatedText.replace(/\n/g, '<br>');
+                renderMarkdown(streamBubbleEl, accumulatedText);
                 applyCodeEnhancements(streamBubbleEl);
                 const actions = document.createElement('div');
                 actions.className = 'lina-msg-actions';

@@ -98,7 +98,9 @@
 /* Grid of cards */
 .cu-rem-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    /* min() keeps the 320px floor from exceeding the container on narrow
+       screens, which pushed cards past the right edge on mobile. */
+    grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
     gap: .9rem;
 }
 
@@ -110,14 +112,20 @@
     padding: 1rem 1.1rem;
     display: flex; flex-direction: column; gap: .55rem;
     transition: transform .15s, box-shadow .15s;
+    /* Grid items default to min-width:auto and refuse to shrink below their
+       content — a long unbroken URL then overflows the card. */
+    min-width: 0;
 }
 .cu-rem-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.1); }
 .cu-rem-card.cu-rem-done { opacity: .72; }
 .cu-rem-card.cu-rem-late { background: #fff8f8; }
 
 .cu-rem-head  { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; }
-.cu-rem-title { font-size: .95rem; font-weight: 600; color: #111827; margin: 0; flex: 1; line-height: 1.35; }
-.cu-rem-desc  { font-size: .82rem; color: #6b7280; margin: 0; line-height: 1.5; }
+/* Titles and descriptions routinely hold pasted URLs and ticket ids with no
+   spaces, so they must be allowed to break mid-string. */
+.cu-rem-title { font-size: .95rem; font-weight: 600; color: #111827; margin: 0; flex: 1; line-height: 1.35;
+                min-width: 0; overflow-wrap: anywhere; }
+.cu-rem-desc  { font-size: .82rem; color: #6b7280; margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
 
 /* Priority badges */
 .cu-pri-badge   { font-size: .68rem; font-weight: 700; text-transform: uppercase;

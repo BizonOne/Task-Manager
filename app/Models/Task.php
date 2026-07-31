@@ -82,6 +82,87 @@ class Task extends Model
     }
 
     /**
+     * The task's audit trail, oldest first.
+     */
+    public function activities()
+    {
+        return $this->hasMany(TaskActivity::class)->oldest();
+    }
+
+    /**
+     * Activities and comments merged into one chronological history — what a
+     * person means by "the timeline of this task".
+     *
+     * Ordering follows the activity log's own sequence rather than wall-clock
+     * timestamps: several changes plus a comment can land in the same second,
+     * and only the log's autoincrement tells them apart reliably.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function timeline(): Collection
+    {
+        $this->loadMissing(['activities.user', 'comments.user']);
+
+        $commentsById = $this->comments->keyBy('id');
+        $shownCommentIds = [];
+
+        $entries = $this->activities
+            ->sortBy('id')
+            ->map(function (TaskActivity $activity) use ($commentsById, &$shownCommentIds): ?array {
+                $entry = [
+                    'type' => 'activity',
+                    'at' => $activity->created_at,
+                    'actor' => $activity->actor_name,
+                    'text' => $activity->description,
+                    'icon' => $activity->icon,
+                    'body' => null,
+                ];
+
+                if ($activity->event !== TaskActivity::EVENT_COMMENTED) {
+                    return $entry;
+                }
+
+                // Show the comment itself in place of the bare marker. A
+                // comment that has since been deleted leaves only its
+                // "comment deleted" entry, so drop this one.
+                $comment = $commentsById->get($activity->meta['comment_id'] ?? null);
+                if ($comment === null) {
+                    return null;
+                }
+
+                $shownCommentIds[] = $comment->id;
+
+                return [
+                    'type' => 'comment',
+                    'at' => $comment->created_at,
+                    'actor' => $comment->user?->name ?? 'Unknown',
+                    'text' => 'commented',
+                    'icon' => 'chat-dots',
+                    'body' => $comment->body,
+                ];
+            })
+            ->filter()
+            ->values();
+
+        // Comments made before the activity log existed have no matching entry;
+        // fold them in by timestamp so old discussions still show up.
+        $orphans = $this->comments
+            ->reject(fn (TaskComment $c) => in_array($c->id, $shownCommentIds, true))
+            ->map(fn (TaskComment $c) => [
+                'type' => 'comment',
+                'at' => $c->created_at,
+                'actor' => $c->user?->name ?? 'Unknown',
+                'text' => 'commented',
+                'icon' => 'chat-dots',
+                'body' => $c->body,
+            ]);
+
+        return $orphans->isEmpty()
+            ? $entries
+            : $entries->concat($orphans)->sortBy('at')->values();
+    }
+
+    /**
      * Users assigned to collaborate on this task.
      */
     public function assignees()

@@ -274,6 +274,31 @@
 .ts-comment-input:focus { border-color:#7c3aed; }
 .ts-comment-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; flex-wrap:wrap; }
 .ts-mention-hint { font-size:11px; color:#9ca3af; display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+/* Timeline / history */
+.ts-tl-item { display:flex; gap:12px; position:relative; padding-bottom:16px; }
+.ts-tl-item:last-child { padding-bottom:0; }
+/* Connector line between markers. */
+.ts-tl-item:not(:last-child)::before {
+    content:''; position:absolute; left:13px; top:28px; bottom:0;
+    width:2px; background:#f0f0f3;
+}
+.ts-tl-marker {
+    flex-shrink:0; width:28px; height:28px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; background:#f3f4f6; color:#6b7280;
+    border:2px solid #fff; box-shadow:0 0 0 1px #eef0f3; z-index:1;
+}
+.ts-tl-marker.comment { background:#f5f3ff; color:#7c3aed; box-shadow:0 0 0 1px #ddd6fe; }
+.ts-tl-content { flex:1; min-width:0; padding-top:3px; }
+.ts-tl-head { display:flex; align-items:baseline; gap:6px; flex-wrap:wrap; font-size:13px; line-height:1.5; }
+.ts-tl-actor { font-weight:700; color:#111827; }
+.ts-tl-text { color:#4b5563; }
+.ts-tl-time { color:#9ca3af; font-size:11px; margin-left:auto; white-space:nowrap; }
+.ts-tl-body {
+    margin-top:6px; padding:9px 12px; background:#f8f9fa; border-radius:8px;
+    font-size:13px; line-height:1.55; color:#374151; word-wrap:break-word;
+}
+
 /* @mention autocomplete */
 .ts-mention-box { position:relative; }
 .ts-mention-menu {
@@ -767,6 +792,42 @@
                             <button type="submit" class="ts-cl-btn"><i class="bi bi-send"></i> Comment</button>
                         </div>
                     </form>
+                </div>
+            </div>
+
+            {{-- History card: every change and comment, oldest first --}}
+            <div class="ts-card">
+                <div class="ts-card-header">
+                    <div class="ts-card-title">
+                        <i class="bi bi-clock-history"></i> History
+                        <span style="font-size:12px; color:#9ca3af; font-weight:400; margin-left:4px;">({{ $timeline->count() }})</span>
+                    </div>
+                </div>
+                <div class="ts-card-body">
+                    @forelse($timeline as $entry)
+                        <div class="ts-tl-item">
+                            <div class="ts-tl-marker {{ $entry['type'] }}">
+                                <i class="bi bi-{{ $entry['icon'] }}"></i>
+                            </div>
+                            <div class="ts-tl-content">
+                                <div class="ts-tl-head">
+                                    <span class="ts-tl-actor">{{ $entry['actor'] }}</span>
+                                    <span class="ts-tl-text">{{ $entry['text'] }}</span>
+                                    <span class="ts-tl-time" title="{{ $entry['at']?->toDayDateTimeString() }}">
+                                        {{ $entry['at']?->diffForHumans() }}
+                                    </span>
+                                </div>
+                                @if($entry['body'])
+                                    <div class="ts-tl-body">{!! nl2br(e($entry['body'])) !!}</div>
+                                @endif
+                            </div>
+                        </div>
+                    @empty
+                        <div class="ts-empty" style="padding:20px 0;">
+                            <i class="bi bi-clock-history"></i>
+                            <p>No history yet.</p>
+                        </div>
+                    @endforelse
                 </div>
             </div>
 

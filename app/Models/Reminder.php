@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Carbon\Carbon;
 
 class Reminder extends Model
 {
@@ -40,14 +40,21 @@ class Reminder extends Model
     ];
 
     const PRIORITY_LOW = 'low';
+
     const PRIORITY_MEDIUM = 'medium';
+
     const PRIORITY_HIGH = 'high';
+
     const PRIORITY_URGENT = 'urgent';
 
     const RECURRENCE_NONE = 'none';
+
     const RECURRENCE_DAILY = 'daily';
+
     const RECURRENCE_WEEKLY = 'weekly';
+
     const RECURRENCE_MONTHLY = 'monthly';
+
     const RECURRENCE_YEARLY = 'yearly';
 
     public function user()
@@ -67,7 +74,9 @@ class Reminder extends Model
 
     public function getFormattedDateTimeAttribute()
     {
-        if (!$this->date) return null;
+        if (! $this->date) {
+            return null;
+        }
 
         $dateTime = $this->date;
         if ($this->time) {
@@ -80,7 +89,7 @@ class Reminder extends Model
 
     public function getPriorityColorAttribute()
     {
-        return match($this->priority) {
+        return match ($this->priority) {
             self::PRIORITY_LOW => '#10b981',
             self::PRIORITY_MEDIUM => '#f59e0b',
             self::PRIORITY_HIGH => '#ef4444',
@@ -96,7 +105,7 @@ class Reminder extends Model
 
     public function getIsOverdueAttribute()
     {
-        if ($this->is_completed || !$this->formatted_date_time) {
+        if ($this->is_completed || ! $this->formatted_date_time) {
             return false;
         }
 
@@ -105,7 +114,7 @@ class Reminder extends Model
 
     public function getIsDueSoonAttribute()
     {
-        if ($this->is_completed || !$this->formatted_date_time) {
+        if ($this->is_completed || ! $this->formatted_date_time) {
             return false;
         }
 
@@ -114,7 +123,9 @@ class Reminder extends Model
 
     public function getTimeUntilAttribute()
     {
-        if (!$this->formatted_date_time) return null;
+        if (! $this->formatted_date_time) {
+            return null;
+        }
 
         return $this->formatted_date_time->diffForHumans();
     }
@@ -132,9 +143,24 @@ class Reminder extends Model
 
     public function scopeOverdue($query)
     {
+        // Expressed with the query builder rather than CONCAT()/NOW(), which
+        // are MySQL-only — the raw version threw "no such function: NOW" on
+        // any other driver. A reminder with no time counts from midnight,
+        // matching the old COALESCE(time, '00:00:00').
+        $now = now();
+
         return $query->active()
             ->whereNotNull('date')
-            ->whereRaw('CONCAT(date, " ", COALESCE(time, "00:00:00")) < NOW()');
+            ->where(function ($q) use ($now) {
+                $q->whereDate('date', '<', $now->toDateString())
+                    ->orWhere(function ($sameDay) use ($now) {
+                        $sameDay->whereDate('date', $now->toDateString())
+                            ->where(function ($timePassed) use ($now) {
+                                $timePassed->whereNull('time')
+                                    ->orWhere('time', '<', $now->format('H:i:s'));
+                            });
+                    });
+            });
     }
 
     public function scopeDueToday($query)
@@ -163,9 +189,9 @@ class Reminder extends Model
     {
         return $query->where(function ($q) use ($search) {
             $q->where('title', 'like', "%{$search}%")
-              ->orWhere('description', 'like', "%{$search}%")
-              ->orWhere('category', 'like', "%{$search}%")
-              ->orWhere('location', 'like', "%{$search}%");
+                ->orWhere('description', 'like', "%{$search}%")
+                ->orWhere('category', 'like', "%{$search}%")
+                ->orWhere('location', 'like', "%{$search}%");
         });
     }
 
@@ -174,7 +200,7 @@ class Reminder extends Model
     {
         $this->update([
             'is_completed' => true,
-            'completed_at' => now()
+            'completed_at' => now(),
         ]);
 
         // Create next occurrence if recurring
@@ -187,13 +213,15 @@ class Reminder extends Model
     {
         $this->update([
             'snooze_until' => now()->addMinutes($minutes),
-            'notification_sent' => false
+            'notification_sent' => false,
         ]);
     }
 
     protected function createNextOccurrence()
     {
-        if (!$this->date) return;
+        if (! $this->date) {
+            return;
+        }
 
         $nextDate = $this->calculateNextDate();
         if ($nextDate) {
@@ -201,7 +229,7 @@ class Reminder extends Model
                 'is_completed',
                 'completed_at',
                 'notification_sent',
-                'snooze_until'
+                'snooze_until',
             ])->fill([
                 'date' => $nextDate,
                 'is_completed' => false,
@@ -217,7 +245,7 @@ class Reminder extends Model
         $currentDate = $this->date;
         $interval = $this->recurrence_interval ?: 1;
 
-        return match($this->recurrence_type) {
+        return match ($this->recurrence_type) {
             self::RECURRENCE_DAILY => $currentDate->addDays($interval),
             self::RECURRENCE_WEEKLY => $currentDate->addWeeks($interval),
             self::RECURRENCE_MONTHLY => $currentDate->addMonths($interval),
