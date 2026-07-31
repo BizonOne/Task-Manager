@@ -35,8 +35,14 @@ return [
         ],
     ],
 
-    'groq' => [
-        'key' => env('GROQ_API_KEY'),
+    'gemini' => [
+        'key' => env('GEMINI_API_KEY'),
+        // Tried in order; the first that answers wins. Keep the fastest model
+        // first — the assistant runs several round-trips per reply.
+        'models' => array_values(array_filter(array_map('trim', explode(
+            ',',
+            env('GEMINI_MODELS', 'gemini-2.5-flash,gemini-flash-latest,gemini-2.5-pro')
+        )))),
     ],
 
 ];

@@ -85,10 +85,12 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('checklist-items', ChecklistItemController::class);
     Route::get('checklist-items/{checklistItem}/update-status', [ChecklistItemController::class, 'updateStatus'])->name('checklist-items.update-status');
 
-    // AI Chat
+    // AI Chat. The assistant burns a shared API quota, so cap how fast one
+    // user can call it. (/ai/chat is gone — nothing called it.)
     Route::get('/ai', [AiChatController::class, 'index'])->name('ai.index');
-    Route::post('/ai/chat', [AiChatController::class, 'chat'])->name('ai.chat');
-    Route::post('/ai/stream', [AiChatController::class, 'stream'])->name('ai.stream');
+    Route::post('/ai/stream', [AiChatController::class, 'stream'])
+        ->middleware('throttle:20,1')
+        ->name('ai.stream');
     // AI Conversations (DB-backed)
     Route::get('/ai/conversations', [AiChatController::class, 'conversations'])->name('ai.conversations.index');
     Route::post('/ai/conversations', [AiChatController::class, 'createConversation'])->name('ai.conversations.create');
