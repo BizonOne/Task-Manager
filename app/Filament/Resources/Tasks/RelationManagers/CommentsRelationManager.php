@@ -2,13 +2,14 @@
 
 namespace App\Filament\Resources\Tasks\RelationManagers;
 
+use App\Support\RichText;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
@@ -31,9 +32,14 @@ class CommentsRelationManager extends RelationManager
                 ->searchable()
                 ->preload()
                 ->required(),
-            Textarea::make('body')
+            RichEditor::make('body')
+                ->toolbarButtons([
+                    ['bold', 'italic', 'underline', 'strike'],
+                    ['h2', 'h3', 'bulletList', 'orderedList'],
+                    ['blockquote', 'codeBlock', 'link'],
+                    ['undo', 'redo'],
+                ])
                 ->required()
-                ->rows(4)
                 ->columnSpanFull(),
         ]);
     }
@@ -47,6 +53,9 @@ class CommentsRelationManager extends RelationManager
                     ->label('Author')
                     ->sortable(),
                 TextColumn::make('body')
+                    // Comments are stored as HTML; a table cell wants the
+                    // words, not the markup.
+                    ->formatStateUsing(fn (?string $state): string => RichText::toText($state))
                     ->wrap()
                     ->limit(200),
                 TextColumn::make('created_at')

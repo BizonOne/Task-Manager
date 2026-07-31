@@ -106,24 +106,30 @@ class NotificationEmailTest extends TestCase
         }
     }
 
-    public function test_mention_email_quotes_the_comment_and_escapes_it(): void
+    public function test_mention_email_quotes_the_comment_with_its_formatting(): void
     {
         ['owner' => $owner, 'member' => $member, 'task' => $task] = $this->scaffold();
         $comment = TaskComment::create([
             'task_id' => $task->id,
             'user_id' => $owner->id,
-            'body' => "Please check <script>alert(1)</script> line 2\nand the second line @member",
+            'body' => '<p>Please <strong>check</strong> this</p>'
+                .'<ul><li>and the second line</li></ul>'
+                .'<script>alert(1)</script>',
         ]);
 
         $html = (string) (new MentionedInCommentNotification($comment))->toMail($member)->render();
 
-        // The employee can read what was actually said, without opening the app.
-        $this->assertStringContainsString('Please check', $html);
+        // The employee can read what was actually said, without opening the app,
+        // and the formatting the author applied comes with it.
+        $this->assertStringContainsString('Please', $html);
+        $this->assertStringContainsString('<strong>check</strong>', $html);
         $this->assertStringContainsString('and the second line', $html);
-        // Newlines survive as <br>, but the markup in the comment is escaped.
-        $this->assertStringContainsString('<br', $html);
+        $this->assertStringContainsString('<li>', $html);
+
+        // The comment was filtered on the way into the database, so there is no
+        // script left to quote — in the mail or anywhere else.
         $this->assertStringNotContainsString('<script>', $html);
-        $this->assertStringContainsString('&lt;script&gt;', $html);
+        $this->assertStringNotContainsString('alert(1)', $html);
     }
 
     public function test_added_to_project_email_states_the_recipients_role(): void

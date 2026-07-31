@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\TaskComment;
 use App\Models\TaskStatus;
 use App\Support\Brand;
+use App\Support\RichText;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -73,7 +74,7 @@ class MentionedInCommentNotification extends Notification
             'task_title' => $task->title,
             'comment_id' => $this->comment->id,
             'by' => $author->name,
-            'excerpt' => Str::limit($this->comment->body, 120),
+            'excerpt' => RichText::toText($this->comment->body, 120),
             'message' => "{$author->name} mentioned you on \"{$task->title}\"",
             'url' => route('tasks.show', $task->id),
         ];

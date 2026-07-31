@@ -123,7 +123,7 @@
             <div class="cu-card-body">
                 <div class="cu-card-title">{{ $routine->title }}</div>
                 @if($routine->description)
-                <div class="cu-card-desc">{{ Str::limit(strip_tags($routine->description), 100) }}</div>
+                <div class="cu-card-desc">{{ \App\Support\RichText::toText($routine->description, 100) }}</div>
                 @endif
                 <div class="cu-card-meta">
                     @if(count($monthNames))

@@ -16,7 +16,7 @@
     <div class="cu-task-title">{{ $task->title }}</div>
 
     @if($task->description)
-        <div class="cu-task-desc">{{ strip_tags($task->description) }}</div>
+        <div class="cu-task-desc">{{ \App\Support\RichText::toText($task->description) }}</div>
     @endif
 
     <div class="cu-task-meta">

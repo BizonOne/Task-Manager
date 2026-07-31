@@ -3,9 +3,9 @@
 namespace App\Filament\Resources\Notes\Schemas;
 
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
@@ -33,8 +33,13 @@ class NoteForm
                 TimePicker::make('time'),
                 TagsInput::make('tags')
                     ->columnSpanFull(),
-                Textarea::make('content')
-                    ->rows(8)
+                RichEditor::make('content')
+                    ->toolbarButtons([
+                        ['bold', 'italic', 'underline', 'strike'],
+                        ['h2', 'h3', 'bulletList', 'orderedList'],
+                        ['blockquote', 'codeBlock', 'link'],
+                        ['undo', 'redo'],
+                    ])
                     ->columnSpanFull(),
             ]);
     }

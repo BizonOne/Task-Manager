@@ -4,9 +4,9 @@ namespace App\Filament\Resources\Reminders\Schemas;
 
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
@@ -64,8 +64,13 @@ class ReminderForm
                 DateTimePicker::make('snooze_until'),
                 TagsInput::make('tags')
                     ->columnSpanFull(),
-                Textarea::make('description')
-                    ->rows(4)
+                RichEditor::make('description')
+                    ->toolbarButtons([
+                        ['bold', 'italic', 'underline', 'strike'],
+                        ['h2', 'h3', 'bulletList', 'orderedList'],
+                        ['blockquote', 'codeBlock', 'link'],
+                        ['undo', 'redo'],
+                    ])
                     ->columnSpanFull(),
             ]);
     }

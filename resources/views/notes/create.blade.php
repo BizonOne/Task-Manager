@@ -363,7 +363,10 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     @if(old('content'))
-        quill.root.innerHTML = `{!! addslashes(old('content')) !!}`;
+        {{-- @json, not a template literal: addslashes leaves backticks and
+             ${...} intact, so a rejected note could run its own script on the
+             way back to the form. --}}
+        quill.root.innerHTML = @json(old('content'));
     @endif
 
     // Tags

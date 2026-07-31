@@ -207,7 +207,7 @@
                 <div class="cu-routine-card">
                     <div class="cu-routine-title">{{ $routine->title }}</div>
                     @if($routine->description)
-                    <div class="cu-routine-desc">{{ Str::limit(strip_tags($routine->description), 90) }}</div>
+                    <div class="cu-routine-desc">{{ \App\Support\RichText::toText($routine->description, 90) }}</div>
                     @endif
                     <div class="cu-routine-meta">
                         @if($routine->days)
@@ -269,7 +269,7 @@
                 <div class="cu-routine-card">
                     <div class="cu-routine-title">{{ $routine->title }}</div>
                     @if($routine->description)
-                    <div class="cu-routine-desc">{{ Str::limit(strip_tags($routine->description), 90) }}</div>
+                    <div class="cu-routine-desc">{{ \App\Support\RichText::toText($routine->description, 90) }}</div>
                     @endif
                     <div class="cu-routine-meta">
                         @if($routine->weeks)
@@ -331,7 +331,7 @@
                 <div class="cu-routine-card">
                     <div class="cu-routine-title">{{ $routine->title }}</div>
                     @if($routine->description)
-                    <div class="cu-routine-desc">{{ Str::limit(strip_tags($routine->description), 90) }}</div>
+                    <div class="cu-routine-desc">{{ \App\Support\RichText::toText($routine->description, 90) }}</div>
                     @endif
                     <div class="cu-routine-meta">
                         @if($routine->months)

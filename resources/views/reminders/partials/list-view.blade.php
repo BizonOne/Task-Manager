@@ -15,7 +15,7 @@
             <!-- Card Content -->
             @if($reminder->description)
                 <div class="reminder-content">
-                    {{ $reminder->description }}
+                    {{ \App\Support\RichText::toText($reminder->description) }}
                 </div>
             @endif
 

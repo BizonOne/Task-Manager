@@ -7,7 +7,7 @@
 --}}
 @component('emails.layout', [
     'heading' => $author->name.' mentioned you in a comment',
-    'preview' => $author->name.' on "'.$task->title.'": '.\Illuminate\Support\Str::limit($comment->body, 90),
+    'preview' => $author->name.' on "'.$task->title.'": '.\App\Support\RichText::toText($comment->body, 90),
     'footerNote' => 'You received this because you were mentioned in this discussion.',
 ])
     <p style="margin:0 0 4px;">Hi {{ $recipient->name }},</p>
@@ -19,6 +19,7 @@
 
     @include('emails.partials.quote', [
         'body' => $comment->body,
+        'html' => true,
         'author' => $author->name,
         'when' => $comment->created_at?->diffForHumans(),
     ])
