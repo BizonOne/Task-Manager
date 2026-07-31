@@ -24,7 +24,9 @@ class LoginController extends Controller
         if (Auth::attempt($request->only('email', 'password'))) {
             $request->session()->regenerate();
 
-            return redirect()->intended('dashboard');
+            // The dashboard is served at '/', so the literal path 'dashboard'
+            // 404s — resolve the route by name instead.
+            return redirect()->intended(route('dashboard'));
         }
 
         // An invited user has no password yet — point them at their invite
