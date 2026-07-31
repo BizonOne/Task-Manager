@@ -66,7 +66,9 @@ return [
             'url' => env('AWS_URL'),
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
-            'throw' => false,
+            // Surface bucket errors instead of swallowing them — a failed
+            // upload must not look like a successful one.
+            'throw' => true,
         ],
 
     ],
