@@ -179,7 +179,7 @@
             <div class="cu-info-body">
                 <div class="cu-avatar-wrap">
                     @if($user->avatar)
-                        <img src="{{ Storage::url($user->avatar) }}" alt="{{ $user->name }}" class="cu-avatar-img">
+                        <img src="{{ route('avatar.show', $user) }}" alt="{{ $user->name }}" class="cu-avatar-img">
                     @else
                         <div class="cu-avatar-init">{{ strtoupper(substr($user->name,0,2)) }}</div>
                     @endif

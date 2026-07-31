@@ -650,7 +650,7 @@
                                         <span style="font-size:9px;font-weight:700;color:#7c3aed;background:#f5f3ff;border-radius:999px;padding:1px 6px;vertical-align:middle;">MEMBER</span>
                                     @endif
                                 </div>
-                                <div class="cu-card-desc">{{ strip_tags($project->description) ?: 'No description' }}</div>
+                                <div class="cu-card-desc">{{ \App\Support\RichText::toText($project->description) ?: 'No description' }}</div>
                             </div>
                         </div>
 

@@ -324,7 +324,7 @@
                     <span class="cu-section-title">Description</span>
                 </div>
                 <div class="cu-section-body">
-                    <p class="cu-content-text">{{ $reminder->description }}</p>
+                    <div class="cu-content-text rich-text">{!! $reminder->description !!}</div>
                 </div>
             </div>
             @endif

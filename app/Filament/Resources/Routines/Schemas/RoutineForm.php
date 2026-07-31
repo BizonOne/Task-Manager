@@ -2,9 +2,9 @@
 
 namespace App\Filament\Resources\Routines\Schemas;
 
+use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Schemas\Schema;
@@ -41,8 +41,13 @@ class RoutineForm
                 ...self::jsonListField('days'),
                 ...self::jsonListField('weeks'),
                 ...self::jsonListField('months'),
-                Textarea::make('description')
-                    ->rows(3)
+                RichEditor::make('description')
+                    ->toolbarButtons([
+                        ['bold', 'italic', 'underline', 'strike'],
+                        ['h2', 'h3', 'bulletList', 'orderedList'],
+                        ['blockquote', 'codeBlock', 'link'],
+                        ['undo', 'redo'],
+                    ])
                     ->columnSpanFull(),
             ]);
     }

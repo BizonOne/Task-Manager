@@ -293,9 +293,10 @@
                         </div>
                         <div class="cu-field">
                             <label for="description" class="cu-label">Description</label>
-                            <textarea name="description" id="description"
-                                      class="cu-textarea {{ $errors->has('description') ? 'is-invalid' : '' }}"
-                                      placeholder="Add details about this routine...">{{ old('description', $routine->description) }}</textarea>
+                            <x-rich-editor name="description"
+                                           :value="old('description', $routine->description)"
+                                           :min-height="110"
+                                           placeholder="Add details about this routine…" />
                             @error('description')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                     </div>

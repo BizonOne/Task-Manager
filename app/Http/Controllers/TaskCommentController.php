@@ -7,6 +7,7 @@ use App\Models\TaskComment;
 use App\Notifications\MentionedInCommentNotification;
 use App\Support\MentionParser;
 use App\Support\Notifier;
+use App\Support\RichText;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -18,7 +19,19 @@ class TaskCommentController extends Controller
         abort_unless($task->isAccessibleBy($user), 403);
 
         $validated = $request->validate([
-            'body' => 'required|string|max:5000',
+            // The editor sends HTML, so the limit has to leave room for the
+            // markup; what a person can actually write is the rule below.
+            'body' => [
+                'required', 'string', 'max:20000',
+                function (string $attribute, mixed $value, callable $fail): void {
+                    if (RichText::isEmpty($value)) {
+                        $fail('Write something before posting.');
+                    }
+                    if (mb_strlen(RichText::toText($value)) > 5000) {
+                        $fail('That comment is too long.');
+                    }
+                },
+            ],
         ]);
 
         $comment = $task->comments()->create([
@@ -65,7 +78,9 @@ class TaskCommentController extends Controller
      */
     private function notifyMentioned(Task $task, TaskComment $comment): void
     {
-        $mentioned = MentionParser::resolve($comment->body, $task->participants())
+        // Against the plain text, so an '@' inside a link's href never
+        // reads as a mention.
+        $mentioned = MentionParser::resolve($comment->plain_body, $task->participants())
             ->reject(fn ($user) => $user->id === $comment->user_id);
 
         foreach ($mentioned as $user) {

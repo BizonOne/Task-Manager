@@ -564,6 +564,50 @@
 
             .topnav { padding: 0.5rem 0.75rem; }
         }
+
+        /* ── Stored rich text ──────────────────────────────────────
+           Descriptions, notes and comments are written in the editor and
+           rendered as HTML. The styles live here rather than in each view
+           so anything that prints them looks the same. */
+        .rich-text > *:first-child { margin-top: 0; }
+        .rich-text > *:last-child { margin-bottom: 0; }
+        .rich-text p { margin: 0 0 8px; }
+        .rich-text ul,
+        .rich-text ol { margin: 0 0 8px; padding-left: 20px; }
+        .rich-text li { margin-bottom: 2px; }
+        .rich-text h1 { font-size: 1.4em; }
+        .rich-text h2 { font-size: 1.25em; }
+        .rich-text h3 { font-size: 1.1em; }
+        .rich-text h1,
+        .rich-text h2,
+        .rich-text h3 { margin: 12px 0 6px; font-weight: 600; }
+        .rich-text a { color: var(--primary-600); text-decoration: underline; }
+        .rich-text blockquote {
+            border-left: 3px solid var(--primary-100);
+            margin: 0 0 8px;
+            padding: 2px 0 2px 10px;
+            color: #4b5563;
+        }
+        .rich-text pre,
+        .rich-text .ql-syntax {
+            background: #f3f4f6;
+            border-radius: 6px;
+            padding: 8px 10px;
+            margin: 0 0 8px;
+            font-size: 0.9em;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        .rich-text code {
+            background: #f3f4f6;
+            border-radius: 4px;
+            padding: 1px 4px;
+            font-size: 0.9em;
+        }
+        .rich-text img { max-width: 100%; height: auto; }
+        .rich-text table { width: 100%; margin: 0 0 8px; border-collapse: collapse; }
+        .rich-text th,
+        .rich-text td { border: 1px solid #e5e7eb; padding: 5px 8px; text-align: left; }
     </style>
     {{-- Brand primary colour override (later declaration wins over :root above) --}}
     @php $__brandPrimary = \App\Support\Brand::primaryColor(); @endphp
@@ -672,7 +716,7 @@
         <div class="sidebar-footer">
             <div class="user-profile" data-bs-toggle="dropdown" aria-expanded="false">
                 @if(Auth::user()->avatar)
-                    <img src="{{ Storage::url(Auth::user()->avatar) }}" alt="{{ Auth::user()->name }}" class="user-avatar" style="object-fit: cover;">
+                    <img src="{{ route('avatar.show', Auth::user()) }}" alt="{{ Auth::user()->name }}" class="user-avatar" style="object-fit: cover;">
                 @else
                     <div class="user-avatar">
                         {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}

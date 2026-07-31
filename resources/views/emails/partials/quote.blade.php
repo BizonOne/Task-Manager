@@ -1,9 +1,10 @@
 {{--
     Quoted user-written text (a comment), attributed to its author.
 
-    @param string  $body    the raw comment text
+    @param string  $body    the comment text
     @param string  $author
     @param ?string $when    human-readable timestamp
+    @param ?bool   $html    true when $body is already-sanitised rich text
 --}}
 @php $accent = \App\Support\Brand::primaryColor(); @endphp
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0 4px;">
@@ -14,10 +15,15 @@
             <div style="font-size:13px; font-weight:700; color:#111827; margin-bottom:4px;">
                 {{ $author }}@isset($when)<span style="font-weight:400; color:#9ca3af;"> &middot; {{ $when }}</span>@endisset
             </div>
-            {{-- nl2br so multi-line comments keep their shape; e() first, so the
-                 comment body can never inject markup into the email. --}}
+            {{-- Rich text arrives sanitised by App\Support\RichText, so the
+                 formatting the author applied survives into the email. Plain
+                 text still goes through e() and nl2br. --}}
             <div style="font-size:15px; line-height:1.6; color:#374151; white-space:normal;">
-                {!! nl2br(e($body)) !!}
+                @if($html ?? false)
+                    {!! $body !!}
+                @else
+                    {!! nl2br(e($body)) !!}
+                @endif
             </div>
         </td>
     </tr>

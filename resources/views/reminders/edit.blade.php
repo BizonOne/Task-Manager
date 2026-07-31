@@ -291,8 +291,10 @@
                         </div>
                         <div class="cu-field">
                             <label for="description" class="cu-label">Description</label>
-                            <textarea id="description" name="description" rows="3"
-                                      class="cu-textarea @error('description') is-invalid @enderror">{{ old('description', $reminder->description) }}</textarea>
+                            <x-rich-editor name="description"
+                                           :value="old('description', $reminder->description)"
+                                           :min-height="110"
+                                           placeholder="Add more details&hellip;" />
                             @error('description')<p class="cu-err">{{ $message }}</p>@enderror
                         </div>
                     </div>

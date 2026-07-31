@@ -275,11 +275,11 @@
                 <div class="cu-preview-wrap">
                     <div class="cu-preview-label">Current File Preview</div>
                     @if($isImage)
-                        <img src="{{ Storage::url($file->path) }}"
+                        <img src="{{ route('files.download', [$file, 'inline' => 1]) }}"
                              alt="{{ $file->name }}" class="cu-preview-img"
                              onerror="this.style.display='none'">
                     @elseif($isPdf)
-                        <iframe src="{{ Storage::url($file->path) }}"
+                        <iframe src="{{ route('files.download', [$file, 'inline' => 1]) }}"
                                 class="cu-preview-pdf" title="PDF Preview"></iframe>
                     @else
                         <div class="cu-preview-generic">
@@ -288,7 +288,7 @@
                             <span>.{{ strtoupper($ext ?: '???') }} file</span>
                         </div>
                     @endif
-                    <a href="{{ Storage::url($file->path) }}" target="_blank" class="cu-dl-btn">
+                    <a href="{{ route('files.download', $file) }}" target="_blank" class="cu-dl-btn">
                         <i class="bi bi-download"></i> Download / View
                     </a>
                 </div>

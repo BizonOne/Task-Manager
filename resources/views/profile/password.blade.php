@@ -201,7 +201,7 @@
             <div class="cu-info-panel-header"><span>Account</span></div>
             <div class="cu-info-body">
                 @if(auth()->user()->avatar)
-                    <img src="{{ Storage::url(auth()->user()->avatar) }}" alt="" class="cu-avatar-img-sm">
+                    <img src="{{ route('avatar.show', auth()->user()) }}" alt="" class="cu-avatar-img-sm">
                 @else
                     <div class="cu-avatar-init">{{ strtoupper(substr(auth()->user()->name,0,2)) }}</div>
                 @endif

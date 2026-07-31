@@ -13,7 +13,7 @@
 
             {{-- Description --}}
             @if($reminder->description)
-                <p class="cu-rem-desc">{{ Str::limit($reminder->description, 110) }}</p>
+                <p class="cu-rem-desc">{{ \App\Support\RichText::toText($reminder->description, 110) }}</p>
             @endif
 
             {{-- Meta row --}}

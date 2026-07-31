@@ -299,6 +299,10 @@
     font-size:13px; line-height:1.55; color:#374151; word-wrap:break-word;
 }
 
+/* The comment editor sits inside the mention box, so the menu can anchor
+   to it; the shared editor styles do the rest. */
+#comment-editor .ql-editor { font-size:13px; }
+
 /* @mention autocomplete */
 .ts-mention-box { position:relative; }
 .ts-mention-menu {
@@ -642,7 +646,7 @@
                 </div>
                 <div class="ts-card-body">
                     @if($task->description)
-                        <div class="ts-description">{!! $task->description !!}</div>
+                        <div class="ts-description rich-text">{!! $task->description !!}</div>
                     @else
                         <div class="ts-empty">
                             <i class="bi bi-file-earmark-text"></i>
@@ -762,7 +766,7 @@
                                             <button type="button" class="ts-comment-del" onclick="deleteComment({{ $comment->id }})" title="Delete"><i class="bi bi-trash"></i></button>
                                         @endif
                                     </div>
-                                    <div class="ts-comment-body">{!! nl2br(e($comment->body)) !!}</div>
+                                    <div class="ts-comment-body rich-text">{!! $comment->body !!}</div>
                                 </div>
                             </div>
                         @empty
@@ -775,9 +779,8 @@
 
                     <form class="ts-comment-form" onsubmit="addComment(event)">
                         <div class="ts-mention-box">
-                            <textarea id="comment-input" class="ts-comment-input" rows="2"
-                                      placeholder="Write a comment… type @ to mention a teammate" required
-                                      autocomplete="off"></textarea>
+                            <x-rich-editor id="comment-editor" toolbar="compact" :min-height="72"
+                                           placeholder="Write a comment… type @ to mention a teammate" />
                             <div id="mention-menu" class="ts-mention-menu" role="listbox"></div>
                         </div>
                         <div class="ts-comment-foot">
@@ -818,7 +821,7 @@
                                     </span>
                                 </div>
                                 @if($entry['body'])
-                                    <div class="ts-tl-body">{!! nl2br(e($entry['body'])) !!}</div>
+                                    <div class="ts-tl-body rich-text">{!! $entry['body'] !!}</div>
                                 @endif
                             </div>
                         </div>
@@ -1014,23 +1017,29 @@ document.addEventListener('DOMContentLoaded', updateChecklistUI);
 const MENTIONABLES = @json($mentionData);
 
 const mentionMenu = document.getElementById('mention-menu');
-const commentInput = document.getElementById('comment-input');
+const commentEditor = document.getElementById('comment-editor');
+let commentQuill = null;
 let mentionMatches = [];
 let mentionActive = 0;
-let mentionStart = -1; // index of the '@' currently being completed
+let mentionStart = -1; // Quill index of the '@' currently being completed
 
-/* Find an @token immediately before the caret (letters/digits/-/_ only). */
+/* Find an @token immediately before the caret (letters/digits/-/_ only).
+   Quill gives us a flat text index, so the same logic that worked on the
+   textarea still applies — it just reads through the editor's API. */
 function currentMentionQuery() {
-    const caret = commentInput.selectionStart;
-    const upto = commentInput.value.slice(0, caret);
+    const sel = commentQuill.getSelection();
+    if (!sel) return null;
+
+    const upto = commentQuill.getText(0, sel.index);
     const match = upto.match(/@([\p{L}0-9_-]*)$/u);
     if (!match) return null;
-    // Require the '@' to start the string or follow whitespace, so emails
-    // and mid-word '@' don't trigger the menu.
-    const at = caret - match[1].length - 1;
-    if (at > 0 && !/\s/.test(commentInput.value[at - 1])) return null;
 
-    return { at, query: match[1].toLowerCase() };
+    // Require the '@' to start the line or follow whitespace, so emails
+    // and mid-word '@' don't trigger the menu.
+    const at = sel.index - match[1].length - 1;
+    if (at > 0 && !/\s/.test(upto[at - 1])) return null;
+
+    return { at, caret: sel.index, query: match[1].toLowerCase() };
 }
 
 function closeMentionMenu() {
@@ -1058,7 +1067,7 @@ function renderMentionMenu() {
 
     mentionMenu.querySelectorAll('.ts-mention-item').forEach(el => {
         el.addEventListener('mousedown', (e) => {
-            e.preventDefault(); // keep textarea focus
+            e.preventDefault(); // keep the editor focused
             chooseMention(parseInt(el.dataset.i, 10));
         });
     });
@@ -1079,37 +1088,56 @@ function updateMentionMenu() {
 function chooseMention(i) {
     const m = mentionMatches[i];
     if (!m) return;
-    const caret = commentInput.selectionStart;
-    const before = commentInput.value.slice(0, mentionStart);
-    const after = commentInput.value.slice(caret);
+    const ctx = currentMentionQuery();
+    if (!ctx) { closeMentionMenu(); return; }
+
+    // Insert as plain text: the handle is what the server parses, and any
+    // formatting picked up from the surrounding run would only get in the way.
     const insert = '@' + m.handle + ' ';
-    commentInput.value = before + insert + after;
-    const pos = before.length + insert.length;
-    commentInput.setSelectionRange(pos, pos);
-    commentInput.focus();
+    commentQuill.deleteText(ctx.at, ctx.caret - ctx.at, 'user');
+    commentQuill.insertText(ctx.at, insert, {}, 'user');
+    commentQuill.setSelection(ctx.at + insert.length, 0, 'user');
     closeMentionMenu();
 }
 
-if (commentInput) {
-    commentInput.addEventListener('input', updateMentionMenu);
-    commentInput.addEventListener('keydown', (e) => {
-        if (!mentionMenu.classList.contains('open') || !mentionMatches.length) return;
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            mentionActive = (mentionActive + 1) % mentionMatches.length;
-            renderMentionMenu();
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            mentionActive = (mentionActive - 1 + mentionMatches.length) % mentionMatches.length;
-            renderMentionMenu();
-        } else if (e.key === 'Enter' || e.key === 'Tab') {
-            e.preventDefault();
-            chooseMention(mentionActive);
-        } else if (e.key === 'Escape') {
-            closeMentionMenu();
-        }
-    });
-    commentInput.addEventListener('blur', () => setTimeout(closeMentionMenu, 120));
+if (commentEditor) {
+    const wireMentions = (quill) => {
+        commentQuill = quill;
+
+        quill.on('text-change', (delta, old, source) => {
+            if (source === 'user') updateMentionMenu();
+        });
+        quill.on('selection-change', (range) => {
+            if (!range) setTimeout(closeMentionMenu, 120);
+        });
+
+        // Capture phase, so the menu answers arrow keys and Enter before
+        // Quill turns them into cursor moves and newlines.
+        quill.root.addEventListener('keydown', (e) => {
+            if (!mentionMenu.classList.contains('open') || !mentionMatches.length) return;
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                mentionActive = (mentionActive + 1) % mentionMatches.length;
+                renderMentionMenu();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                mentionActive = (mentionActive - 1 + mentionMatches.length) % mentionMatches.length;
+                renderMentionMenu();
+            } else if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault();
+                e.stopPropagation();
+                chooseMention(mentionActive);
+            } else if (e.key === 'Escape') {
+                closeMentionMenu();
+            }
+        }, true);
+    };
+
+    if (commentEditor.__quill) {
+        wireMentions(commentEditor.__quill);
+    } else {
+        commentEditor.addEventListener('rich-editor:ready', (e) => wireMentions(e.detail.quill));
+    }
 }
 
 function buildCommentNode(c) {
@@ -1145,8 +1173,11 @@ function buildCommentNode(c) {
     }
 
     const body = document.createElement('div');
-    body.className = 'ts-comment-body';
-    body.textContent = c.body; // textContent avoids any HTML injection
+    body.className = 'ts-comment-body rich-text';
+    // Comments are rich text now. What comes back is the stored value, which
+    // the model ran through the sanitiser on the way in, so this is the same
+    // markup the page would have rendered on a reload.
+    body.innerHTML = c.body;
 
     main.appendChild(head);
     main.appendChild(body);
@@ -1163,9 +1194,12 @@ function bumpCommentCount(delta) {
 
 function addComment(event) {
     event.preventDefault();
-    const ta = document.getElementById('comment-input');
-    const body = ta.value.trim();
-    if (!body) return;
+    if (!commentQuill) return;
+
+    // An "empty" editor still holds a paragraph and a newline, so ask the
+    // editor whether there is anything in it rather than trimming the HTML.
+    if (window.RichEditor.isBlank(commentQuill)) return;
+    const body = commentQuill.root.innerHTML;
 
     fetch(`/tasks/${TASK_ID}/comments`, {
         method: 'POST',
@@ -1179,7 +1213,8 @@ function addComment(event) {
         if (empty) empty.remove();
         document.getElementById('comment-list').appendChild(buildCommentNode(d.comment));
         bumpCommentCount(1);
-        ta.value = '';
+        commentQuill.setText('');
+        closeMentionMenu();
         showToast('Comment posted');
     })
     .catch(() => showToast('Failed to post comment', false));

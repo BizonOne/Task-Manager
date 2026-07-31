@@ -38,6 +38,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('profile/password', [ProfileController::class, 'showPasswordForm'])->name('profile.password');
     Route::put('profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
     Route::delete('profile/avatar', [ProfileController::class, 'deleteAvatar'])->name('profile.avatar.delete');
+    // Avatars are served by the app for the same reason as files.
+    Route::get('avatar/{user}', [ProfileController::class, 'avatar'])->name('avatar.show');
 
     Route::controller(MailController::class)->prefix('mail')->name('mail.')->group(function () {
         Route::get('/', 'index')->name('inbox');
@@ -74,6 +76,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('routines/weekly', [RoutineController::class, 'showWeekly'])->name('routines.showWeekly');
     Route::get('routines/monthly', [RoutineController::class, 'showMonthly'])->name('routines.showMonthly');
     Route::resource('files', FileController::class);
+    // Downloads go through the app so ownership is checked; a public storage
+    // URL both bypassed that and needed a symlink that deploys never created.
+    Route::get('files/{file}/download', [FileController::class, 'download'])->name('files.download');
     Route::resource('notes', NoteController::class);
     Route::patch('notes/{note}/toggle-favorite', [NoteController::class, 'toggleFavorite'])->name('notes.toggle-favorite');
     Route::post('notes/{note}/duplicate', [NoteController::class, 'duplicate'])->name('notes.duplicate');

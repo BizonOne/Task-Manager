@@ -3,8 +3,8 @@
 namespace App\Filament\Resources\Projects\Schemas;
 
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 
@@ -35,7 +35,13 @@ class ProjectForm
                     ->required(),
                 DatePicker::make('start_date'),
                 DatePicker::make('end_date'),
-                Textarea::make('description')
+                RichEditor::make('description')
+                    ->toolbarButtons([
+                        ['bold', 'italic', 'underline', 'strike'],
+                        ['h2', 'h3', 'bulletList', 'orderedList'],
+                        ['blockquote', 'codeBlock', 'link'],
+                        ['undo', 'redo'],
+                    ])
                     ->columnSpanFull(),
             ]);
     }

@@ -4,8 +4,8 @@ namespace App\Filament\Resources\Tasks\Schemas;
 
 use App\Models\TaskStatus;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 
@@ -48,7 +48,13 @@ class TaskForm
                     ->numeric()
                     ->minValue(0)
                     ->suffix('h'),
-                Textarea::make('description')
+                RichEditor::make('description')
+                    ->toolbarButtons([
+                        ['bold', 'italic', 'underline', 'strike'],
+                        ['h2', 'h3', 'bulletList', 'orderedList'],
+                        ['blockquote', 'codeBlock', 'link'],
+                        ['undo', 'redo'],
+                    ])
                     ->columnSpanFull(),
             ]);
     }

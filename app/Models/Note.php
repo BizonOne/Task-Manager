@@ -1,9 +1,11 @@
 <?php
+
 namespace App\Models;
 
+use App\Support\RichText;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Carbon\Carbon;
 
 class Note extends Model
 {
@@ -26,6 +28,14 @@ class Note extends Model
         'date' => 'datetime',
     ];
 
+    /**
+     * Note content is rich text, stored as HTML and rendered unescaped.
+     */
+    public function setContentAttribute(?string $value): void
+    {
+        $this->attributes['content'] = RichText::clean($value);
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -33,7 +43,7 @@ class Note extends Model
 
     public function getExcerptAttribute()
     {
-        return strip_tags(substr($this->content, 0, 150)) . (strlen(strip_tags($this->content)) > 150 ? '...' : '');
+        return strip_tags(substr($this->content, 0, 150)).(strlen(strip_tags($this->content)) > 150 ? '...' : '');
     }
 
     public function getWordCountAttribute()
@@ -65,8 +75,8 @@ class Note extends Model
     {
         return $query->where(function ($q) use ($search) {
             $q->where('title', 'like', "%{$search}%")
-              ->orWhere('content', 'like', "%{$search}%")
-              ->orWhere('category', 'like', "%{$search}%");
+                ->orWhere('content', 'like', "%{$search}%")
+                ->orWhere('category', 'like', "%{$search}%");
         });
     }
 }

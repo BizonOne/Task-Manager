@@ -18,7 +18,7 @@
 
     @if(filled($project->description))
         <p style="margin:14px 0 0; padding:12px 14px; background-color:#f9fafb; border:1px solid #eef0f3; border-radius:8px; font-size:14px; color:#4b5563;">
-            {{ \Illuminate\Support\Str::limit(strip_tags($project->description), 320) }}
+            {{ \App\Support\RichText::toText($project->description, 320) }}
         </p>
     @endif
 

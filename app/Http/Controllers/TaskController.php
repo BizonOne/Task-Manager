@@ -59,8 +59,10 @@ class TaskController extends Controller
 
     public function create()
     {
-        $projects = Project::all();
-        $users = User::all();
+        // Only projects this user may create in — Project::all() listed every
+        // project in the system, leaking names to people with no access.
+        $projects = $this->availableProjects();
+        $users = User::orderBy('name')->get();
 
         return view('tasks.create', compact('projects', 'users'));
     }
@@ -78,13 +80,22 @@ class TaskController extends Controller
             'estimated_hours' => 'nullable|numeric|min:0.5',
         ]);
 
-        // Allow creating tasks inside any project the user owns or is a member
-        // of, and always own the created task — never trust an arbitrary
-        // user_id from the form.
+        // You may only create tasks inside a project you own or belong to.
         $targetProject = Project::findOrFail($request->project_id);
         abort_unless($targetProject->isAccessibleBy(Auth::user()), 403);
 
-        Task::create(array_merge($request->all(), ['user_id' => Auth::id()]));
+        // Honour the chosen owner, but only someone who can actually reach the
+        // project. (Forcing the creator here silently discarded the person
+        // picked in the form, so every task had to be reassigned afterwards.)
+        $owner = User::findOrFail($request->user_id);
+
+        if (! $targetProject->isAccessibleBy($owner)) {
+            return back()
+                ->withInput()
+                ->withErrors(['user_id' => 'That person is not a member of this project.']);
+        }
+
+        Task::create(array_merge($request->all(), ['user_id' => $owner->id]));
 
         // Redirect based on context
         if ($project) {
@@ -116,8 +127,8 @@ class TaskController extends Controller
     public function edit(Task $task)
     {
         $this->authorizeManage($task);
-        $projects = Project::all();
-        $users = User::all();
+        $projects = $this->availableProjects();
+        $users = User::orderBy('name')->get();
 
         return view('tasks.edit', compact('task', 'projects', 'users'));
     }
@@ -132,7 +143,20 @@ class TaskController extends Controller
             'priority' => 'required|in:low,medium,high',
             'status' => ['required', TaskStatus::validationRule()],
             'estimated_hours' => 'nullable|numeric|min:0.5',
+            'user_id' => 'nullable|exists:users,id',
         ]);
+
+        // The edit form can reassign the task, so hold the new owner to the
+        // same rule as creating one: they must be able to reach the project.
+        if ($request->filled('user_id') && (int) $request->user_id !== $task->user_id) {
+            $owner = User::findOrFail($request->user_id);
+
+            if (! $task->project || ! $task->project->isAccessibleBy($owner)) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['user_id' => 'That person is not a member of this project.']);
+            }
+        }
 
         $task->update($request->all());
 
@@ -159,6 +183,21 @@ class TaskController extends Controller
         $task->save();
 
         return response()->json(['message' => 'Task status updated successfully.']);
+    }
+
+    /**
+     * Projects the signed-in user may put a task in.
+     */
+    private function availableProjects()
+    {
+        $user = Auth::user();
+
+        return Project::when(! $user->isSuperAdmin(), function ($query) use ($user) {
+            $query->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)
+                    ->orWhereHas('users', fn ($sub) => $sub->where('users.id', $user->id));
+            });
+        })->orderBy('name')->get();
     }
 
     /**

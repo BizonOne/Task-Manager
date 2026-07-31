@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\RichText;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -56,6 +57,14 @@ class Reminder extends Model
     const RECURRENCE_MONTHLY = 'monthly';
 
     const RECURRENCE_YEARLY = 'yearly';
+
+    /**
+     * Descriptions are rich text, stored as HTML and rendered unescaped.
+     */
+    public function setDescriptionAttribute(?string $value): void
+    {
+        $this->attributes['description'] = RichText::clean($value);
+    }
 
     public function user()
     {
