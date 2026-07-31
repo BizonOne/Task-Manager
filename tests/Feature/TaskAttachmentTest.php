@@ -206,6 +206,45 @@ class TaskAttachmentTest extends TestCase
 
     /* ── The page ── */
 
+    public function test_a_pdf_preview_is_not_framed_over_http(): void
+    {
+        // The edge sends X-Frame-Options: deny for the whole site, so an
+        // <iframe> pointing back at our own download route is refused by the
+        // browser. The page loads the bytes and frames a blob instead.
+        $this->actingAs($this->owner)->post('/files', [
+            'name' => 'Brief', 'type' => 'docs',
+            'file' => UploadedFile::fake()->create('brief.pdf', 6, 'application/pdf'),
+        ]);
+        $file = File::firstOrFail();
+
+        $html = $this->actingAs($this->owner)->get(route('files.show', $file))
+            ->assertSuccessful()
+            ->getContent();
+
+        $this->assertStringContainsString('id="pdf-preview"', $html);
+        $this->assertStringNotContainsString(
+            '<iframe src="'.route('files.download', [$file, 'inline' => 1]),
+            $html,
+            'Framing the download URL over HTTP is exactly what the edge refuses.'
+        );
+    }
+
+    public function test_the_file_page_reports_the_recorded_size(): void
+    {
+        $this->actingAs($this->owner)->post('/files', [
+            'name' => 'Brief', 'type' => 'docs',
+            'file' => UploadedFile::fake()->create('brief.pdf', 100, 'application/pdf'),
+        ]);
+        $file = File::firstOrFail();
+
+        // It used to ask a hardcoded disk, so anything stored elsewhere — which
+        // on production is everything — read "Unknown".
+        $this->actingAs($this->owner)->get(route('files.show', $file))
+            ->assertSuccessful()
+            ->assertSee($file->readable_size)
+            ->assertDontSee('Unknown');
+    }
+
     public function test_the_task_page_lists_its_attachments(): void
     {
         $this->actingAs($this->owner)->postJson(route('tasks.files.attach', $this->task), [

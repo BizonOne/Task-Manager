@@ -105,6 +105,17 @@
 .cu-preview-pdf {
     width: 100%; height: 550px; border-radius: 6px; border: 1px solid #e3e4e8; display: block;
 }
+.cu-preview-loading {
+    background: #f9fafb; border: 1px solid #e3e4e8; border-radius: 6px;
+    padding: 48px 24px; text-align: center; color: #6b7280; font-size: 13px;
+}
+.cu-preview-loading p { margin: 10px 0 0; }
+.cu-spinner {
+    width: 26px; height: 26px; margin: 0 auto; border-radius: 50%;
+    border: 3px solid #e5e7eb; border-top-color: #7c3aed;
+    animation: cu-spin .8s linear infinite;
+}
+@keyframes cu-spin { to { transform: rotate(360deg); } }
 .cu-preview-generic {
     background: #f9fafb; border: 1px dashed #d3d5db; border-radius: 8px;
     padding: 48px 24px; text-align: center;
@@ -137,15 +148,26 @@
 @endpush
 @section('content')
 @php
-    $ext     = strtolower(pathinfo($file->path, PATHINFO_EXTENSION));
-    $isImage = in_array($ext, ['jpg','jpeg','png','gif','svg','webp']);
-    $isPdf   = $ext === 'pdf';
+    $ext     = strtolower(pathinfo($file->original_name ?: $file->path, PATHINFO_EXTENSION));
+    // The MIME type is what the browser will act on; the extension is only a
+    // fallback for rows uploaded before it was recorded.
+    $isImage = $file->isImage() || in_array($ext, ['jpg','jpeg','png','gif','svg','webp']);
+    $isPdf   = $file->mime_type === 'application/pdf' || $ext === 'pdf';
     $icons   = ['project'=>'bi-kanban','docs'=>'bi-file-earmark-text','txt'=>'bi-file-earmark','code'=>'bi-code-slash','image'=>'bi-image'];
     $icon    = $icons[$file->type] ?? 'bi-file-earmark';
     $typeColors = ['project'=>'#3b82f6','docs'=>'#f59e0b','txt'=>'#8b5cf6','code'=>'#ef4444','image'=>'#10b981'];
     $color   = $typeColors[$file->type] ?? '#6b7280';
-    try { $size = \Illuminate\Support\Facades\Storage::disk('public')->size($file->path); } catch (\Exception $e) { $size = null; }
-    $sizeStr = $size !== null ? ($size >= 1048576 ? round($size/1048576,1).' MB' : round($size/1024,1).' KB') : 'Unknown';
+    // The size is recorded on upload. Older rows have none, so fall back to
+    // asking the disk that actually holds the file — not a hardcoded one,
+    // which is why this read 'Unknown' for anything stored elsewhere.
+    $sizeStr = $file->readable_size;
+    if ($sizeStr === null) {
+        $disk = \App\Support\Uploads::diskHolding($file);
+        $bytes = $disk === null ? null : \Illuminate\Support\Facades\Storage::disk($disk)->size($file->path);
+        $sizeStr = $bytes === null
+            ? 'Unknown'
+            : ($bytes >= 1048576 ? round($bytes / 1048576, 1).' MB' : round($bytes / 1024, 1).' KB');
+    }
 @endphp
 <div class="main-content">
 
@@ -228,8 +250,18 @@
                         <img src="{{ route('files.download', [$file, 'inline' => 1]) }}"
                              alt="{{ $file->name }}" class="cu-preview-img">
                     @elseif($isPdf)
-                        <iframe src="{{ route('files.download', [$file, 'inline' => 1]) }}"
-                                class="cu-preview-pdf" title="{{ $file->name }}"></iframe>
+                        <div id="pdf-preview" data-src="{{ route('files.download', [$file, 'inline' => 1]) }}">
+                            <div class="cu-preview-loading">
+                                <div class="cu-spinner"></div>
+                                <p>Loading preview&hellip;</p>
+                            </div>
+                        </div>
+                        <noscript>
+                            <a href="{{ route('files.download', [$file, 'inline' => 1]) }}"
+                               target="_blank" rel="noopener" class="cu-open-btn">
+                                <i class="bi bi-box-arrow-up-right"></i> Open PDF
+                            </a>
+                        </noscript>
                     @else
                         <div class="cu-preview-generic">
                             <i class="bi {{ $icon }}" style="color:{{ $color }};"></i>
@@ -277,7 +309,7 @@
                         </tr>
                         <tr>
                             <td>Owner</td>
-                            <td>{{ auth()->user()->name }}</td>
+                            <td>{{ $file->user?->name ?? '—' }}</td>
                         </tr>
                         <tr>
                             <td>Path</td>
@@ -291,3 +323,61 @@
     </div>{{-- /cu-layout --}}
 </div>
 @endsection
+
+@push('scripts')
+<script>
+/* PDF preview.
+   The edge sends X-Frame-Options: deny for the whole site, so an <iframe>
+   pointing back at it — even at our own download route — is refused by the
+   browser ("refused to connect"). The header applies to HTTP responses, not
+   to blob: URLs, so fetch the bytes first (same-origin, and the ownership
+   check still runs) and frame the blob instead. */
+document.addEventListener('DOMContentLoaded', function () {
+    const box = document.getElementById('pdf-preview');
+    if (!box) return;
+
+    const src = box.dataset.src;
+
+    const fallback = (reason) => {
+        box.innerHTML = '';
+        const wrap = document.createElement('div');
+        wrap.className = 'cu-preview-generic';
+        const icon = document.createElement('i');
+        icon.className = 'bi bi-file-earmark-pdf';
+        icon.style.color = '#ef4444';
+        const text = document.createElement('p');
+        text.textContent = reason;
+        const link = document.createElement('a');
+        link.className = 'cu-open-btn';
+        link.href = src;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.innerHTML = '<i class="bi bi-box-arrow-up-right"></i> Open PDF in a new tab';
+        wrap.appendChild(icon);
+        wrap.appendChild(text);
+        wrap.appendChild(link);
+        box.appendChild(wrap);
+    };
+
+    fetch(src, { headers: { 'Accept': 'application/pdf' }, credentials: 'same-origin' })
+        .then(r => {
+            if (!r.ok) throw new Error(r.status === 404
+                ? 'This file is no longer stored on the server.'
+                : 'Could not load this file.');
+            return r.blob();
+        })
+        .then(blob => {
+            const url = URL.createObjectURL(blob);
+            const frame = document.createElement('iframe');
+            frame.className = 'cu-preview-pdf';
+            frame.title = 'Preview';
+            frame.src = url;
+            box.innerHTML = '';
+            box.appendChild(frame);
+            // Hand the memory back once the page goes away.
+            window.addEventListener('pagehide', () => URL.revokeObjectURL(url));
+        })
+        .catch(e => fallback(e.message || 'Could not load this file.'));
+});
+</script>
+@endpush
