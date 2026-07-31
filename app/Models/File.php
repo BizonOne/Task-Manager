@@ -12,9 +12,23 @@ class File extends Model
     protected $fillable = [
         'user_id',
         'name',
+        'original_name',
         'path',
         'type',
+        'mime_type',
+        'size',
     ];
+
+    /**
+     * Whether the browser can sensibly display this inline rather than
+     * downloading it.
+     */
+    public function isViewableInline(): bool
+    {
+        return in_array($this->mime_type, [
+            'application/pdf', 'image/png', 'image/jpeg', 'image/gif', 'image/svg+xml',
+        ], true);
+    }
 
     public function user()
     {

@@ -276,7 +276,7 @@
                     <a href="{{ route('files.show', $file->id) }}" class="cu-file-btn view" title="View Details">
                         <i class="bi bi-eye"></i> View
                     </a>
-                    <a href="{{ Storage::url($file->path) }}" target="_blank" class="cu-file-btn download" title="Download / View">
+                    <a href="{{ route('files.download', $file) }}" target="_blank" class="cu-file-btn download" title="Download / View">
                         <i class="bi bi-download"></i>
                     </a>
                     <a href="{{ route('files.edit', $file->id) }}" class="cu-file-btn edit" title="Edit">

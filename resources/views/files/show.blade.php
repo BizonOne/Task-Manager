@@ -197,7 +197,7 @@
 
                 <hr class="cu-divider">
 
-                <a href="{{ Storage::url($file->path) }}" target="_blank" class="cu-action-btn dl">
+                <a href="{{ route('files.download', $file) }}" target="_blank" class="cu-action-btn dl">
                     <i class="bi bi-download"></i> Download
                 </a>
                 <a href="{{ route('files.edit', $file->id) }}" class="cu-action-btn edit">
@@ -225,17 +225,17 @@
                 </div>
                 <div class="cu-section-body">
                     @if($isImage)
-                        <img src="{{ Storage::url($file->path) }}"
+                        <img src="{{ route('files.download', [$file, 'inline' => 1]) }}"
                              alt="{{ $file->name }}" class="cu-preview-img">
                     @elseif($isPdf)
-                        <iframe src="{{ Storage::url($file->path) }}"
+                        <iframe src="{{ route('files.download', [$file, 'inline' => 1]) }}"
                                 class="cu-preview-pdf" title="{{ $file->name }}"></iframe>
                     @else
                         <div class="cu-preview-generic">
                             <i class="bi {{ $icon }}" style="color:{{ $color }};"></i>
                             <h4>{{ Str::limit($file->name, 40) }}</h4>
                             <p>Preview is not available for .{{ strtoupper($ext ?: 'this') }} files.<br>Click below to open or download.</p>
-                            <a href="{{ Storage::url($file->path) }}" target="_blank" class="cu-open-btn">
+                            <a href="{{ route('files.download', $file) }}" target="_blank" class="cu-open-btn">
                                 <i class="bi bi-box-arrow-up-right"></i> Open File
                             </a>
                         </div>

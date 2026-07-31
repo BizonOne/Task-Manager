@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -63,6 +65,25 @@ class ProfileController extends Controller
         $user->update($updateData);
 
         return redirect()->route('profile.show')->with('success', 'Profile updated successfully!');
+    }
+
+    /**
+     * Serve a user's avatar.
+     *
+     * Avatars live on the public disk, whose symlink deploys never create, so
+     * Storage::url() produced a 404 everywhere an avatar was shown. Serving
+     * them through the app removes that dependency.
+     */
+    public function avatar(User $user): Response
+    {
+        $path = $user->avatar;
+
+        abort_if(! $path || ! Storage::disk('public')->exists($path), 404);
+
+        return response(Storage::disk('public')->get($path), 200, [
+            'Content-Type' => Storage::disk('public')->mimeType($path) ?: 'image/jpeg',
+            'Cache-Control' => 'private, max-age=3600',
+        ]);
     }
 
     /**

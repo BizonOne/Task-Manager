@@ -672,7 +672,7 @@
         <div class="sidebar-footer">
             <div class="user-profile" data-bs-toggle="dropdown" aria-expanded="false">
                 @if(Auth::user()->avatar)
-                    <img src="{{ Storage::url(Auth::user()->avatar) }}" alt="{{ Auth::user()->name }}" class="user-avatar" style="object-fit: cover;">
+                    <img src="{{ route('avatar.show', Auth::user()) }}" alt="{{ Auth::user()->name }}" class="user-avatar" style="object-fit: cover;">
                 @else
                     <div class="user-avatar">
                         {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}

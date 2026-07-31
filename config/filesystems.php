@@ -17,6 +17,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Upload Disk
+    |--------------------------------------------------------------------------
+    |
+    | Where user uploads (files, avatars) are written. Defaults to the private
+    | local disk; point it at an S3-compatible bucket in production, where the
+    | container filesystem is ephemeral and anything local is lost on deploy.
+    |
+    */
+
+    'uploads' => env('UPLOAD_DISK', 'local'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Filesystem Disks
     |--------------------------------------------------------------------------
     |
