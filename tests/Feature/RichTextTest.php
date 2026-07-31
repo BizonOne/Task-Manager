@@ -126,6 +126,29 @@ class RichTextTest extends TestCase
         $this->assertStringNotContainsString('onerror', TaskComment::firstOrFail()->body);
     }
 
+    public function test_the_link_popup_is_kept_inside_the_editor(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $this->seed(TaskStatusSeeder::class);
+
+        $user = User::create(['name' => 'Ada', 'email' => 'ada@example.com', 'password' => bcrypt('secret')]);
+        $project = Project::create(['user_id' => $user->id, 'name' => 'Apollo', 'status' => 'in_progress']);
+        $task = Task::create([
+            'user_id' => $user->id, 'project_id' => $project->id,
+            'title' => 'T', 'priority' => 'low', 'status' => 'to_do',
+        ]);
+
+        // With the caret near the start of a line the editor puts its "Enter
+        // link" box at a negative offset — 130px outside the field — and the
+        // wrapper's overflow:hidden then cut it off.
+        $html = $this->actingAs($user)->get(route('tasks.edit', $task))
+            ->assertSuccessful()
+            ->getContent();
+
+        $this->assertStringContainsString('.ql-snow .ql-tooltip', $html);
+        $this->assertStringContainsString('left: 8px !important', $html);
+    }
+
     public function test_a_comment_with_no_words_in_it_is_rejected(): void
     {
         $this->seed(RoleSeeder::class);

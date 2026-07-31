@@ -565,6 +565,49 @@
             .topnav { padding: 0.5rem 0.75rem; }
         }
 
+        /* ── The editor's link popup ───────────────────────────────
+           Quill drops its "Enter link" box inside the editor and positions it
+           from the caret, so near an edge it lands half outside — and every
+           editor here sits in a rounded wrapper with overflow:hidden, which
+           then clips whatever escaped. Pin it to the left edge and let the
+           wrappers show what overflows. */
+        .cu-editor-wrap,
+        .cu-quill-wrap,
+        .editor-container,
+        .rt-editor { overflow: visible; }
+
+        /* The wrappers used overflow:hidden to round the toolbar's corners,
+           so hand the radius to the parts themselves. */
+        .cu-editor-wrap .ql-toolbar,
+        .cu-quill-wrap .ql-toolbar,
+        .editor-container .ql-toolbar { border-radius: 6px 6px 0 0; }
+        .cu-editor-wrap .ql-container,
+        .cu-quill-wrap .ql-container,
+        .editor-container .ql-container { border-radius: 0 0 6px 6px; }
+
+        .ql-snow .ql-tooltip {
+            left: 8px !important;
+            max-width: calc(100% - 16px);
+            z-index: 30;
+            white-space: normal;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, .12);
+            padding: 6px 10px;
+        }
+
+        .ql-snow .ql-tooltip input[type=text] {
+            width: 210px;
+            max-width: 100%;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 13px;
+        }
+
+        /* Below the toolbar rather than over it, when the caret is on line one. */
+        .ql-snow .ql-tooltip:not(.ql-flip) { margin-top: 4px; }
+
         /* ── Stored rich text ──────────────────────────────────────
            Descriptions, notes and comments are written in the editor and
            rendered as HTML. The styles live here rather than in each view
