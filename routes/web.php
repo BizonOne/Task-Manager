@@ -13,10 +13,12 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ReminderController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoutineController;
 use App\Http\Controllers\TaskAssigneeController;
 use App\Http\Controllers\TaskCommentController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TaskLinkController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('login', [LoginController::class, 'showLoginForm'])->name('login');
@@ -63,6 +65,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('tasks/{task}/comments', [TaskCommentController::class, 'store'])->name('tasks.comments.store');
     Route::delete('comments/{comment}', [TaskCommentController::class, 'destroy'])->name('comments.destroy');
     Route::post('tasks/{task}/files', [FileController::class, 'attach'])->name('tasks.files.attach');
+    Route::get('tasks/{task}/link-candidates', [TaskLinkController::class, 'search'])->name('tasks.links.search');
+    Route::post('tasks/{task}/links', [TaskLinkController::class, 'store'])->name('tasks.links.store');
+    Route::delete('task-links/{link}', [TaskLinkController::class, 'destroy'])->name('tasks.links.destroy');
     Route::post('tasks/{task}/assignees', [TaskAssigneeController::class, 'store'])->name('tasks.assignees.store');
     Route::delete('tasks/{task}/assignees/{user}', [TaskAssigneeController::class, 'destroy'])->name('tasks.assignees.destroy');
 
@@ -76,6 +81,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('routines/daily', [RoutineController::class, 'showDaily'])->name('routines.showDaily');
     Route::get('routines/weekly', [RoutineController::class, 'showWeekly'])->name('routines.showWeekly');
     Route::get('routines/monthly', [RoutineController::class, 'showMonthly'])->name('routines.showMonthly');
+    // Reports: one filtered view of the task list, on screen or as a file.
+    Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('reports/export/{format}', [ReportController::class, 'export'])
+        ->whereIn('format', ['xlsx', 'pdf'])
+        ->name('reports.export');
+
     Route::resource('files', FileController::class);
     // Downloads go through the app so ownership is checked; a public storage
     // URL both bypassed that and needed a symlink that deploys never created.

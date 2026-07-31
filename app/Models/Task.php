@@ -68,6 +68,28 @@ class Task extends Model
     }
 
     /**
+     * Limit to the tasks a person may see: their own, ones they are assigned
+     * to, and everything in projects they own or belong to.
+     *
+     * isAccessibleBy() answers this for a single task; a report needs it as a
+     * WHERE clause, or it would load every row in the database to filter in PHP.
+     */
+    public function scopeVisibleTo($query, User $user)
+    {
+        if ($user->isSuperAdmin()) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($user) {
+            $q->where('tasks.user_id', $user->id)
+                ->orWhereHas('assignees', fn ($a) => $a->where('users.id', $user->id))
+                ->orWhereHas('project', fn ($p) => $p
+                    ->where('projects.user_id', $user->id)
+                    ->orWhereHas('users', fn ($u) => $u->where('users.id', $user->id)));
+        });
+    }
+
+    /**
      * Limit to tasks that are finished.
      */
     public function scopeCompleted($query)
@@ -183,6 +205,51 @@ class Task extends Model
         return $orphans->isEmpty()
             ? $entries
             : $entries->concat($orphans)->sortBy('at')->values();
+    }
+
+    /**
+     * Links created from this task.
+     */
+    public function outgoingLinks()
+    {
+        return $this->hasMany(TaskLink::class, 'task_id');
+    }
+
+    /**
+     * Links other tasks created towards this one.
+     */
+    public function incomingLinks()
+    {
+        return $this->hasMany(TaskLink::class, 'linked_task_id');
+    }
+
+    /**
+     * Every relation this task takes part in, worded from its own side and
+     * grouped by that wording — "blocks", "is blocked by", "relates to".
+     *
+     * Only links to tasks the viewer may see are returned: a relation is not a
+     * way to learn the titles of work on projects you have no part in.
+     *
+     * @return Collection<string, Collection<int, array{link: TaskLink, task: Task}>>
+     */
+    public function groupedLinks(User $viewer): Collection
+    {
+        $this->loadMissing([
+            'outgoingLinks.linkedTask.project',
+            'incomingLinks.task.project',
+        ]);
+
+        return $this->outgoingLinks
+            ->concat($this->incomingLinks)
+            ->map(fn (TaskLink $link) => [
+                'link' => $link,
+                'label' => $link->labelFor($this),
+                'task' => $link->otherEnd($this),
+            ])
+            ->filter(fn (array $entry) => $entry['task'] !== null
+                && $entry['task']->isAccessibleBy($viewer))
+            ->sortBy(fn (array $entry) => $entry['task']->id)
+            ->groupBy('label');
     }
 
     /**
