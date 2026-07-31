@@ -243,6 +243,40 @@ class AssistantTest extends TestCase
         $this->assertStringContainsString('blocked', $search['parameters']['properties']['status']['description']);
     }
 
+    public function test_a_tool_called_without_arguments_round_trips(): void
+    {
+        config(['services.gemini.key' => 'test-key']);
+
+        // Gemini sends `"args": {}` for a no-argument call, which decodes to an
+        // empty PHP array and would re-encode as `[]` — a type the API rejects
+        // with a 400. Only tools with arguments used to work.
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::sequence()
+                ->pushResponse(Http::response(['candidates' => [['content' => ['parts' => [
+                    ['functionCall' => ['name' => 'workspace_summary', 'args' => []]],
+                ]]]]]))
+                ->pushResponse(Http::response(['candidates' => [['content' => ['parts' => [
+                    ['text' => 'У вас 1 просроченная задача.'],
+                ]]]]])),
+        ]);
+
+        $body = $this->actingAs($this->owner)
+            ->post('/ai/stream', ['message' => 'сводка'])
+            ->streamedContent();
+
+        $this->assertStringContainsString('просроченная', $this->streamedAnswer($body));
+
+        // The echoed turn must carry args as an object, and the tool result too.
+        Http::assertSent(function ($request) {
+            $json = json_encode($request->data(), JSON_UNESCAPED_UNICODE);
+
+            $this->assertStringNotContainsString('"args":[]', $json);
+            $this->assertStringNotContainsString('"response":[]', $json);
+
+            return true;
+        });
+    }
+
     public function test_the_assistant_has_no_destructive_tools(): void
     {
         // Containment by capability: even a successful prompt injection cannot
