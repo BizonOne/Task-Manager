@@ -22,6 +22,14 @@ class FilesTable
                     ->label('Owner')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('task.title')
+                    ->label('Attached to')
+                    ->placeholder('—')
+                    ->url(fn ($record) => $record->task_id
+                        ? route('tasks.show', $record->task_id)
+                        : null)
+                    ->searchable()
+                    ->limit(30),
                 TextColumn::make('type')
                     ->badge(),
                 TextColumn::make('path')

@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\File;
 use App\Models\Task;
 use App\Models\TaskComment;
 use App\Notifications\MentionedInCommentNotification;
 use App\Support\MentionParser;
 use App\Support\Notifier;
 use App\Support\RichText;
+use App\Support\Uploads;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -18,13 +20,17 @@ class TaskCommentController extends Controller
         $user = Auth::user();
         abort_unless($task->isAccessibleBy($user), 403);
 
+        $hasAttachments = $request->hasFile('attachments');
+
         $validated = $request->validate([
             // The editor sends HTML, so the limit has to leave room for the
             // markup; what a person can actually write is the rule below.
+            // A file on its own is a perfectly good comment, so the text is
+            // only required when nothing is attached.
             'body' => [
-                'required', 'string', 'max:20000',
-                function (string $attribute, mixed $value, callable $fail): void {
-                    if (RichText::isEmpty($value)) {
+                $hasAttachments ? 'nullable' : 'required', 'string', 'max:20000',
+                function (string $attribute, mixed $value, callable $fail) use ($hasAttachments): void {
+                    if (! $hasAttachments && RichText::isEmpty($value)) {
                         $fail('Write something before posting.');
                     }
                     if (mb_strlen(RichText::toText($value)) > 5000) {
@@ -32,12 +38,17 @@ class TaskCommentController extends Controller
                     }
                 },
             ],
+            'attachments' => 'sometimes|array|max:10',
+            'attachments.*' => Uploads::rule(),
         ]);
 
         $comment = $task->comments()->create([
             'user_id' => $user->id,
-            'body' => $validated['body'],
+            'body' => $validated['body'] ?? '',
         ]);
+
+        $files = collect($request->file('attachments') ?: [])
+            ->map(fn ($upload) => Uploads::store($upload, $user, task: $task, comment: $comment));
 
         $this->notifyMentioned($task, $comment);
 
@@ -50,6 +61,7 @@ class TaskCommentController extends Controller
                 'initials' => $this->initials($user->name),
                 'created_at' => $comment->created_at->diffForHumans(),
                 'is_author' => true,
+                'files' => $files->map(fn (File $file) => app(FileController::class)->toJson($file))->values(),
             ],
         ]);
     }
@@ -68,9 +80,16 @@ class TaskCommentController extends Controller
 
         abort_unless($canDelete, 403);
 
+        // The rows cascade, but the stored objects would be left behind in the
+        // bucket paying rent forever.
+        $removedFileIds = $comment->files->pluck('id');
+        foreach ($comment->files as $file) {
+            Uploads::deleteStored($file);
+        }
+
         $comment->delete();
 
-        return response()->json(['success' => true]);
+        return response()->json(['success' => true, 'removed_file_ids' => $removedFileIds]);
     }
 
     /**

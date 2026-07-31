@@ -6,6 +6,7 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\TaskStatus;
 use App\Models\User;
+use App\Support\Uploads;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -109,7 +110,7 @@ class TaskController extends Controller
     {
         // Owner, project owner, assignees and project team can all view a task.
         abort_unless($task->isAccessibleBy(Auth::user()), 403);
-        $task->load('user', 'project', 'checklistItems', 'assignees', 'comments.user', 'activities.user');
+        $task->load('user', 'project', 'checklistItems', 'assignees', 'comments.user', 'comments.files', 'activities.user', 'files.user');
 
         // The task owner or a project manager may add/remove assignees.
         $canManageAssignees = $task->isManageableBy(Auth::user());
@@ -166,6 +167,15 @@ class TaskController extends Controller
     public function destroy(Task $task)
     {
         $this->authorizeManage($task);
+
+        // Comment attachments cascade at the database level, which never fires
+        // a model event — so clear the stored objects here or they stay in the
+        // bucket with nothing pointing at them. Files uploaded from the Files
+        // page are only unhooked, not destroyed: they are still someone's.
+        foreach ($task->files()->whereNotNull('task_comment_id')->get() as $file) {
+            Uploads::deleteStored($file);
+        }
+
         $task->delete();
 
         return redirect()->route('tasks.index')->with('success', 'Task deleted successfully.');

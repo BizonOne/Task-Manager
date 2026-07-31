@@ -62,6 +62,7 @@ Route::middleware(['auth'])->group(function () {
     // Task collaboration: comments, @mentions and assignees
     Route::post('tasks/{task}/comments', [TaskCommentController::class, 'store'])->name('tasks.comments.store');
     Route::delete('comments/{comment}', [TaskCommentController::class, 'destroy'])->name('comments.destroy');
+    Route::post('tasks/{task}/files', [FileController::class, 'attach'])->name('tasks.files.attach');
     Route::post('tasks/{task}/assignees', [TaskAssigneeController::class, 'store'])->name('tasks.assignees.store');
     Route::delete('tasks/{task}/assignees/{user}', [TaskAssigneeController::class, 'destroy'])->name('tasks.assignees.destroy');
 

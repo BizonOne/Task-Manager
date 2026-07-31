@@ -95,9 +95,13 @@ class Project extends Model
         return $this->hasMany(Task::class);
     }
 
+    /**
+     * Files attached to this project's tasks. The files table has no
+     * project_id — this used to point at one that never existed.
+     */
     public function files()
     {
-        return $this->hasMany(File::class);
+        return $this->hasManyThrough(File::class, Task::class);
     }
 
     public function getDerivedStatusAttribute()
