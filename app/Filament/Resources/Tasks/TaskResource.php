@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Tasks;
 use App\Filament\Resources\Tasks\Pages\CreateTask;
 use App\Filament\Resources\Tasks\Pages\EditTask;
 use App\Filament\Resources\Tasks\Pages\ListTasks;
+use App\Filament\Resources\Tasks\RelationManagers\ActivitiesRelationManager;
 use App\Filament\Resources\Tasks\RelationManagers\AssigneesRelationManager;
 use App\Filament\Resources\Tasks\RelationManagers\ChecklistItemsRelationManager;
 use App\Filament\Resources\Tasks\RelationManagers\CommentsRelationManager;
@@ -46,6 +47,7 @@ class TaskResource extends Resource
             ChecklistItemsRelationManager::class,
             AssigneesRelationManager::class,
             CommentsRelationManager::class,
+            ActivitiesRelationManager::class,
         ];
     }
 
