@@ -77,7 +77,7 @@ class Assistant
             }
 
             // Echo the model's request back into the transcript, then answer it.
-            $contents[] = ['role' => 'model', 'parts' => $result['parts']];
+            $contents[] = ['role' => 'model', 'parts' => $this->normaliseParts($result['parts'])];
 
             $responses = [];
             foreach ($calls as $part) {
@@ -94,7 +94,9 @@ class Assistant
                 $responses[] = [
                     'functionResponse' => [
                         'name' => $name,
-                        'response' => $tools->call($name, $args),
+                        // Must serialise as a JSON object; an empty PHP array
+                        // would encode as [] and the API rejects it.
+                        'response' => $this->asObject($tools->call($name, $args)),
                     ],
                 ];
             }
@@ -103,6 +105,34 @@ class Assistant
         }
 
         throw new RuntimeException('The assistant could not finish that request.');
+    }
+
+    /**
+     * Gemini types functionCall.args as a struct, but an empty `{}` decodes to
+     * an empty PHP array and would re-encode as `[]` — which the API rejects
+     * with a 400. Any tool the model calls without arguments hits this, so the
+     * echoed turn is normalised before being sent back.
+     *
+     * @param  array<int, array<string, mixed>>  $parts
+     * @return array<int, array<string, mixed>>
+     */
+    private function normaliseParts(array $parts): array
+    {
+        return array_map(function (array $part): array {
+            if (isset($part['functionCall'])) {
+                $part['functionCall']['args'] = $this->asObject($part['functionCall']['args'] ?? []);
+            }
+
+            return $part;
+        }, $parts);
+    }
+
+    /**
+     * Force a value to encode as a JSON object rather than an array.
+     */
+    private function asObject(mixed $value): object|array
+    {
+        return $value === [] ? new \stdClass : $value;
     }
 
     /**
