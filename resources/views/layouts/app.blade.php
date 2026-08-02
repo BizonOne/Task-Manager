@@ -740,6 +740,13 @@
                             <span>Files</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->is('reports*') ? 'active' : '' }}"
+                            href="{{ route('reports.index') }}">
+                            <i class="bi bi-graph-up"></i>
+                            <span>Reports</span>
+                        </a>
+                    </li>
                 </ul>
             </div>
 

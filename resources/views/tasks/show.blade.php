@@ -332,6 +332,41 @@
 .ts-file-del:hover { color:#dc2626; background:#fef2f2; }
 .ts-file.is-uploading { opacity:.55; }
 
+/* Linked tasks */
+.ts-link-form { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:flex-start; }
+.ts-link-select, .ts-link-input {
+    border:1px solid #e5e7eb; border-radius:8px; padding:8px 10px;
+    font-size:13px; font-family:inherit; color:#374151; background:#fff;
+}
+.ts-link-select:focus, .ts-link-input:focus { outline:none; border-color:#7c3aed; }
+.ts-link-search { position:relative; flex:1; min-width:200px; }
+.ts-link-input { width:100%; }
+.ts-link-group { margin-bottom:12px; }
+.ts-link-group:last-child { margin-bottom:0; }
+.ts-link-label {
+    font-size:10px; font-weight:700; color:#9ca3af; text-transform:uppercase;
+    letter-spacing:.05em; margin-bottom:5px;
+}
+.ts-link {
+    display:flex; align-items:center; gap:10px;
+    padding:8px 10px; border:1px solid #f3f4f6; border-radius:9px;
+    margin-bottom:4px; transition:background .15s;
+}
+.ts-link:hover { background:#f8f9fa; }
+.ts-link-icon { font-size:15px; color:#7c3aed; flex-shrink:0; }
+.ts-link-main { flex:1; min-width:0; text-decoration:none; display:flex; align-items:center; gap:8px; }
+.ts-link-key { font-size:11px; font-weight:700; color:#9ca3af; flex-shrink:0; }
+.ts-link-title {
+    font-size:13px; font-weight:500; color:#374151;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.ts-link-main:hover .ts-link-title { color:#7c3aed; }
+.ts-link-status { margin-bottom:0; font-size:11px; padding:3px 9px; flex-shrink:0; cursor:default; }
+.ts-link-result { padding:8px 10px; cursor:pointer; font-size:13px; }
+.ts-link-result:hover, .ts-link-result.active { background:#f5f3ff; }
+.ts-link-result .k { font-size:11px; font-weight:700; color:#9ca3af; margin-right:6px; }
+.ts-link-result .p { font-size:11px; color:#9ca3af; display:block; }
+
 /* Attachments inside a comment */
 .ts-comment-files { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
 .ts-chip {
@@ -705,6 +740,62 @@
                             <p>No description provided for this task.</p>
                         </div>
                     @endif
+                </div>
+            </div>
+
+            {{-- Linked tasks card --}}
+            <div class="ts-card">
+                <div class="ts-card-header">
+                    <div class="ts-card-title">
+                        <i class="bi bi-link-45deg"></i> Linked tasks
+                        <span id="link-count" style="font-size:12px; color:#9ca3af; font-weight:400; margin-left:4px;">({{ $linkGroups->flatten(1)->count() }})</span>
+                    </div>
+                    <button type="button" class="ts-file-add" onclick="toggleLinkForm()">
+                        <i class="bi bi-plus-lg"></i> Link a task
+                    </button>
+                </div>
+                <div class="ts-card-body">
+                    <form id="link-form" class="ts-link-form" onsubmit="addTaskLink(event)" style="display:none;">
+                        <select id="link-type" class="ts-link-select">
+                            @foreach(\App\Models\TaskLink::options() as $value => $label)
+                                <option value="{{ $value }}">This task {{ $label }}&hellip;</option>
+                            @endforeach
+                        </select>
+                        <div class="ts-link-search">
+                            <input type="text" id="link-query" class="ts-link-input" autocomplete="off"
+                                   placeholder="Search by title or number&hellip;" oninput="searchLinkTargets()">
+                            <input type="hidden" id="link-target">
+                            <div id="link-results" class="ts-mention-menu" role="listbox"></div>
+                        </div>
+                        <button type="submit" class="ts-cl-btn"><i class="bi bi-link"></i> Link</button>
+                    </form>
+
+                    <div id="link-groups">
+                        @foreach($linkGroups as $label => $entries)
+                            <div class="ts-link-group" data-label="{{ $label }}">
+                                <div class="ts-link-label">{{ $label }}</div>
+                                @foreach($entries as $entry)
+                                    <div class="ts-link" data-id="{{ $entry['link']->id }}">
+                                        <i class="bi {{ $entry['link']->icon }} ts-link-icon"></i>
+                                        <a class="ts-link-main" href="{{ route('tasks.show', $entry['task']) }}">
+                                            <span class="ts-link-key">TASK-{{ str_pad($entry['task']->id, 4, '0', STR_PAD_LEFT) }}</span>
+                                            <span class="ts-link-title">{{ $entry['task']->title }}</span>
+                                        </a>
+                                        <span class="ts-status {{ $entry['task']->status }} ts-link-status">
+                                            <span class="ts-status-dot"></span>{{ $entry['task']->status_label }}
+                                        </span>
+                                        <button type="button" class="ts-file-del" title="Remove link"
+                                                onclick="removeTaskLink({{ $entry['link']->id }})"><i class="bi bi-x-lg"></i></button>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div id="link-empty" class="ts-empty" style="padding:20px 0; {{ $linkGroups->isNotEmpty() ? 'display:none;' : '' }}">
+                        <i class="bi bi-link-45deg"></i>
+                        <p>Nothing linked yet. Connect this to work it blocks, duplicates or relates to.</p>
+                    </div>
                 </div>
             </div>
 
@@ -1317,6 +1408,183 @@ function bumpCommentCount(delta) {
     const el = document.getElementById('comment-count');
     const n = Math.max(0, (parseInt(el.textContent.replace(/\D/g, '')) || 0) + delta);
     el.textContent = '(' + n + ')';
+}
+
+/* ── Linked tasks ──────────────────────────────────────── */
+let linkSearchTimer = null;
+
+function toggleLinkForm() {
+    const form = document.getElementById('link-form');
+    const showing = form.style.display !== 'none';
+    form.style.display = showing ? 'none' : 'flex';
+    if (!showing) document.getElementById('link-query').focus();
+}
+
+function searchLinkTargets() {
+    const q = document.getElementById('link-query').value.trim();
+    document.getElementById('link-target').value = '';   // a new search voids the pick
+
+    clearTimeout(linkSearchTimer);
+    linkSearchTimer = setTimeout(() => {
+        fetch(`/tasks/${TASK_ID}/link-candidates?q=${encodeURIComponent(q)}`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(r => r.json())
+        .then(d => renderLinkResults(d.tasks || []))
+        .catch(() => renderLinkResults([]));
+    }, 220);
+}
+
+function renderLinkResults(tasks) {
+    const box = document.getElementById('link-results');
+    box.innerHTML = '';
+
+    if (!tasks.length) {
+        box.innerHTML = '<div class="ts-mention-empty-row">No matching task</div>';
+        box.classList.add('open');
+        return;
+    }
+
+    tasks.forEach(t => {
+        const row = document.createElement('div');
+        row.className = 'ts-link-result';
+        const key = document.createElement('span');
+        key.className = 'k';
+        key.textContent = 'TASK-' + String(t.id).padStart(4, '0');
+        const title = document.createElement('span');
+        title.textContent = t.title;          // textContent: a title is not markup
+        const project = document.createElement('span');
+        project.className = 'p';
+        project.textContent = [t.project, t.status].filter(Boolean).join(' · ');
+        row.appendChild(key);
+        row.appendChild(title);
+        row.appendChild(project);
+        row.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            document.getElementById('link-target').value = t.id;
+            document.getElementById('link-query').value = 'TASK-' + String(t.id).padStart(4, '0') + ' · ' + t.title;
+            closeLinkResults();
+        });
+        box.appendChild(row);
+    });
+    box.classList.add('open');
+}
+
+function closeLinkResults() {
+    const box = document.getElementById('link-results');
+    box.classList.remove('open');
+    box.innerHTML = '';
+}
+
+document.getElementById('link-query')?.addEventListener('blur', () => setTimeout(closeLinkResults, 150));
+
+function addTaskLink(event) {
+    event.preventDefault();
+    const target = document.getElementById('link-target').value;
+    if (!target) return showToast('Pick a task from the list first', false);
+
+    fetch(`/tasks/${TASK_ID}/links`, {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+            type: document.getElementById('link-type').value,
+            linked_task_id: target,
+        })
+    })
+    .then(r => r.json().then(d => ({ ok: r.ok, d })))
+    .then(({ ok, d }) => {
+        if (!ok || !d.success) return showToast(d.message || firstError(d) || 'Could not link', false);
+        addLinkRow(d.link);
+        document.getElementById('link-query').value = '';
+        document.getElementById('link-target').value = '';
+        showToast('Tasks linked');
+    })
+    .catch(() => showToast('Could not link', false));
+}
+
+function addLinkRow(link) {
+    const groups = document.getElementById('link-groups');
+    let group = groups.querySelector(`.ts-link-group[data-label="${link.label}"]`);
+
+    if (!group) {
+        group = document.createElement('div');
+        group.className = 'ts-link-group';
+        group.setAttribute('data-label', link.label);
+        const label = document.createElement('div');
+        label.className = 'ts-link-label';
+        label.textContent = link.label;
+        group.appendChild(label);
+        groups.appendChild(group);
+    }
+
+    const row = document.createElement('div');
+    row.className = 'ts-link';
+    row.setAttribute('data-id', link.id);
+
+    const icon = document.createElement('i');
+    icon.className = 'bi ' + link.icon + ' ts-link-icon';
+
+    const main = document.createElement('a');
+    main.className = 'ts-link-main';
+    main.href = link.task.url;
+    const key = document.createElement('span');
+    key.className = 'ts-link-key';
+    key.textContent = 'TASK-' + String(link.task.id).padStart(4, '0');
+    const title = document.createElement('span');
+    title.className = 'ts-link-title';
+    title.textContent = link.task.title;
+    main.appendChild(key);
+    main.appendChild(title);
+
+    const status = document.createElement('span');
+    status.className = 'ts-status ts-link-status ' + link.task.status_key;
+    const dot = document.createElement('span');
+    dot.className = 'ts-status-dot';
+    status.appendChild(dot);
+    status.appendChild(document.createTextNode(link.task.status));
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'ts-file-del';
+    del.title = 'Remove link';
+    del.innerHTML = '<i class="bi bi-x-lg"></i>';
+    del.onclick = () => removeTaskLink(link.id);
+
+    row.appendChild(icon);
+    row.appendChild(main);
+    row.appendChild(status);
+    row.appendChild(del);
+    group.appendChild(row);
+
+    document.getElementById('link-empty').style.display = 'none';
+    bumpLinkCount(1);
+}
+
+function bumpLinkCount(delta) {
+    const el = document.getElementById('link-count');
+    const n = Math.max(0, (parseInt(el.textContent.replace(/\D/g, '')) || 0) + delta);
+    el.textContent = '(' + n + ')';
+    if (n === 0) document.getElementById('link-empty').style.display = '';
+}
+
+function removeTaskLink(id) {
+    if (!confirm('Remove this link?')) return;
+    fetch(`/task-links/${id}`, {
+        method: 'DELETE',
+        headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (!d.success) return showToast('Could not remove the link', false);
+        const row = document.querySelector(`.ts-link[data-id="${id}"]`);
+        const group = row?.closest('.ts-link-group');
+        row?.remove();
+        // An empty heading left behind reads as a relation that still exists.
+        if (group && !group.querySelector('.ts-link')) group.remove();
+        bumpLinkCount(-1);
+        showToast('Link removed');
+    })
+    .catch(() => showToast('Could not remove the link', false));
 }
 
 /* ── Attachments ───────────────────────────────────────── */

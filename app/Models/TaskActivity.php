@@ -25,6 +25,10 @@ class TaskActivity extends Model
 
     public const EVENT_COMMENT_DELETED = 'comment_deleted';
 
+    public const EVENT_LINKED = 'linked';
+
+    public const EVENT_UNLINKED = 'unlinked';
+
     protected $fillable = [
         'task_id',
         'user_id',
@@ -84,9 +88,27 @@ class TaskActivity extends Model
             self::EVENT_UNASSIGNED => 'unassigned '.($this->meta['name'] ?? 'someone'),
             self::EVENT_COMMENTED => 'commented',
             self::EVENT_COMMENT_DELETED => 'deleted a comment',
+            self::EVENT_LINKED => $this->describeLink('linked this task as'),
+            self::EVENT_UNLINKED => $this->describeLink('removed the link'),
             self::EVENT_UPDATED => $this->describeFieldChange(),
             default => $this->event,
         };
+    }
+
+    /**
+     * "linked this task as blocks TASK-0012 (Ship the invoice run)".
+     */
+    private function describeLink(string $prefix): string
+    {
+        $label = $this->meta['label'] ?? 'related to';
+        $id = $this->meta['task_id'] ?? null;
+        $title = $this->meta['title'] ?? null;
+
+        $target = $id === null
+            ? 'another task'
+            : 'TASK-'.str_pad((string) $id, 4, '0', STR_PAD_LEFT).($title ? ' ('.$title.')' : '');
+
+        return $prefix.' '.$label.' '.$target;
     }
 
     private function describeFieldChange(): string
@@ -157,6 +179,8 @@ class TaskActivity extends Model
             self::EVENT_UNASSIGNED => 'person-dash',
             self::EVENT_COMMENTED => 'chat-dots',
             self::EVENT_COMMENT_DELETED => 'trash',
+            self::EVENT_LINKED => 'link-45deg',
+            self::EVENT_UNLINKED => 'link-45deg',
             default => match ($this->field) {
                 'status' => 'arrow-repeat',
                 'priority' => 'flag',

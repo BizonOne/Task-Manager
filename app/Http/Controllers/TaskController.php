@@ -110,7 +110,8 @@ class TaskController extends Controller
     {
         // Owner, project owner, assignees and project team can all view a task.
         abort_unless($task->isAccessibleBy(Auth::user()), 403);
-        $task->load('user', 'project', 'checklistItems', 'assignees', 'comments.user', 'comments.files', 'activities.user', 'files.user');
+        $task->load('user', 'project', 'checklistItems', 'assignees', 'comments.user', 'comments.files', 'activities.user', 'files.user',
+            'outgoingLinks.linkedTask.project', 'incomingLinks.task.project');
 
         // The task owner or a project manager may add/remove assignees.
         $canManageAssignees = $task->isManageableBy(Auth::user());
@@ -121,8 +122,10 @@ class TaskController extends Controller
         $statuses = TaskStatus::ordered();
         // Full history: field changes, assignments and comments in one list.
         $timeline = $task->timeline();
+        // Relations, worded from this task's side and grouped by that wording.
+        $linkGroups = $task->groupedLinks(Auth::user());
 
-        return view('tasks.show', compact('task', 'canManageAssignees', 'mentionables', 'assignableUsers', 'statuses', 'timeline'));
+        return view('tasks.show', compact('task', 'canManageAssignees', 'mentionables', 'assignableUsers', 'statuses', 'timeline', 'linkGroups'));
     }
 
     public function edit(Task $task)
