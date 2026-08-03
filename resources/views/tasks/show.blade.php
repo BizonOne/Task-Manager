@@ -637,7 +637,7 @@
                     <div class="ts-meta-icon"><i class="bi bi-calendar-plus"></i></div>
                     <div>
                         <div class="ts-meta-label">Created</div>
-                        <div class="ts-meta-val">{{ $task->created_at->format('M j, Y') }}</div>
+                        <div class="ts-meta-val">{{ \App\Support\Dates::dateTime($task->created_at) }}</div>
                     </div>
                 </div>
 
@@ -646,7 +646,7 @@
                     <div class="ts-meta-icon"><i class="bi bi-pencil"></i></div>
                     <div>
                         <div class="ts-meta-label">Updated</div>
-                        <div class="ts-meta-val">{{ $task->updated_at->format('M j, Y') }}</div>
+                        <div class="ts-meta-val">{{ \App\Support\Dates::dateTime($task->updated_at) }}</div>
                     </div>
                 </div>
                 @endif
@@ -945,7 +945,7 @@
                                 <div class="ts-comment-main">
                                     <div class="ts-comment-head">
                                         <span class="ts-comment-author">{{ $comment->user->name }}</span>
-                                        <span class="ts-comment-time">{{ $comment->created_at->diffForHumans() }}</span>
+                                        <span class="ts-comment-time" title="{{ \App\Support\Dates::dateTime($comment->created_at) }}">{{ $comment->created_at->diffForHumans() }}</span>
                                         @if($comment->user_id === auth()->id() || $task->user_id === auth()->id() || $task->project?->user_id === auth()->id())
                                             <button type="button" class="ts-comment-del" onclick="deleteComment({{ $comment->id }})" title="Delete"><i class="bi bi-trash"></i></button>
                                         @endif
@@ -1017,7 +1017,7 @@
                                 <div class="ts-tl-head">
                                     <span class="ts-tl-actor">{{ $entry['actor'] }}</span>
                                     <span class="ts-tl-text">{{ $entry['text'] }}</span>
-                                    <span class="ts-tl-time" title="{{ $entry['at']?->toDayDateTimeString() }}">
+                                    <span class="ts-tl-time" title="{{ \App\Support\Dates::dateTime($entry['at']) }}">
                                         {{ $entry['at']?->diffForHumans() }}
                                     </span>
                                 </div>
@@ -1373,6 +1373,7 @@ function buildCommentNode(c) {
     const time = document.createElement('span');
     time.className = 'ts-comment-time';
     time.textContent = c.created_at;
+    if (c.created_at_exact) time.title = c.created_at_exact;
     head.appendChild(author);
     head.appendChild(time);
     if (c.is_author) {

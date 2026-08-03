@@ -10,7 +10,13 @@
         <div class="row mb-6">
             <div class="col-12">
                 <div class="welcome-section">
-                    <h1 class="welcome-title">Good {{ now()->format('A') === 'AM' ? 'morning' : (now()->format('H') < 18 ? 'afternoon' : 'evening') }}, {{ Auth::user()->name }}! 👋</h1>
+                    @php
+                        // The reader's hour, not the server's — greeting someone
+                        // "good morning" at their 15:00 is the same bug as
+                        // showing them a task created at the wrong time.
+                        $hour = (int) now()->setTimezone(\App\Support\Dates::timezone())->format('H');
+                    @endphp
+                    <h1 class="welcome-title">Good {{ $hour < 12 ? 'morning' : ($hour < 18 ? 'afternoon' : 'evening') }}, {{ Auth::user()->name }}! 👋</h1>
                     <p class="welcome-subtitle">Here's what's happening with your tasks today.</p>
                 </div>
             </div>
@@ -343,7 +349,7 @@
                                     <div class="activity-item-meta">
                                         <span class="routine-frequency-badge">{{ ucfirst($routine->frequency) }}</span>
                                         @if($routine->time)
-                                            <span class="activity-item-date">{{ $routine->time->format('H:i') }}</span>
+                                            <span class="activity-item-date">{{ \App\Support\Dates::clock($routine->time) }}</span>
                                         @endif
                                     </div>
                                 </div>
@@ -380,7 +386,7 @@
                                 <div class="activity-item-content">
                                     <div class="activity-item-title">{{ $note->title }}</div>
                                     <div class="activity-item-meta">
-                                        <span class="activity-item-date">{{ $note->created_at->format('M d, Y') }}</span>
+                                        <span class="activity-item-date">{{ \App\Support\Dates::dateTime($note->created_at) }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -420,7 +426,7 @@
                                             {{ $reminder->date->isToday() ? 'Today' : ($reminder->date->isPast() ? 'Overdue' : $reminder->date->format('M d')) }}
                                         </span>
                                         @if($reminder->time)
-                                            <span class="activity-item-date">{{ \Carbon\Carbon::parse($reminder->time)->format('H:i') }}</span>
+                                            <span class="activity-item-date">{{ \App\Support\Dates::clock($reminder->time) }}</span>
                                         @endif
                                     </div>
                                 </div>

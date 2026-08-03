@@ -893,7 +893,9 @@ footer { display: none !important; }
 
     function formatTime(iso) {
         if (!iso) return '';
-        try { return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+        // hour12:false, or an en-US browser draws "1:15 PM" while every
+        // server-rendered time on the page says 13:15.
+        try { return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }); }
         catch { return ''; }
     }
 

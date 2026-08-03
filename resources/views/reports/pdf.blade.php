@@ -46,7 +46,7 @@
 <body>
     <h1>Task report</h1>
     <p class="sub">{{ $report->describe() }}</p>
-    <p class="sub muted">{{ $brandName }} &middot; generated {{ now()->format('d M Y, H:i') }}</p>
+    <p class="sub muted">{{ $brandName }} &middot; generated {{ \App\Support\Dates::dateTime(now()) }}</p>
     <div class="rule"></div>
 
     <table class="tiles">

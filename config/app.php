@@ -69,6 +69,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Display Timezone
+    |--------------------------------------------------------------------------
+    |
+    | Timestamps are stored in the application timezone above — UTC — because
+    | that is the only sane thing to store. This is the timezone they are
+    | *read* in: what a person sees on a task, in a table and in an email.
+    | Leave it empty to show times exactly as they are stored.
+    |
+    */
+
+    'display_timezone' => env('APP_DISPLAY_TIMEZONE', env('APP_TIMEZONE', 'UTC')),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |

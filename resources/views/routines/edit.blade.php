@@ -231,9 +231,9 @@
                 <div class="cu-meta-row">
                     <i class="bi bi-clock"></i>
                     <span>
-                        {{ \Carbon\Carbon::parse($routine->start_time)->format('g:i A') }}
+                        {{ \App\Support\Dates::clock($routine->start_time) }}
                         @if($routine->end_time)
-                            &ndash; {{ \Carbon\Carbon::parse($routine->end_time)->format('g:i A') }}
+                            &ndash; {{ \App\Support\Dates::clock($routine->end_time) }}
                         @endif
                     </span>
                 </div>
@@ -262,7 +262,7 @@
 
                 <div class="cu-meta-row">
                     <i class="bi bi-pencil"></i>
-                    <span>Updated <strong>{{ $routine->updated_at->format('M d, Y') }}</strong></span>
+                    <span>Updated <strong>{{ \App\Support\Dates::dateTime($routine->updated_at) }}</strong></span>
                 </div>
             </div>
         </div>

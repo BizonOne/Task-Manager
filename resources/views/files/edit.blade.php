@@ -264,7 +264,7 @@
                 </div>
                 <div class="cu-meta-row">
                     <i class="bi bi-calendar3"></i>
-                    <span>Uploaded <strong>{{ $file->created_at->format('M d, Y') }}</strong></span>
+                    <span>Uploaded <strong>{{ \App\Support\Dates::dateTime($file->created_at) }}</strong></span>
                 </div>
                 <div class="cu-meta-row">
                     <i class="bi bi-clock-history"></i>

@@ -7,6 +7,10 @@ use App\Models\TaskComment;
 use App\Observers\TaskCommentObserver;
 use App\Observers\TaskObserver;
 use App\Policies\RolePolicy;
+use App\Support\Dates;
+use Filament\Schemas\Schema;
+use Filament\Support\Facades\FilamentTimezone;
+use Filament\Tables\Table;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -37,5 +41,22 @@ class AppServiceProvider extends ServiceProvider
 
         // The front-end is built on Bootstrap, so paginators should be too.
         Paginator::useBootstrapFive();
+
+        // Filament formats its own columns, so it needs telling where the
+        // reader is — otherwise the admin panel shows UTC while every page
+        // outside it shows local time.
+        FilamentTimezone::set(Dates::timezone());
+
+        // And how to write it down. Filament's own defaults carry seconds
+        // ("Aug 3, 2026 14:03:27"), which nobody reads off a table.
+        Table::configureUsing(fn (Table $table) => $table
+            ->defaultDateDisplayFormat(Dates::DATE)
+            ->defaultDateTimeDisplayFormat(Dates::DATE_TIME)
+            ->defaultTimeDisplayFormat(Dates::TIME));
+
+        Schema::configureUsing(fn (Schema $schema) => $schema
+            ->defaultDateDisplayFormat(Dates::DATE)
+            ->defaultDateTimeDisplayFormat(Dates::DATE_TIME)
+            ->defaultTimeDisplayFormat(Dates::TIME));
     }
 }

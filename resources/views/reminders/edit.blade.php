@@ -251,7 +251,7 @@
                 </div>
                 <div class="cu-meta-row">
                     <i class="bi bi-calendar3"></i>
-                    <span>Created <strong>{{ $reminder->created_at->format('M d, Y') }}</strong></span>
+                    <span>Created <strong>{{ \App\Support\Dates::dateTime($reminder->created_at) }}</strong></span>
                 </div>
                 @if($reminder->formatted_date_time)
                 <div class="cu-meta-row">

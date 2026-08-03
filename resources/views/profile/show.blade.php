@@ -255,7 +255,7 @@
                         </tr>
                         <tr>
                             <td><i class="bi bi-calendar3 text-muted"></i> Member Since</td>
-                            <td>{{ $user->created_at->format('F d, Y') }}</td>
+                            <td>{{ \App\Support\Dates::dateTime($user->created_at) }}</td>
                         </tr>
                     </table>
                 </div>

@@ -225,11 +225,11 @@
                 </div>
                 <div class="cu-meta-row">
                     <i class="bi bi-calendar3"></i>
-                    <span>Created&nbsp;<strong>{{ $note->created_at->format('M d, Y') }}</strong></span>
+                    <span>Created&nbsp;<strong>{{ \App\Support\Dates::dateTime($note->created_at) }}</strong></span>
                 </div>
                 <div class="cu-meta-row">
                     <i class="bi bi-pencil"></i>
-                    <span>Updated&nbsp;<strong>{{ $note->updated_at->format('M d, Y') }}</strong></span>
+                    <span>Updated&nbsp;<strong>{{ \App\Support\Dates::dateTime($note->updated_at) }}</strong></span>
                 </div>
                 <div class="cu-meta-row">
                     <i class="bi bi-file-text"></i>

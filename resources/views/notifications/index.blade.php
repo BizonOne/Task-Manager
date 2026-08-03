@@ -44,7 +44,7 @@
                     @if(!empty($n->data['excerpt']))
                         <div style="font-size:12px; color:#6b7280; margin-top:3px;">“{{ $n->data['excerpt'] }}”</div>
                     @endif
-                    <div style="font-size:11px; color:#9ca3af; margin-top:4px;">{{ $n->created_at->diffForHumans() }}</div>
+                    <div style="font-size:11px; color:#9ca3af; margin-top:4px;"><span title="{{ \App\Support\Dates::dateTime($n->created_at) }}">{{ $n->created_at->diffForHumans() }}</span></div>
                 </div>
                 @if($isUnread)
                     <span style="flex-shrink:0; width:8px; height:8px; border-radius:50%; background:#7c3aed; margin-top:6px;"></span>

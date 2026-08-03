@@ -167,12 +167,12 @@
                 </div>
                 <div class="cu-meta-row">
                     <i class="bi bi-calendar3"></i>
-                    <span>Created <strong>{{ $note->created_at->format('M d, Y') }}</strong></span>
+                    <span>Created <strong>{{ \App\Support\Dates::dateTime($note->created_at) }}</strong></span>
                 </div>
                 @if($note->updated_at->ne($note->created_at))
                 <div class="cu-meta-row">
                     <i class="bi bi-pencil"></i>
-                    <span>Modified <strong>{{ $note->updated_at->format('M d, Y') }}</strong></span>
+                    <span>Modified <strong>{{ \App\Support\Dates::dateTime($note->updated_at) }}</strong></span>
                 </div>
                 @endif
                 @if($note->date)
@@ -241,7 +241,7 @@
             {{-- Stats bar --}}
             <div class="cu-stats-bar">
                 <span><i class="bi bi-file-text"></i> {{ $note->word_count }} words</span>
-                <span><i class="bi bi-clock"></i> {{ $note->created_at->format('M d, Y g:i A') }}</span>
+                <span><i class="bi bi-clock"></i> {{ \App\Support\Dates::dateTime($note->created_at) }}</span>
                 @if($note->date)
                 <span><i class="bi bi-calendar-event"></i> {{ $note->formatted_date }}{{ $note->time ? ' at ' . $note->formatted_time : '' }}</span>
                 @endif
