@@ -43,7 +43,7 @@
                 @if($reminder->snooze_until && $reminder->snooze_until->isFuture())
                     <span class="cu-meta-item cu-meta-warn">
                         <i class="bi bi-clock-history"></i>
-                        Snoozed until {{ $reminder->snooze_until->format('M j, g:i A') }}
+                        Snoozed until {{ \App\Support\Dates::shortDateTime($reminder->snooze_until) }}
                     </span>
                 @endif
             </div>

@@ -26,9 +26,9 @@
                         <div class="reminder-date">
                             <i class="fas fa-calendar-alt me-1"></i>
                             <span class="{{ $reminder->is_overdue ? 'text-danger' : '' }}">
-                                {{ $reminder->formatted_date_time->format('M j, Y') }}
+                                {{ $reminder->formatted_date_time->format(\App\Support\Dates::DATE) }}
                                 @if($reminder->time)
-                                    at {{ $reminder->formatted_date_time->format('g:i A') }}
+                                    at {{ $reminder->formatted_date_time->format(\App\Support\Dates::TIME) }}
                                 @endif
                             </span>
                         </div>
@@ -65,7 +65,7 @@
                     @if($reminder->snooze_until && $reminder->snooze_until->isFuture())
                         <div class="reminder-snoozed mt-1">
                             <i class="fas fa-clock me-1"></i>
-                            <span class="text-warning">Snoozed until {{ $reminder->snooze_until->format('M j, g:i A') }}</span>
+                            <span class="text-warning">Snoozed until {{ \App\Support\Dates::shortDateTime($reminder->snooze_until) }}</span>
                         </div>
                     @endif
 

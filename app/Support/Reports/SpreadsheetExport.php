@@ -3,6 +3,7 @@
 namespace App\Support\Reports;
 
 use App\Models\Task;
+use App\Support\Dates;
 use Carbon\CarbonImmutable;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -60,7 +61,7 @@ class SpreadsheetExport
         $sheet->getStyle('A'.$row)->getFont()->setItalic(true)->getColor()->setARGB('FF6B7280');
         $row++;
 
-        $sheet->setCellValue('A'.$row, 'Generated '.CarbonImmutable::now()->format('d M Y, H:i'));
+        $sheet->setCellValue('A'.$row, 'Generated '.Dates::dateTime(CarbonImmutable::now()));
         $sheet->getStyle('A'.$row)->getFont()->getColor()->setARGB('FF9CA3AF');
         $row += 2;
 
@@ -138,7 +139,9 @@ class SpreadsheetExport
                 $task->status_label,
                 ucfirst((string) $task->priority),
                 $task->due_date ? CarbonImmutable::parse($task->due_date)->format('Y-m-d') : null,
-                $task->created_at?->format('Y-m-d'),
+                // The hour a task was raised matters as much as the day; a
+                // spreadsheet still sorts this correctly as text.
+                $task->created_at ? Dates::dateTime($task->created_at) : null,
                 $task->estimated_hours === null ? null : (float) $task->estimated_hours,
             ], null, 'A'.$row);
 

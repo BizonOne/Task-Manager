@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Dates;
 use App\Support\RichText;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -73,12 +74,13 @@ class Reminder extends Model
 
     public function getFormattedDateAttribute()
     {
-        return $this->date ? $this->date->format('M j, Y') : null;
+        return $this->date ? $this->date->format(Dates::DATE) : null;
     }
 
     public function getFormattedTimeAttribute()
     {
-        return $this->time ? Carbon::parse($this->time)->format('g:i A') : null;
+        // Wall-clock, like a note's: a reminder set for 18:30 is 18:30.
+        return Dates::clock($this->time);
     }
 
     public function getFormattedDateTimeAttribute()

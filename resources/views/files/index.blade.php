@@ -270,7 +270,7 @@
                 </div>
                 <div class="cu-file-info">
                     <i class="bi bi-calendar3"></i>
-                    {{ $file->created_at->format('M d, Y') }}
+                    {{ \App\Support\Dates::dateTime($file->created_at) }}
                 </div>
                 @if($file->task)
                     <div class="cu-file-info">

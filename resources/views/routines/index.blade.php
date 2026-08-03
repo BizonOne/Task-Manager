@@ -219,9 +219,9 @@
                         @if($routine->start_time && $routine->end_time)
                         <span class="cu-meta-pill">
                             <i class="bi bi-clock"></i>
-                            {{ \Carbon\Carbon::parse($routine->start_time)->format('g:i A') }}
+                            {{ \App\Support\Dates::clock($routine->start_time) }}
                             &ndash;
-                            {{ \Carbon\Carbon::parse($routine->end_time)->format('g:i A') }}
+                            {{ \App\Support\Dates::clock($routine->end_time) }}
                         </span>
                         @endif
                     </div>
@@ -281,9 +281,9 @@
                         @if($routine->start_time && $routine->end_time)
                         <span class="cu-meta-pill">
                             <i class="bi bi-clock"></i>
-                            {{ \Carbon\Carbon::parse($routine->start_time)->format('g:i A') }}
+                            {{ \App\Support\Dates::clock($routine->start_time) }}
                             &ndash;
-                            {{ \Carbon\Carbon::parse($routine->end_time)->format('g:i A') }}
+                            {{ \App\Support\Dates::clock($routine->end_time) }}
                         </span>
                         @endif
                     </div>
@@ -346,9 +346,9 @@
                         @if($routine->start_time && $routine->end_time)
                         <span class="cu-meta-pill">
                             <i class="bi bi-clock"></i>
-                            {{ \Carbon\Carbon::parse($routine->start_time)->format('g:i A') }}
+                            {{ \App\Support\Dates::clock($routine->start_time) }}
                             &ndash;
-                            {{ \Carbon\Carbon::parse($routine->end_time)->format('g:i A') }}
+                            {{ \App\Support\Dates::clock($routine->end_time) }}
                         </span>
                         @endif
                     </div>

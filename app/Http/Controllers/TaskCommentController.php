@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\File;
 use App\Models\Task;
 use App\Models\TaskComment;
+use App\Support\Dates;
 use App\Support\RichText;
 use App\Support\Uploads;
 use Illuminate\Http\Request;
@@ -59,6 +60,9 @@ class TaskCommentController extends Controller
                 'user_name' => $user->name,
                 'initials' => $this->initials($user->name),
                 'created_at' => $comment->created_at->diffForHumans(),
+                // The relative time is what is shown; the exact one is what a
+                // person hovers for.
+                'created_at_exact' => Dates::dateTime($comment->created_at),
                 'is_author' => true,
                 'files' => $files->map(fn (File $file) => app(FileController::class)->toJson($file))->values(),
             ],

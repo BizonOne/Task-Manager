@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\Dates;
 use App\Support\RichText;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -53,12 +53,14 @@ class Note extends Model
 
     public function getFormattedDateAttribute()
     {
-        return $this->date ? $this->date->format('M j, Y') : null;
+        return $this->date ? $this->date->format(Dates::DATE) : null;
     }
 
     public function getFormattedTimeAttribute()
     {
-        return $this->time ? Carbon::parse($this->time)->format('g:i A') : null;
+        // A note's time is wall-clock — 09:00 is 09:00, not an instant to
+        // convert — so it goes through clock() rather than time().
+        return Dates::clock($this->time);
     }
 
     public function scopeFavorites($query)

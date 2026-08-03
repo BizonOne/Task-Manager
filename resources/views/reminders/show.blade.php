@@ -247,7 +247,7 @@
                     <div class="cu-meta-row">
                         <i class="bi bi-clock-history"></i>
                         <span class="cu-meta-warn">
-                            Snoozed until {{ $reminder->snooze_until->format('M j, g:i A') }}
+                            Snoozed until {{ \App\Support\Dates::shortDateTime($reminder->snooze_until) }}
                         </span>
                     </div>
                 @endif

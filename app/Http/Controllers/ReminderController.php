@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Reminder;
+use App\Support\Dates;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Http\JsonResponse;
-use Carbon\Carbon;
 
 class ReminderController extends Controller
 {
@@ -70,7 +70,7 @@ class ReminderController extends Controller
             Reminder::PRIORITY_LOW => 'Low',
             Reminder::PRIORITY_MEDIUM => 'Medium',
             Reminder::PRIORITY_HIGH => 'High',
-            Reminder::PRIORITY_URGENT => 'Urgent'
+            Reminder::PRIORITY_URGENT => 'Urgent',
         ];
 
         // Statistics
@@ -99,7 +99,7 @@ class ReminderController extends Controller
                             'description' => $reminder->description,
                             'is_completed' => $reminder->is_completed,
                             'is_overdue' => $reminder->is_overdue,
-                        ]
+                        ],
                     ];
                 });
 
@@ -107,7 +107,7 @@ class ReminderController extends Controller
             } else {
                 return response()->json([
                     'html' => view('reminders.partials.reminders-grid', compact('reminders'))->render(),
-                    'count' => $reminders->count()
+                    'count' => $reminders->count(),
                 ]);
             }
         }
@@ -128,7 +128,7 @@ class ReminderController extends Controller
             Reminder::PRIORITY_LOW => 'Low',
             Reminder::PRIORITY_MEDIUM => 'Medium',
             Reminder::PRIORITY_HIGH => 'High',
-            Reminder::PRIORITY_URGENT => 'Urgent'
+            Reminder::PRIORITY_URGENT => 'Urgent',
         ];
 
         return view('reminders.create', compact('categories', 'priorities'));
@@ -158,7 +158,7 @@ class ReminderController extends Controller
         }
 
         // Set default recurrence values
-        if (!$request->is_recurring) {
+        if (! $request->is_recurring) {
             $data['recurrence_type'] = Reminder::RECURRENCE_NONE;
             $data['recurrence_interval'] = 1;
         }
@@ -194,7 +194,7 @@ class ReminderController extends Controller
             Reminder::PRIORITY_LOW => 'Low',
             Reminder::PRIORITY_MEDIUM => 'Medium',
             Reminder::PRIORITY_HIGH => 'High',
-            Reminder::PRIORITY_URGENT => 'Urgent'
+            Reminder::PRIORITY_URGENT => 'Urgent',
         ];
 
         return view('reminders.edit', compact('reminder', 'categories', 'priorities'));
@@ -228,7 +228,7 @@ class ReminderController extends Controller
         }
 
         // Set default recurrence values
-        if (!$request->is_recurring) {
+        if (! $request->is_recurring) {
             $data['recurrence_type'] = Reminder::RECURRENCE_NONE;
             $data['recurrence_interval'] = 1;
         }
@@ -245,10 +245,11 @@ class ReminderController extends Controller
         }
 
         $reminder->delete();
+
         return redirect()->route('reminders.index')->with('success', 'Reminder deleted successfully.');
     }
 
-    public function toggleComplete(Reminder $reminder): \Illuminate\Http\JsonResponse
+    public function toggleComplete(Reminder $reminder): JsonResponse
     {
         if ($reminder->user_id !== Auth::id()) {
             abort(403);
@@ -257,7 +258,7 @@ class ReminderController extends Controller
         if ($reminder->is_completed) {
             $reminder->update([
                 'is_completed' => false,
-                'completed_at' => null
+                'completed_at' => null,
             ]);
         } else {
             $reminder->markAsCompleted();
@@ -266,25 +267,25 @@ class ReminderController extends Controller
         return response()->json([
             'success' => true,
             'is_completed' => $reminder->fresh()->is_completed,
-            'completed_at' => $reminder->fresh()->completed_at?->format('M j, Y g:i A')
+            'completed_at' => Dates::dateTime($reminder->fresh()->completed_at),
         ]);
     }
 
-    public function snooze(Request $request, Reminder $reminder): \Illuminate\Http\JsonResponse
+    public function snooze(Request $request, Reminder $reminder): JsonResponse
     {
         if ($reminder->user_id !== Auth::id()) {
             abort(403);
         }
 
         $request->validate([
-            'minutes' => 'required|integer|min:1|max:1440' // Max 24 hours
+            'minutes' => 'required|integer|min:1|max:1440', // Max 24 hours
         ]);
 
         $reminder->snooze($request->minutes);
 
         return response()->json([
             'success' => true,
-            'snooze_until' => $reminder->fresh()->snooze_until?->format('M j, Y g:i A')
+            'snooze_until' => Dates::dateTime($reminder->fresh()->snooze_until),
         ]);
     }
 
@@ -298,9 +299,9 @@ class ReminderController extends Controller
             'is_completed',
             'completed_at',
             'notification_sent',
-            'snooze_until'
+            'snooze_until',
         ]);
-        $newReminder->title = $reminder->title . ' (Copy)';
+        $newReminder->title = $reminder->title.' (Copy)';
         $newReminder->is_completed = false;
         $newReminder->completed_at = null;
         $newReminder->notification_sent = false;
@@ -327,7 +328,7 @@ class ReminderController extends Controller
                     'category' => $reminder->category,
                     'description' => $reminder->description,
                     'is_overdue' => $reminder->is_overdue,
-                ]
+                ],
             ];
         });
 
