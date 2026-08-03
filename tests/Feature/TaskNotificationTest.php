@@ -10,6 +10,7 @@ use App\Notifications\TaskAssignedNotification;
 use App\Notifications\TaskCommentedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -180,6 +181,34 @@ class TaskNotificationTest extends TestCase
             ->assertSuccessful();
 
         Notification::assertSentTo($this->second, TaskCommentedNotification::class);
+    }
+
+    public function test_working_out_the_followers_never_mixes_distinct_with_an_order(): void
+    {
+        // MySQL refuses "select distinct user_id ... order by created_at" and
+        // SQLite waves it through, so this only ever broke in production. The
+        // assertion is on the SQL because the test database cannot fail on it.
+        $task = $this->task($this->worker);
+
+        $this->actingAs($this->second)
+            ->postJson("/tasks/{$task->id}/comments", ['body' => 'First'])
+            ->assertSuccessful();
+
+        $seen = [];
+        DB::listen(function ($query) use (&$seen): void {
+            $seen[] = strtolower($query->sql);
+        });
+
+        $this->actingAs($this->manager)
+            ->postJson("/tasks/{$task->id}/comments", ['body' => 'Second'])
+            ->assertSuccessful();
+
+        foreach ($seen as $sql) {
+            $this->assertFalse(
+                str_contains($sql, 'distinct') && str_contains($sql, 'order by'),
+                'This query is a 500 on MySQL: '.$sql
+            );
+        }
     }
 
     public function test_a_mentioned_person_gets_the_mention_and_not_a_second_notification(): void

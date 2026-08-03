@@ -89,10 +89,19 @@ class TaskCommentObserver
     {
         $task->loadMissing(['user', 'assignees']);
 
-        $earlierAuthors = User::whereIn(
-            'id',
-            $task->comments()->where('id', '!=', $comment->id)->distinct()->pluck('user_id')
-        )->get();
+        // Plucking the ids and uniquing them in PHP, rather than asking the
+        // database for DISTINCT: the comments relation carries an "oldest()"
+        // ordering, and MySQL rejects DISTINCT ordered by a column that is not
+        // selected. SQLite allows it, so this only ever failed in production.
+        $earlierAuthorIds = $task->comments()
+            ->where('id', '!=', $comment->id)
+            ->pluck('user_id')
+            ->unique()
+            ->values();
+
+        $earlierAuthors = $earlierAuthorIds->isEmpty()
+            ? collect()
+            : User::whereIn('id', $earlierAuthorIds)->get();
 
         return collect([$task->user])
             ->merge($task->assignees)
