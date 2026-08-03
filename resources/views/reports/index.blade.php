@@ -191,6 +191,16 @@
                     </div>
 
                     <div class="rp-field">
+                        <label for="archive">Archive</label>
+                        <select name="archive" id="archive">
+                            @foreach($archiveStates as $value => $label)
+                                <option value="{{ $value }}" @selected(($filters['archive'] ?? 'all') === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <span class="rp-hint">Archived work still counts as done</span>
+                    </div>
+
+                    <div class="rp-field">
                         <label for="date_field">Date range on</label>
                         <select name="date_field" id="date_field">
                             @foreach($dateFields as $value => $label)

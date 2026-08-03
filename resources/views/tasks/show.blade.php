@@ -53,7 +53,12 @@
 .ts-header-title {
     font-size:20px; font-weight:700; line-height:1.3; margin:0;
 }
-.ts-header-actions { display:flex; gap:8px; z-index:1; }
+.ts-header-actions { display:flex; gap:8px; z-index:1; align-items:center; }
+.ts-archived-badge {
+    display:inline-flex; align-items:center; gap:4px; margin-left:8px;
+    background:rgba(255,255,255,.25); border-radius:999px;
+    padding:2px 9px; font-size:10px; font-weight:700; letter-spacing:.04em;
+}
 .ts-header-btn {
     display:inline-flex; align-items:center; gap:6px;
     padding:8px 14px; border-radius:8px; font-size:13px;
@@ -544,11 +549,30 @@
         @endif
 
         <div class="ts-header-meta">
-            <div class="ts-task-id">TASK-{{ str_pad($task->id, 4, '0', STR_PAD_LEFT) }}</div>
+            <div class="ts-task-id">
+                TASK-{{ str_pad($task->id, 4, '0', STR_PAD_LEFT) }}
+                @if($task->isArchived())
+                    <span class="ts-archived-badge" title="Archived {{ \App\Support\Dates::dateTime($task->archived_at) }}">
+                        <i class="bi bi-archive"></i> Archived
+                    </span>
+                @endif
+            </div>
             <h1 class="ts-header-title">{{ $task->title }}</h1>
         </div>
 
         <div class="ts-header-actions">
+            @if($canManageAssignees)
+                <form method="POST" style="margin:0;"
+                      action="{{ $task->isArchived() ? route('tasks.unarchive', $task) : route('tasks.archive', $task) }}">
+                    @csrf
+                    @if($task->isArchived()) @method('DELETE') @endif
+                    <button type="submit" class="ts-header-btn edit"
+                            title="{{ $task->isArchived() ? 'Put this task back on the board' : 'File this task away — it keeps its discussion, files and links' }}">
+                        <i class="bi bi-{{ $task->isArchived() ? 'box-arrow-up' : 'archive' }}"></i>
+                        {{ $task->isArchived() ? 'Restore' : 'Archive' }}
+                    </button>
+                </form>
+            @endif
             <a href="{{ route('tasks.edit', $task->id) }}" class="ts-header-btn edit">
                 <i class="bi bi-pencil"></i> Edit
             </a>
@@ -629,6 +653,26 @@
                     <div>
                         <div class="ts-meta-label">Estimated</div>
                         <div class="ts-meta-val">{{ $task->estimated_hours }} hrs</div>
+                    </div>
+                </div>
+                @endif
+
+                @if($task->completed_at)
+                <div class="ts-meta-row">
+                    <div class="ts-meta-icon"><i class="bi bi-check-circle"></i></div>
+                    <div>
+                        <div class="ts-meta-label">Completed</div>
+                        <div class="ts-meta-val">{{ \App\Support\Dates::dateTime($task->completed_at) }}</div>
+                    </div>
+                </div>
+                @endif
+
+                @if($task->isArchived())
+                <div class="ts-meta-row">
+                    <div class="ts-meta-icon"><i class="bi bi-archive"></i></div>
+                    <div>
+                        <div class="ts-meta-label">Archived</div>
+                        <div class="ts-meta-val">{{ \App\Support\Dates::dateTime($task->archived_at) }}</div>
                     </div>
                 </div>
                 @endif

@@ -747,6 +747,13 @@
                             <span>Reports</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->is('archive*') ? 'active' : '' }}"
+                            href="{{ route('archive.index') }}">
+                            <i class="bi bi-archive"></i>
+                            <span>Archive</span>
+                        </a>
+                    </li>
                 </ul>
             </div>
 

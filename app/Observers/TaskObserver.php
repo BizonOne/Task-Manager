@@ -4,9 +4,11 @@ namespace App\Observers;
 
 use App\Models\Task;
 use App\Models\TaskActivity;
+use App\Models\TaskStatus;
 use App\Models\User;
 use App\Notifications\TaskAssignedNotification;
 use App\Support\Notifier;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -32,6 +34,33 @@ class TaskObserver
         'user_id',
     ];
 
+    /**
+     * Keep `completed_at` honest, in the same write as the change that moved it.
+     *
+     * The column exists because `updated_at` cannot answer "finished 30 days
+     * ago" — it moves on any edit at all.
+     */
+    public function saving(Task $task): void
+    {
+        if (! $task->isDirty('status')) {
+            return;
+        }
+
+        $isCompleted = in_array($task->status, TaskStatus::completedKeys(), true);
+
+        if ($isCompleted) {
+            $task->completed_at ??= CarbonImmutable::now();
+
+            return;
+        }
+
+        $task->completed_at = null;
+
+        // Work that was reopened belongs back on the board. Leaving it archived
+        // would mean a task in progress that nobody can see.
+        $task->archived_at = null;
+    }
+
     public function created(Task $task): void
     {
         TaskActivity::record($task, TaskActivity::EVENT_CREATED);
@@ -46,6 +75,12 @@ class TaskObserver
         // Reassignment is the same handover, later in the task's life.
         if ($task->wasChanged('user_id')) {
             $this->notifyOwner($task);
+        }
+
+        // A reopened task comes back from the archive above; say so in the
+        // history, or it silently reappears on the board.
+        if ($task->wasChanged('archived_at') && $task->archived_at === null) {
+            TaskActivity::record($task, TaskActivity::EVENT_UNARCHIVED);
         }
 
         foreach (self::TRACKED as $field) {

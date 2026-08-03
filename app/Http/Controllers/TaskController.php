@@ -21,13 +21,15 @@ class TaskController extends Controller
             // not just the viewer's own — that's the point of collaborating.
             abort_unless($project->isAccessibleBy($user), 403);
             $tasks = Task::where('project_id', $project->id)
+                // The archive exists so finished work stops crowding the board.
+                ->active()
                 ->with('project')
                 ->get()
                 ->groupBy('status');
         } else {
             // "My tasks": tasks the user owns or is assigned to, in active
             // projects. A super admin oversees everything and sees every task.
-            $tasks = Task::when(! $user->isSuperAdmin(), function ($query) use ($user) {
+            $tasks = Task::active()->when(! $user->isSuperAdmin(), function ($query) use ($user) {
                 $query->where(function ($q) use ($user) {
                     $q->where('user_id', $user->id)
                         ->orWhereHas('assignees', fn ($a) => $a->where('users.id', $user->id));

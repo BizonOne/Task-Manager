@@ -31,6 +31,18 @@ class TaskReport
         'created_at' => 'Created',
         'due_date' => 'Due',
         'updated_at' => 'Last updated',
+        'completed_at' => 'Completed',
+        'archived_at' => 'Archived',
+    ];
+
+    /**
+     * Whether archived work is in scope. A report is an account of what was
+     * done, so "all" is the default — filing a task away does not un-do it.
+     */
+    public const ARCHIVE_STATES = [
+        'all' => 'Live and archived',
+        'active' => 'Live only',
+        'archived' => 'Archived only',
     ];
 
     /** @var array<string, mixed> */
@@ -71,7 +83,7 @@ class TaskReport
             }
         }
 
-        return false;
+        return $this->filters['archive'] !== 'all';
     }
 
     public function query(): Builder
@@ -99,6 +111,12 @@ class TaskReport
         if ($search = $this->filters['search']) {
             $query->where('title', 'like', '%'.$search.'%');
         }
+
+        match ($this->filters['archive']) {
+            'active' => $query->active(),
+            'archived' => $query->archived(),
+            default => null,
+        };
 
         $field = $this->filters['date_field'];
         if ($from = $this->filters['from']) {
@@ -222,6 +240,9 @@ class TaskReport
         if ($search = $this->filters['search']) {
             $parts[] = 'Title contains "'.$search.'"';
         }
+        if ($this->filters['archive'] !== 'all') {
+            $parts[] = self::ARCHIVE_STATES[$this->filters['archive']];
+        }
 
         return $parts === [] ? 'All tasks you have access to' : implode(' · ', $parts);
     }
@@ -295,6 +316,9 @@ class TaskReport
             'from' => $this->date($filters['from'] ?? null),
             'to' => $this->date($filters['to'] ?? null),
             'search' => trim((string) ($filters['search'] ?? '')) ?: null,
+            'archive' => isset(self::ARCHIVE_STATES[$filters['archive'] ?? ''])
+                ? $filters['archive']
+                : 'all',
         ];
     }
 

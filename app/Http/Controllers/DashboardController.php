@@ -26,6 +26,7 @@ class DashboardController extends Controller
 
         // Recent items
         $recentTasks = $user->tasks()
+            ->active()
             ->with('project')
             ->latest()
             ->take(5)

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AiChatController;
+use App\Http\Controllers\ArchiveController;
 use App\Http\Controllers\Auth\InvitationController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\BrandAssetController;
@@ -81,6 +82,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('routines/daily', [RoutineController::class, 'showDaily'])->name('routines.showDaily');
     Route::get('routines/weekly', [RoutineController::class, 'showWeekly'])->name('routines.showWeekly');
     Route::get('routines/monthly', [RoutineController::class, 'showMonthly'])->name('routines.showMonthly');
+    // Finished work, filed away but still findable.
+    Route::get('archive', [ArchiveController::class, 'index'])->name('archive.index');
+    Route::post('tasks/{task}/archive', [ArchiveController::class, 'store'])->name('tasks.archive');
+    Route::delete('tasks/{task}/archive', [ArchiveController::class, 'destroy'])->name('tasks.unarchive');
+
     // Reports: one filtered view of the task list, on screen or as a file.
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('reports/export/{format}', [ReportController::class, 'export'])
