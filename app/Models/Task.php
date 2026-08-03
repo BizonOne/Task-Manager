@@ -22,6 +22,11 @@ class Task extends Model
         'estimated_hours',
     ];
 
+    protected $casts = [
+        'completed_at' => 'datetime',
+        'archived_at' => 'datetime',
+    ];
+
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -103,6 +108,29 @@ class Task extends Model
     public function scopeNotCompleted($query)
     {
         return $query->whereNotIn('status', TaskStatus::completedKeys());
+    }
+
+    /**
+     * Limit to tasks that are still on the boards.
+     *
+     * This is a scope rather than a global one on purpose: a global scope would
+     * 404 an archived task opened by its own link, and would quietly drop
+     * archived work out of reports. The boards ask for `active()`; everything
+     * else keeps seeing everything.
+     */
+    public function scopeActive($query)
+    {
+        return $query->whereNull('archived_at');
+    }
+
+    public function scopeArchived($query)
+    {
+        return $query->whereNotNull('archived_at');
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
     }
 
     public function checklistItems()

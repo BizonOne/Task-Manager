@@ -44,7 +44,7 @@ class ReportController extends Controller
     {
         return $request->only([
             'project_id', 'user_id', 'status', 'priority',
-            'date_field', 'from', 'to', 'search',
+            'date_field', 'from', 'to', 'search', 'archive',
         ]);
     }
 
@@ -70,6 +70,7 @@ class ReportController extends Controller
             'people' => User::orderBy('name')->get(['id', 'name']),
             'statuses' => TaskStatus::ordered(),
             'dateFields' => TaskReport::DATE_FIELDS,
+            'archiveStates' => TaskReport::ARCHIVE_STATES,
         ];
     }
 }

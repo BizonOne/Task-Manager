@@ -22,7 +22,7 @@ class LatestTasks extends TableWidget
     public function table(Table $table): Table
     {
         return $table
-            ->query(fn (): Builder => Task::query()->with(['project', 'user'])->latest())
+            ->query(fn (): Builder => Task::query()->active()->with(['project', 'user'])->latest())
             ->defaultPaginationPageOption(5)
             // Clicking a row opens the task — previously the dashboard was a
             // dead end and you had to go via Projects to reach a task.

@@ -29,6 +29,10 @@ class TaskActivity extends Model
 
     public const EVENT_UNLINKED = 'unlinked';
 
+    public const EVENT_ARCHIVED = 'archived';
+
+    public const EVENT_UNARCHIVED = 'unarchived';
+
     protected $fillable = [
         'task_id',
         'user_id',
@@ -88,6 +92,8 @@ class TaskActivity extends Model
             self::EVENT_UNASSIGNED => 'unassigned '.($this->meta['name'] ?? 'someone'),
             self::EVENT_COMMENTED => 'commented',
             self::EVENT_COMMENT_DELETED => 'deleted a comment',
+            self::EVENT_ARCHIVED => 'moved this task to the archive',
+            self::EVENT_UNARCHIVED => 'brought this task back from the archive',
             self::EVENT_LINKED => $this->describeLink('linked this task as'),
             self::EVENT_UNLINKED => $this->describeLink('removed the link'),
             self::EVENT_UPDATED => $this->describeFieldChange(),
@@ -179,6 +185,8 @@ class TaskActivity extends Model
             self::EVENT_UNASSIGNED => 'person-dash',
             self::EVENT_COMMENTED => 'chat-dots',
             self::EVENT_COMMENT_DELETED => 'trash',
+            self::EVENT_ARCHIVED => 'archive',
+            self::EVENT_UNARCHIVED => 'box-arrow-up',
             self::EVENT_LINKED => 'link-45deg',
             self::EVENT_UNLINKED => 'link-45deg',
             default => match ($this->field) {
