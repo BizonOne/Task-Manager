@@ -26,7 +26,16 @@
                       background:{{ $isUnread ? '#f5f3ff' : '#fff' }}; border:1px solid {{ $isUnread ? '#ddd6fe' : '#eef0f3' }};">
                 <div style="flex-shrink:0; width:36px; height:36px; border-radius:50%; background:{{ $isUnread ? '#7c3aed' : '#e5e7eb' }};
                             color:{{ $isUnread ? '#fff' : '#6b7280' }}; display:flex; align-items:center; justify-content:center; font-size:16px;">
-                    <i class="bi {{ ($n->data['type'] ?? '') === 'task_assigned' ? 'bi-person-check' : 'bi-at' }}"></i>
+                    {{-- One icon per kind. The old two-way ternary drew an "@"
+                         on everything that was not an assignment, so a project
+                         invite looked like a mention. --}}
+                    <i class="bi {{ match($n->data['type'] ?? '') {
+                        'task_assigned' => 'bi-person-check',
+                        'task_commented' => 'bi-chat-dots',
+                        'comment_mention' => 'bi-at',
+                        'project_added' => 'bi-folder-plus',
+                        default => 'bi-bell',
+                    } }}"></i>
                 </div>
                 <div style="flex:1; min-width:0;">
                     <div style="font-size:14px; font-weight:{{ $isUnread ? '600' : '500' }}; color:#1f2937; line-height:1.4;">
