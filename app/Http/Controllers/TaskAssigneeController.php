@@ -3,10 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Task;
-use App\Models\TaskActivity;
 use App\Models\User;
-use App\Notifications\TaskAssignedNotification;
-use App\Support\Notifier;
+use App\Support\TaskAssignment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -22,19 +20,7 @@ class TaskAssigneeController extends Controller
 
         $assignee = User::findOrFail($validated['user_id']);
 
-        // syncWithoutDetaching keeps existing assignees and avoids duplicates.
-        $changed = $task->assignees()->syncWithoutDetaching([$assignee->id]);
-
-        if (! empty($changed['attached'])) {
-            TaskActivity::record($task, TaskActivity::EVENT_ASSIGNED, [
-                'meta' => ['name' => $assignee->name, 'user_id' => $assignee->id],
-            ]);
-
-            // Never self-notify.
-            if ($assignee->id !== Auth::id()) {
-                Notifier::send($assignee, new TaskAssignedNotification($task, Auth::user()));
-            }
-        }
+        TaskAssignment::attach($task, $assignee);
 
         return response()->json([
             'success' => true,
@@ -49,11 +35,7 @@ class TaskAssigneeController extends Controller
     {
         $this->authorizeManage($task);
 
-        if ($task->assignees()->detach($user->id) > 0) {
-            TaskActivity::record($task, TaskActivity::EVENT_UNASSIGNED, [
-                'meta' => ['name' => $user->name, 'user_id' => $user->id],
-            ]);
-        }
+        TaskAssignment::detach($task, $user);
 
         return response()->json(['success' => true]);
     }

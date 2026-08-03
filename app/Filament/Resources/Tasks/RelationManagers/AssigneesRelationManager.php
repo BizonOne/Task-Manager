@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources\Tasks\RelationManagers;
 
+use App\Models\Task;
+use App\Models\User;
+use App\Support\TaskAssignment;
 use Filament\Actions\AttachAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DetachAction;
@@ -10,6 +13,7 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Support\Collection;
 
 class AssigneesRelationManager extends RelationManager
 {
@@ -24,6 +28,14 @@ class AssigneesRelationManager extends RelationManager
         return $schema->components([]);
     }
 
+    private function getTask(): Task
+    {
+        /** @var Task $task */
+        $task = $this->getOwnerRecord();
+
+        return $task;
+    }
+
     public function table(Table $table): Table
     {
         return $table
@@ -35,16 +47,30 @@ class AssigneesRelationManager extends RelationManager
                     ->searchable(),
             ])
             ->headerActions([
+                // Filament writes the pivot row itself, so the history entry
+                // and the notification hang off the action. Without this an
+                // assignment made here reached the person's board silently.
                 AttachAction::make()
                     ->preloadRecordSelect()
-                    ->recordSelectSearchColumns(['name', 'email']),
+                    ->recordSelectSearchColumns(['name', 'email'])
+                    ->after(function (User $record): void {
+                        TaskAssignment::announceAttached($this->getTask(), $record);
+                    }),
             ])
             ->recordActions([
-                DetachAction::make(),
+                DetachAction::make()
+                    ->after(function (User $record): void {
+                        TaskAssignment::announceDetached($this->getTask(), $record);
+                    }),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DetachBulkAction::make(),
+                    DetachBulkAction::make()
+                        ->after(function (Collection $records): void {
+                            foreach ($records as $record) {
+                                TaskAssignment::announceDetached($this->getTask(), $record);
+                            }
+                        }),
                 ]),
             ]);
     }

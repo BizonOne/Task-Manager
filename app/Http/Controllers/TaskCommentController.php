@@ -5,9 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\File;
 use App\Models\Task;
 use App\Models\TaskComment;
-use App\Notifications\MentionedInCommentNotification;
-use App\Support\MentionParser;
-use App\Support\Notifier;
 use App\Support\RichText;
 use App\Support\Uploads;
 use Illuminate\Http\Request;
@@ -50,7 +47,9 @@ class TaskCommentController extends Controller
         $files = collect($request->file('attachments') ?: [])
             ->map(fn ($upload) => Uploads::store($upload, $user, task: $task, comment: $comment));
 
-        $this->notifyMentioned($task, $comment);
+        // Who hears about a comment is decided in TaskCommentObserver, so a
+        // comment posted from the admin panel notifies the same people as one
+        // posted here.
 
         return response()->json([
             'success' => true,
@@ -90,21 +89,6 @@ class TaskCommentController extends Controller
         $comment->delete();
 
         return response()->json(['success' => true, 'removed_file_ids' => $removedFileIds]);
-    }
-
-    /**
-     * Notify every participant mentioned in the comment, except the author.
-     */
-    private function notifyMentioned(Task $task, TaskComment $comment): void
-    {
-        // Against the plain text, so an '@' inside a link's href never
-        // reads as a mention.
-        $mentioned = MentionParser::resolve($comment->plain_body, $task->participants())
-            ->reject(fn ($user) => $user->id === $comment->user_id);
-
-        foreach ($mentioned as $user) {
-            Notifier::send($user, new MentionedInCommentNotification($comment));
-        }
     }
 
     private function initials(string $name): string

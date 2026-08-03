@@ -4,11 +4,17 @@ namespace App\Observers;
 
 use App\Models\Task;
 use App\Models\TaskActivity;
+use App\Models\User;
+use App\Notifications\TaskAssignedNotification;
+use App\Support\Notifier;
+use Illuminate\Support\Facades\Auth;
 
 /**
- * Writes a task's history. Living on the model's events means every edit is
- * captured — the front-end forms, the kanban drag-and-drop and the admin panel
- * alike — instead of each controller having to remember to log.
+ * Writes a task's history and tells the owner when work lands on them.
+ *
+ * Living on the model's events means every edit is captured — the front-end
+ * forms, the kanban drag-and-drop and the admin panel alike — instead of each
+ * controller having to remember to log and notify.
  */
 class TaskObserver
 {
@@ -29,10 +35,19 @@ class TaskObserver
     public function created(Task $task): void
     {
         TaskActivity::record($task, TaskActivity::EVENT_CREATED);
+
+        // A task raised for somebody else is the moment they need to hear about
+        // it — waiting for them to notice it on a board is not a handover.
+        $this->notifyOwner($task);
     }
 
     public function updated(Task $task): void
     {
+        // Reassignment is the same handover, later in the task's life.
+        if ($task->wasChanged('user_id')) {
+            $this->notifyOwner($task);
+        }
+
         foreach (self::TRACKED as $field) {
             if (! $task->wasChanged($field)) {
                 continue;
@@ -47,6 +62,28 @@ class TaskObserver
                 'old_value' => $this->stringify($old),
                 'new_value' => $this->stringify($new),
             ]);
+        }
+    }
+
+    /**
+     * Tell the task's owner that it is theirs.
+     */
+    private function notifyOwner(Task $task): void
+    {
+        $actor = Auth::user();
+
+        // No signed-in actor means a seeder, a console command or a test
+        // factory — nobody handed this to anyone, so nobody gets an email.
+        if ($actor === null || $task->user_id === null || $task->user_id === $actor->id) {
+            return;
+        }
+
+        // Read the owner by id rather than through the relation: on an update
+        // the loaded relation still holds the *previous* owner.
+        $owner = User::find($task->user_id);
+
+        if ($owner !== null) {
+            Notifier::send($owner, new TaskAssignedNotification($task, $actor));
         }
     }
 
