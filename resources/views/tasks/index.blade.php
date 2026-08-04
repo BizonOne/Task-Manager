@@ -80,7 +80,13 @@
     }
     .cu-task-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.1);border-color:#c4b5fd;}
     .cu-task-card.dragging{opacity:.5;}
-    .cu-task-title{font-size:13px;font-weight:600;color:#1a1d23;margin-bottom:6px;line-height:1.3;}
+    .cu-task-title{
+        font-size:13px;font-weight:600;color:#1a1d23;margin-bottom:6px;line-height:1.3;
+        display:block;text-decoration:none;
+    }
+    .cu-task-title:hover{color:#7c3aed;text-decoration:underline;}
+    /* The whole card opens the task; the buttons on it still do their own job. */
+    .cu-task-card[data-open]{cursor:pointer;}
     .cu-task-desc{
         font-size:11px;color:#8a8f98;margin-bottom:7px;line-height:1.4;
         display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
@@ -98,8 +104,14 @@
     .cu-assignee{
         width:20px;height:20px;border-radius:50%;background:#7c3aed;color:white;
         font-size:10px;font-weight:700;display:inline-flex;align-items:center;
-        justify-content:center;margin-left:auto;
+        justify-content:center;
     }
+    /* Everyone on the task, not only its owner — otherwise filtering by a
+       person shows cards with somebody else's initial on them. */
+    .cu-people{display:inline-flex;align-items:center;}
+    .cu-people .cu-assignee{border:2px solid #fff;}
+    .cu-people .cu-assignee + .cu-assignee{margin-left:-6px;}
+    .cu-assignee.extra{background:#a78bfa;}
     .cu-task-foot{
         display:flex;align-items:center;justify-content:space-between;
         margin-top:5px;padding-top:7px;border-top:1px solid #f0f1f3;
@@ -128,7 +140,9 @@
         font-size:13px;transition:border-color .15s;
     }
     .cu-list-row:hover{border-color:#c4b5fd;}
-    .cu-list-title{font-weight:600;color:#1a1d23;}
+    .cu-list-title{font-weight:600;color:#1a1d23;display:block;text-decoration:none;}
+    .cu-list-title:hover{color:#7c3aed;text-decoration:underline;}
+    .cu-list-row[data-open]{cursor:pointer;}
     .cu-list-sub{font-size:10px;color:#8a8f98;margin-top:2px;display:flex;align-items:center;gap:3px;}
     .cu-list-project{font-size:12px;color:#3d4149;display:flex;align-items:center;gap:5px;}
     .cu-list-actions{display:flex;gap:5px;justify-content:flex-end;}
@@ -221,6 +235,15 @@
         $statuses = $statuses ?? \App\Models\TaskStatus::ordered();
         $totalCnt = collect($tasks)->flatten()->count();
         $hasAny   = $totalCnt > 0;
+        // Everyone who appears on the board, owner or assignee. Built from the
+        // tasks on screen rather than the whole user table, so the dropdown
+        // never offers a person who would filter everything away.
+        $boardPeople = collect($tasks)->flatten()
+            ->flatMap(fn ($t) => collect([$t->user])->merge($t->assignees))
+            ->filter()
+            ->unique('id')
+            ->sortBy('name')
+            ->values();
     @endphp
 
     <div class="cu-toolbar">
@@ -241,6 +264,24 @@
                 @foreach($projects as $proj)
                     <option value="{{ $proj->id }}">{{ $proj->name }}</option>
                 @endforeach
+            </select>
+            <select class="cu-filter-select" id="cuAssignee">
+                <option value="">All assignees</option>
+                {{-- On "My Tasks" the board mixes work you own with work you
+                     were merely added to. These two separate them. --}}
+                @unless(isset($project))
+                    <optgroup label="Me">
+                        <option value="owner:{{ auth()->id() }}">Owned by me</option>
+                        <option value="assignee:{{ auth()->id() }}">Assigned to me</option>
+                    </optgroup>
+                @endunless
+                @if($boardPeople->isNotEmpty())
+                    <optgroup label="People">
+                        @foreach($boardPeople as $person)
+                            <option value="any:{{ $person->id }}">{{ $person->name }}</option>
+                        @endforeach
+                    </optgroup>
+                @endif
             </select>
         </div>
         <div class="cu-toolbar-right">
@@ -297,9 +338,15 @@
             <div>Assignee</div><div>Due Date</div><div></div>
         </div>
         @foreach(collect($tasks)->flatten() as $task)
-        <div class="cu-list-row" data-title="{{ strtolower($task->title) }}" data-priority="{{ $task->priority }}" data-project="{{ $task->project_id }}">
+        <div class="cu-list-row"
+             data-title="{{ strtolower($task->title) }}"
+             data-priority="{{ $task->priority }}"
+             data-project="{{ $task->project_id }}"
+             data-owner="{{ $task->user_id }}"
+             data-assignees="|{{ $task->assignees->pluck('id')->implode('|') }}|"
+             data-open="{{ route('tasks.show', $task->id) }}">
             <div>
-                <div class="cu-list-title">{{ $task->title }}</div>
+                <a href="{{ route('tasks.show', $task->id) }}" class="cu-list-title">{{ $task->title }}</a>
                 <div class="cu-list-sub">
                     <span class="cu-status-chip {{ $task->status }}">
                         <i class="bi bi-circle-fill" style="font-size:5px;"></i>
@@ -455,28 +502,39 @@ document.addEventListener('DOMContentLoaded', function () {
     const searchInput    = document.getElementById('cuSearch');
     const prioritySelect = document.getElementById('cuPriority');
     const projectSelect  = document.getElementById('cuProject');
+    const assigneeSelect = document.getElementById('cuAssignee');
+
+    // "owner:7"    — 7 owns it
+    // "assignee:7" — 7 was added to it, whoever owns it
+    // "any:7"      — either of the two
+    function matchesAssignee(el, value) {
+        if (!value) return true;
+        const [kind, id] = value.split(':');
+        const owns     = el.dataset.owner === id;
+        const assigned = (el.dataset.assignees || '').includes(`|${id}|`);
+        if (kind === 'owner')    return owns;
+        if (kind === 'assignee') return assigned;
+        return owns || assigned;
+    }
 
     function applyFilters() {
         const term     = (searchInput?.value || '').toLowerCase();
         const priority = prioritySelect?.value || '';
         const project  = projectSelect?.value  || '';
-        document.querySelectorAll('.cu-task-card').forEach(card => {
-            const show = card.dataset.title.includes(term)
-                      && (!priority || card.dataset.priority === priority)
-                      && (!project  || card.dataset.project  === project);
-            card.style.display = show ? '' : 'none';
-        });
-        document.querySelectorAll('.cu-list-row').forEach(row => {
-            const show = row.dataset.title.includes(term)
-                      && (!priority || row.dataset.priority === priority)
-                      && (!project  || row.dataset.project  === project);
-            row.style.display = show ? '' : 'none';
+        const assignee = assigneeSelect?.value || '';
+        document.querySelectorAll('.cu-task-card, .cu-list-row').forEach(el => {
+            const show = el.dataset.title.includes(term)
+                      && (!priority || el.dataset.priority === priority)
+                      && (!project  || el.dataset.project  === project)
+                      && matchesAssignee(el, assignee);
+            el.style.display = show ? '' : 'none';
         });
         updateCounts();
     }
     searchInput?.addEventListener('input', applyFilters);
     prioritySelect?.addEventListener('change', applyFilters);
     projectSelect?.addEventListener('change', applyFilters);
+    assigneeSelect?.addEventListener('change', applyFilters);
 
     let taskQuill = null;
     const modal = document.getElementById('createTaskModal');

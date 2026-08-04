@@ -936,6 +936,48 @@
                 if (window.innerWidth <= 768) closeSidebar();
             });
         });
+
+        // Anything carrying data-open behaves like a card you can click:
+        // hunting for a small eye icon to open a task is a poor way to spend
+        // a day. The title inside is still a real link, so keyboard and
+        // middle-click work the way people expect.
+        (function () {
+            let downAt = null;
+
+            document.addEventListener('mousedown', function (e) {
+                downAt = { x: e.clientX, y: e.clientY };
+            });
+
+            document.addEventListener('click', function (e) {
+                const host = e.target.closest('[data-open]');
+                if (!host) return;
+
+                // Whatever already does something on click keeps doing it.
+                if (e.target.closest('a, button, input, select, textarea, label, form')) return;
+
+                // Dragging a card across the board is not a click on it.
+                if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 5) return;
+
+                // Selecting text should not navigate away from what you selected.
+                if ((window.getSelection() || '').toString().length) return;
+
+                const url = host.dataset.open;
+                if (e.metaKey || e.ctrlKey || e.shiftKey) {
+                    window.open(url, '_blank', 'noopener');
+                } else {
+                    window.location.href = url;
+                }
+            });
+
+            // Middle click opens a new tab, like a link would.
+            document.addEventListener('auxclick', function (e) {
+                if (e.button !== 1) return;
+                const host = e.target.closest('[data-open]');
+                if (!host || e.target.closest('a, button')) return;
+                e.preventDefault();
+                window.open(host.dataset.open, '_blank', 'noopener');
+            });
+        })();
     </script>
     @stack('scripts')
 </body>
