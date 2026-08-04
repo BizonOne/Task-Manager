@@ -406,6 +406,20 @@ class ProjectFieldTest extends TestCase
         $this->assertSame('to_do', $task->status);
     }
 
+    public function test_a_form_with_no_project_chosen_says_where_the_fields_will_be(): void
+    {
+        $this->field();
+
+        // The section used to be a blank gap until a project was picked, so
+        // "this project has fields" looked exactly like "you have not chosen a
+        // project" — which reads as the fields being somebody else's to fill.
+        $this->actingAs($this->member)
+            ->get(route('tasks.create'))
+            ->assertSuccessful()
+            ->assertSee('Project fields')
+            ->assertSee('Pick a project above');
+    }
+
     public function test_the_add_field_form_stays_out_of_the_way_until_it_is_wanted(): void
     {
         $this->field();

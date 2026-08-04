@@ -24,11 +24,9 @@ class ProjectController extends Controller
                     ->orWhereHas('users', fn ($sub) => $sub->where('users.id', $me));
             });
         })
-            ->withCount([
-                'tasks as to_do_tasks' => fn ($query) => $query->where('status', 'to_do'),
-                'tasks as in_progress_tasks' => fn ($query) => $query->where('status', 'in_progress'),
-                'tasks as completed_tasks' => fn ($query) => $query->where('status', 'completed'),
-            ])
+            // Counts by hardcoded status key used to hang off here. Nothing
+            // rendered them, and with per-project columns they would have been
+            // wrong for every board that renamed anything.
             ->with('users')
             ->latest()
             ->get();
