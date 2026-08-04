@@ -3,10 +3,12 @@
 namespace App\Support\Jira;
 
 use App\Models\Project;
+use App\Models\ProjectField;
 use App\Models\Task;
 use App\Models\TaskComment;
 use App\Models\TaskStatus;
 use App\Models\User;
+use App\Support\ProjectFields;
 use App\Support\RichText;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
@@ -43,6 +45,9 @@ class Importer
 
     /** @var array<string, User|null> lowercased email or account id => user */
     private array $people = [];
+
+    /** @var array<int, array<string, ProjectField>> project id => name => field */
+    private array $fields = [];
 
     /**
      * @param  array<string, string>  $userOverrides  Jira email => app user email
@@ -180,6 +185,9 @@ class Importer
 
         $task->save();
 
+        // Whatever the board recorded on the issue itself.
+        $this->fields($project, $task, $issue);
+
         // The observer puts the named assignee on the assignee list; the
         // reporter is a member of the project, not of every task they raised.
         $this->addToProject($project, $assignee);
@@ -189,54 +197,88 @@ class Importer
     }
 
     /**
-     * The issue's description, with everything the app has nowhere to keep
-     * written underneath it rather than dropped.
-     *
-     * Teams put their real data in the fields they added themselves. On the
-     * project this was written for the descriptions were empty to the last
-     * issue and the thing that mattered — which acquirer each one was about —
-     * lived in a custom field. Losing that would be losing the project.
+     * The issue's description, as Jira renders it.
      *
      * @param  array<string, mixed>  $issue
      */
     private function description(array $issue): ?string
     {
-        $html = (string) $this->richText(
+        return RichText::clean($this->richText(
             $issue['renderedFields']['description'] ?? null,
             $issue['fields']['description'] ?? null,
-        );
-
-        $extras = $this->extras($issue);
-
-        if ($extras !== []) {
-            // The rule only separates something from something else; on this
-            // project every description was empty and there is nothing above.
-            $html .= ($html === '' ? '' : '<hr>').'<p><em>From Jira</em></p><ul>';
-
-            foreach ($extras as $label => $value) {
-                $html .= '<li><strong>'.e($label).':</strong> '.e($value).'</li>';
-            }
-
-            $html .= '</ul>';
-        }
-
-        return RichText::clean($html);
+        ));
     }
 
     /**
-     * The fields worth carrying over that have nowhere of their own to go.
+     * Give the imported task the fields its Jira issue was really made of.
+     *
+     * Teams put their data in the fields they added themselves. On the project
+     * this was written for the descriptions were empty to the last issue and
+     * the thing that mattered — which acquirer each onboarding was for — lived
+     * in a custom field. So the project here grows the same field, keeps the
+     * same choices, and the task answers it: filterable on the board, visible
+     * on the card, exactly as it was in Jira.
      *
      * @param  array<string, mixed>  $issue
-     * @return array<string, string>
+     */
+    private function fields(Project $project, Task $task, array $issue): void
+    {
+        foreach ($this->extras($issue) as $name => $extra) {
+            $field = $this->field($project, $name, $extra);
+
+            ProjectFields::set($task, $field, $extra['values']);
+        }
+    }
+
+    /**
+     * The project's field of that name, created on first sight, and widened to
+     * hold a choice it has not seen before.
+     *
+     * @param  array{values: array<int, string>, type: string}  $extra
+     */
+    private function field(Project $project, string $name, array $extra): ProjectField
+    {
+        $field = $this->fields[$project->id][$name]
+            ??= $project->fields()->firstOrNew(['name' => $name]);
+
+        if (! $field->exists) {
+            $field->type = $extra['type'];
+            $field->options = [];
+            $field->show_on_card = true;
+        }
+
+        if ($field->isChoice()) {
+            // A pick-one field that turns out to hold two things is a
+            // pick-several field; Jira knew that and we learn it here.
+            if ($extra['type'] === ProjectField::TYPE_MULTI) {
+                $field->type = ProjectField::TYPE_MULTI;
+            }
+
+            $known = $field->choices();
+            $field->options = array_values(array_unique([...$known, ...$extra['values']]));
+        }
+
+        if ($field->isDirty() || ! $field->exists) {
+            $field->save();
+        }
+
+        return $this->fields[$project->id][$name] = $field;
+    }
+
+    /**
+     * What an issue carries that has no column of its own here.
+     *
+     * @param  array<string, mixed>  $issue
+     * @return array<string, array{values: array<int, string>, type: string}>
      */
     private function extras(array $issue): array
     {
         $extras = [];
 
-        $labels = array_filter((array) ($issue['fields']['labels'] ?? []));
+        $labels = array_values(array_filter((array) ($issue['fields']['labels'] ?? [])));
 
         if ($labels !== []) {
-            $extras['Labels'] = implode(', ', $labels);
+            $extras['Labels'] = ['values' => $labels, 'type' => ProjectField::TYPE_MULTI];
         }
 
         $names = $this->jira->fieldNames();
@@ -252,10 +294,10 @@ class Importer
                 continue;
             }
 
-            $text = $this->scalar($value);
+            $extra = $this->extra($value);
 
-            if ($text !== null && trim($text) !== '') {
-                $extras[$name] = $text;
+            if ($extra !== null) {
+                $extras[$name] = $extra;
             }
         }
 
@@ -263,46 +305,37 @@ class Importer
     }
 
     /**
-     * A custom field's value as a line of text.
+     * One custom field's value, and what kind of field would hold it.
      *
-     * Jira answers with a bare string, an option object, a person, a list of
-     * any of those, or a whole rich-text document, depending on the field.
+     * @return array{values: array<int, string>, type: string}|null
      */
-    private function scalar(mixed $value): ?string
+    private function extra(mixed $value): ?array
     {
-        if ($value === null || $value === '' || $value === []) {
+        // Prose is prose: a paragraph of notes is not a dropdown, however
+        // tidily it would fit in one.
+        if (is_array($value) && ($value['type'] ?? null) === 'doc') {
+            $text = trim((string) RichText::toText(Adf::toHtml($value)));
+
+            return $text === '' ? null : ['values' => [$text], 'type' => ProjectField::TYPE_TEXT];
+        }
+
+        if (is_array($value) && array_is_list($value)) {
+            $values = array_values(array_filter(array_map(fn ($item) => $this->scalar($item), $value)));
+
+            return $values === [] ? null : ['values' => $values, 'type' => ProjectField::TYPE_MULTI];
+        }
+
+        $text = $this->scalar($value);
+
+        if ($text === null || trim($text) === '') {
             return null;
         }
 
-        if (is_bool($value)) {
-            return $value ? 'Yes' : 'No';
-        }
+        // A sentence is not a choice, and a list of a hundred of them is not a
+        // dropdown either.
+        $type = mb_strlen($text) > 60 ? ProjectField::TYPE_TEXT : ProjectField::TYPE_SELECT;
 
-        if (is_scalar($value)) {
-            return (string) $value;
-        }
-
-        if (! is_array($value)) {
-            return null;
-        }
-
-        if (($value['type'] ?? null) === 'doc') {
-            return RichText::toText(Adf::toHtml($value));
-        }
-
-        foreach (['value', 'displayName', 'name', 'label', 'text'] as $key) {
-            if (isset($value[$key]) && is_scalar($value[$key])) {
-                return (string) $value[$key];
-            }
-        }
-
-        if (array_is_list($value)) {
-            $parts = array_filter(array_map(fn ($item) => $this->scalar($item), $value));
-
-            return $parts === [] ? null : implode(', ', $parts);
-        }
-
-        return null;
+        return ['values' => [$text], 'type' => $type];
     }
 
     // --- comments ------------------------------------------------------------
@@ -451,6 +484,45 @@ class Importer
     /**
      * @param  array<string, mixed>|null  $priority
      */
+    /**
+     * A custom field's value as a line of text.
+     *
+     * Jira answers with a bare string, an option object, a person, or a list
+     * of any of those, depending on the field.
+     */
+    private function scalar(mixed $value): ?string
+    {
+        if ($value === null || $value === '' || $value === []) {
+            return null;
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'Yes' : 'No';
+        }
+
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
+
+        if (! is_array($value)) {
+            return null;
+        }
+
+        foreach (['value', 'displayName', 'name', 'label', 'text'] as $key) {
+            if (isset($value[$key]) && is_scalar($value[$key])) {
+                return (string) $value[$key];
+            }
+        }
+
+        if (array_is_list($value)) {
+            $parts = array_filter(array_map(fn ($item) => $this->scalar($item), $value));
+
+            return $parts === [] ? null : implode(', ', $parts);
+        }
+
+        return null;
+    }
+
     private function priority(?array $priority): string
     {
         return match (mb_strtolower(trim((string) ($priority['name'] ?? '')))) {

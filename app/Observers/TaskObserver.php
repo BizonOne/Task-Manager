@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Notifications\TaskAssignedNotification;
 use App\Notifications\TaskStatusChangedNotification;
 use App\Support\Notifier;
+use App\Support\ProjectFields;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Auth;
 
@@ -89,6 +90,12 @@ class TaskObserver
         // Reassignment is the same handover, later in the task's life.
         if ($task->wasChanged('user_id')) {
             $this->notifyOwner($task);
+        }
+
+        // Moved to another project, its old answers point at fields the new
+        // project has never heard of.
+        if ($task->wasChanged('project_id')) {
+            ProjectFields::forget($task);
         }
 
         // A reopened task comes back from the archive above; say so in the

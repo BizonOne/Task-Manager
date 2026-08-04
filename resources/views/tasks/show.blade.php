@@ -720,6 +720,19 @@
                 </div>
                 @endif
 
+                {{-- Whatever this project records on its tasks. Blank ones are
+                     left out — an empty row says nothing. --}}
+                @foreach($task->fieldAnswers() as $answer)
+                    @continue($answer['value'] === [])
+                    <div class="ts-meta-row">
+                        <div class="ts-meta-icon"><i class="bi bi-tag"></i></div>
+                        <div>
+                            <div class="ts-meta-label">{{ $answer['field']->name }}</div>
+                            <div class="ts-meta-val">{{ implode(', ', $answer['value']) }}</div>
+                        </div>
+                    </div>
+                @endforeach
+
                 {{-- Imported work keeps a way back to where it came from, so
                      "what was the original ticket?" has an answer. --}}
                 @if($task->external_key)

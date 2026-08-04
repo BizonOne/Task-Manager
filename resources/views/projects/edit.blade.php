@@ -428,6 +428,37 @@
         margin: 0;
     }
 
+    /* ─── Task fields (this project's own) ───────────────────── */
+    .cu-pf-row {
+        border: 1px solid #e6e6eb;
+        border-radius: 10px;
+        padding: 14px;
+        margin-bottom: 12px;
+        background: #fff;
+    }
+    .cu-pf-grid {
+        display: grid;
+        grid-template-columns: 2fr 1.4fr 0.7fr;
+        gap: 12px;
+    }
+    .cu-pf-row textarea.cu-input { height: auto; padding-top: 8px; padding-bottom: 8px; line-height: 1.4; }
+    .cu-pf-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 12px;
+    }
+    .cu-pf-toggle {
+        font-size: 12px; color: #4b5563;
+        display: flex; align-items: center; gap: 6px;
+    }
+    .cu-btn-sm { padding: 6px 14px; font-size: 12px; }
+    @media (max-width: 640px) {
+        .cu-pf-grid { grid-template-columns: 1fr; }
+        .cu-pf-foot { flex-direction: column; align-items: flex-start; }
+    }
+
     .cu-btn-danger {
         padding: 6px 16px;
         background: white;
@@ -667,6 +698,114 @@
             </div>
         </form>
     </div>
+
+    {{-- ── Fields this project keeps on its tasks ───────────── --}}
+    @if($project->isManagedBy(auth()->user()))
+    <div class="cu-section" style="margin-top:10px;">
+        <div class="cu-section-header">
+            <span class="cu-section-icon purple"><i class="bi bi-ui-radios"></i></span>
+            <span class="cu-section-title">Task fields</span>
+            <span class="cu-section-subtitle">What this project records on every task in it</span>
+        </div>
+        <div class="cu-section-body">
+            @if($project->fields->isEmpty())
+                <p style="color:#6b7280;font-size:13px;margin-bottom:16px;">
+                    No fields yet. Add one and it appears on every task in this project —
+                    on the create form, on the task itself, on its card, and as a filter on the board.
+                    Fields belong to this project alone; no other board sees them.
+                </p>
+            @else
+                <div class="cu-field-list" style="margin-bottom:18px;">
+                    @foreach($project->fields as $field)
+                        {{-- The delete form sits beside the edit one rather than
+                             inside it: a form cannot contain another. --}}
+                        <form id="removeField{{ $field->id }}" action="{{ route('projects.fields.destroy', $field) }}" method="POST"
+                              onsubmit="return confirm('Remove “{{ $field->name }}” and every answer to it?');">
+                            @csrf
+                            @method('DELETE')
+                        </form>
+                        <form action="{{ route('projects.fields.update', $field) }}" method="POST" class="cu-pf-row">
+                            @csrf
+                            @method('PUT')
+                            <div class="cu-pf-grid">
+                                <div>
+                                    <label class="cu-label">Name</label>
+                                    <input type="text" name="name" class="cu-input no-icon" value="{{ $field->name }}" maxlength="60" required>
+                                </div>
+                                <div>
+                                    <label class="cu-label">Kind</label>
+                                    <select name="type" class="cu-input no-icon">
+                                        @foreach(\App\Models\ProjectField::types() as $value => $label)
+                                            <option value="{{ $value }}" @selected($field->type === $value)>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="cu-label">Order</label>
+                                    <input type="number" name="sort_order" class="cu-input no-icon" value="{{ $field->sort_order }}" min="0" max="999">
+                                </div>
+                            </div>
+                            <div style="margin-top:10px;">
+                                <label class="cu-label">Choices — one per line</label>
+                                <textarea name="options" class="cu-input no-icon" rows="3"
+                                          placeholder="XSELL&#10;MADFIN&#10;GURUPAY">{{ implode("\n", $field->choices()) }}</textarea>
+                            </div>
+                            <div class="cu-pf-foot">
+                                <label class="cu-pf-toggle">
+                                    <input type="hidden" name="show_on_card" value="0">
+                                    <input type="checkbox" name="show_on_card" value="1" @checked($field->show_on_card)>
+                                    Show on the task card
+                                </label>
+                                <div style="display:flex;gap:8px;">
+                                    <button type="submit" form="removeField{{ $field->id }}" class="cu-btn-danger cu-btn-sm">Remove</button>
+                                    <button type="submit" class="cu-btn-save cu-btn-sm">Save</button>
+                                </div>
+                            </div>
+                        </form>
+                    @endforeach
+                </div>
+            @endif
+
+            <form action="{{ route('projects.fields.store', $project) }}" method="POST" class="cu-pf-row" style="background:#faf9ff;">
+                @csrf
+                <div class="cu-pf-grid">
+                    <div>
+                        <label class="cu-label">Name</label>
+                        <input type="text" name="name" class="cu-input no-icon" placeholder="Acquirer" maxlength="60" required>
+                    </div>
+                    <div>
+                        <label class="cu-label">Kind</label>
+                        <select name="type" class="cu-input no-icon">
+                            @foreach(\App\Models\ProjectField::types() as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="cu-label">Order</label>
+                        <input type="number" name="sort_order" class="cu-input no-icon" min="0" max="999" placeholder="last">
+                    </div>
+                </div>
+                <div style="margin-top:10px;">
+                    <label class="cu-label">Choices — one per line</label>
+                    <textarea name="options" class="cu-input no-icon" rows="3" placeholder="XSELL&#10;MADFIN&#10;GURUPAY">{{ old('options') }}</textarea>
+                    <small style="color:#6b7280;font-size:12px;">Leave empty for a free-text field.</small>
+                </div>
+                <div class="cu-pf-foot">
+                    <label class="cu-pf-toggle">
+                        <input type="hidden" name="show_on_card" value="0">
+                        <input type="checkbox" name="show_on_card" value="1" checked>
+                        Show on the task card
+                    </label>
+                    <button type="submit" class="cu-btn-save cu-btn-sm">
+                        <i class="bi bi-plus-lg me-1"></i>Add field
+                    </button>
+                </div>
+            </form>
+            @error('options')<div class="invalid-feedback d-block mt-2">{{ $message }}</div>@enderror
+        </div>
+    </div>
+    @endif
 
     {{-- ── Danger Zone (full-width, below grid) ─────────────── --}}
     <div class="cu-section cu-danger-section" style="margin-top:10px; border-color:#fecaca;">

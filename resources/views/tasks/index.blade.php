@@ -206,6 +206,13 @@
     }
     .cu-input:focus{border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,.08);}
     .cu-select{appearance:auto;}
+    /* What a project records on its own tasks, on the card. */
+    .cu-task-fields { display:flex; flex-wrap:wrap; gap:4px; margin:6px 0 2px; }
+    .cu-field-chip {
+        font-size:10px; font-weight:600; letter-spacing:.02em;
+        padding:2px 7px; border-radius:4px;
+        background:#f1f5f9; color:#475569; border:1px solid #e2e8f0;
+    }
     .ql-toolbar{border-color:#e3e4e8 !important;border-radius:7px 7px 0 0;}
     .ql-container.ql-snow{border-color:#e3e4e8 !important;border-radius:0 0 7px 7px;}
     #task-quill-editor{height:120px;}
@@ -284,6 +291,17 @@
                     </optgroup>
                 @endif
             </select>
+            {{-- One dropdown per field the projects on screen define. On a
+                 project board that is that project's fields; on "my tasks" it
+                 is whatever the projects it is showing keep. --}}
+            @foreach($fieldFilters ?? [] as $field)
+                <select class="cu-filter-select cu-field-filter" data-field-key="{{ $field->key }}">
+                    <option value="">All {{ strtolower($field->name) }}</option>
+                    @foreach($field->choices() as $choice)
+                        <option value="{{ $choice }}">{{ $choice }}</option>
+                    @endforeach
+                </select>
+            @endforeach
         </div>
         <div class="cu-toolbar-right">
             <span style="font-size:12px;color:#8a8f98;">{{ $totalCnt }} task{{ $totalCnt != 1 ? 's' : '' }}</span>
@@ -346,6 +364,7 @@
              data-owner="{{ $task->user_id }}"
              data-creator="{{ $task->created_by }}"
              data-assignees="|{{ $task->assignees->pluck('id')->implode('|') }}|"
+             data-fields="{{ \App\Support\ProjectFields::tokens($task) }}"
              data-open="{{ route('tasks.show', $task->id) }}">
             <div>
                 <a href="{{ route('tasks.show', $task->id) }}" class="cu-list-title">{{ $task->title }}</a>
@@ -467,6 +486,9 @@
                             </div>
                         </div>
                     </div>
+                    {{-- Whatever this project decided to record on its tasks. --}}
+                    @include('tasks._fields', ['projects' => $projects])
+
                     <div class="cu-field">
                         {{-- The spec, the screenshot or the contract usually
                              exists before the task does; making people create
@@ -532,6 +554,16 @@ document.addEventListener('DOMContentLoaded', function () {
         return raised || assigned;
     }
 
+    const fieldSelects = Array.from(document.querySelectorAll('.cu-field-filter'));
+
+    // A card answers a field filter when it carries that exact key and value.
+    // Pipe-wrapped both sides, so "GURU" never matches "GURUPAY".
+    function matchesFields(el) {
+        const tokens = el.dataset.fields || '';
+        return fieldSelects.every(select => !select.value
+            || tokens.includes(`|${select.dataset.fieldKey}::${select.value}|`));
+    }
+
     function applyFilters() {
         const term     = (searchInput?.value || '').toLowerCase();
         const priority = prioritySelect?.value || '';
@@ -541,11 +573,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const show = el.dataset.title.includes(term)
                       && (!priority || el.dataset.priority === priority)
                       && (!project  || el.dataset.project  === project)
-                      && matchesAssignee(el, assignee);
+                      && matchesAssignee(el, assignee)
+                      && matchesFields(el);
             el.style.display = show ? '' : 'none';
         });
         updateCounts();
     }
+    fieldSelects.forEach(select => select.addEventListener('change', applyFilters));
     searchInput?.addEventListener('input', applyFilters);
     prioritySelect?.addEventListener('change', applyFilters);
     projectSelect?.addEventListener('change', applyFilters);

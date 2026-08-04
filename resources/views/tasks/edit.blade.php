@@ -440,6 +440,11 @@
                                 @error('user_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
                         </div>
+
+                        {{-- Whatever this project records on its tasks. --}}
+                        <div style="margin-top:12px;">
+                            @include('tasks._fields', ['projects' => $projects, 'task' => $task])
+                        </div>
                     </div>
                 </div>
 

@@ -6,6 +6,7 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\TaskStatus;
 use App\Models\User;
+use App\Support\ProjectFields;
 use App\Support\Uploads;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,7 +26,7 @@ class TaskController extends Controller
                 ->active()
                 // Assignees, so the board can be filtered by who is actually on
                 // a task and not only by who owns it.
-                ->with(['project', 'assignees', 'creator'])
+                ->with(['project.fields', 'assignees', 'creator', 'fieldValues'])
                 ->get()
                 ->groupBy('status');
         } else {
@@ -42,7 +43,7 @@ class TaskController extends Controller
                 ->whereHas('project', function ($query) {
                     $query->whereNotIn('status', ['completed', 'closed']);
                 })
-                ->with(['project', 'assignees', 'creator'])
+                ->with(['project.fields', 'assignees', 'creator', 'fieldValues'])
                 ->get()
                 ->groupBy('status');
         }
@@ -60,15 +61,20 @@ class TaskController extends Controller
         $users = User::all();
         // Board columns come from the admin-managed status list.
         $statuses = TaskStatus::ordered();
+        // The projects on screen decide which of their own fields can be
+        // filtered on: one project's board offers that project's fields, and
+        // "my tasks" offers whatever the projects it is showing have.
+        $projects->load('fields');
+        $fieldFilters = ProjectFields::filterable($project ? [$project->load('fields')] : $projects);
 
-        return view('tasks.index', compact('tasks', 'projects', 'users', 'project', 'statuses'));
+        return view('tasks.index', compact('tasks', 'projects', 'users', 'project', 'statuses', 'fieldFilters'));
     }
 
     public function create()
     {
         // Only projects this user may create in — Project::all() listed every
         // project in the system, leaking names to people with no access.
-        $projects = $this->availableProjects();
+        $projects = $this->availableProjects()->load('fields');
         $users = User::orderBy('name')->get();
 
         return view('tasks.create', compact('projects', 'users'));
@@ -104,7 +110,10 @@ class TaskController extends Controller
                 ->withErrors(['user_id' => 'That person is not a member of this project.']);
         }
 
-        $task = Task::create(array_merge($request->except('attachments'), ['user_id' => $owner->id]));
+        $task = Task::create(array_merge($request->except(['attachments', 'fields']), ['user_id' => $owner->id]));
+
+        // Whatever this project decided to record on its tasks.
+        ProjectFields::apply($task, $request->input('fields'));
 
         // The spec usually exists before the task does, so a file can come
         // along with it rather than needing a second trip.
@@ -124,7 +133,7 @@ class TaskController extends Controller
     {
         // Owner, project owner, assignees and project team can all view a task.
         abort_unless($task->isAccessibleBy(Auth::user()), 403);
-        $task->load('user', 'project', 'checklistItems', 'assignees', 'comments.user', 'comments.files', 'activities.user', 'files.user',
+        $task->load('user', 'project.fields', 'fieldValues', 'checklistItems', 'assignees', 'comments.user', 'comments.files', 'activities.user', 'files.user',
             'outgoingLinks.linkedTask.project', 'incomingLinks.task.project');
 
         // The task owner or a project manager may add/remove assignees.
@@ -145,7 +154,7 @@ class TaskController extends Controller
     public function edit(Task $task)
     {
         $this->authorizeManage($task);
-        $projects = $this->availableProjects();
+        $projects = $this->availableProjects()->load('fields');
         $users = User::orderBy('name')->get();
 
         return view('tasks.edit', compact('task', 'projects', 'users'));
@@ -176,7 +185,9 @@ class TaskController extends Controller
             }
         }
 
-        $task->update($request->all());
+        $task->update($request->except('fields'));
+
+        ProjectFields::apply($task, $request->input('fields'));
 
         return redirect()->route('tasks.show', $task->id)->with('success', 'Task updated successfully.');
     }

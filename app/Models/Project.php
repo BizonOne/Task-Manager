@@ -97,6 +97,14 @@ class Project extends Model
     }
 
     /**
+     * The fields this project records on its tasks, in the order it set.
+     */
+    public function fields()
+    {
+        return $this->hasMany(ProjectField::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
      * Files attached to this project's tasks. The files table has no
      * project_id — this used to point at one that never existed.
      */

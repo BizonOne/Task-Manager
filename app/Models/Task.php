@@ -186,6 +186,45 @@ class Task extends Model
     }
 
     /**
+     * This task's answers to the fields its project defined.
+     */
+    public function fieldValues()
+    {
+        return $this->hasMany(TaskFieldValue::class);
+    }
+
+    /**
+     * The project's fields paired with this task's answers, in the project's
+     * own order — including the ones left blank, so a form can render them all.
+     *
+     * @return Collection<int, array{field: ProjectField, value: array<int, string>}>
+     */
+    public function fieldAnswers(): Collection
+    {
+        $this->loadMissing(['project.fields', 'fieldValues']);
+
+        $answers = $this->fieldValues->keyBy('project_field_id');
+
+        return collect($this->project?->fields ?? [])->map(fn (ProjectField $field) => [
+            'field' => $field,
+            'value' => $answers->get($field->id)?->list() ?? [],
+        ])->values();
+    }
+
+    /**
+     * What a card should show: the answered fields the project wants on one.
+     *
+     * @return Collection<int, array{name: string, text: string}>
+     */
+    public function fieldChips(): Collection
+    {
+        return $this->fieldAnswers()
+            ->filter(fn (array $a) => $a['value'] !== [] && $a['field']->show_on_card)
+            ->map(fn (array $a) => ['name' => $a['field']->name, 'text' => implode(', ', $a['value'])])
+            ->values();
+    }
+
+    /**
      * Everything attached to this task, including files posted in the
      * discussion — the task page is the one place to look for them.
      */

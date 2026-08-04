@@ -6,6 +6,8 @@
     $leftColor = $priorityColors[$task->priority] ?? '#94a3b8';
     // Pipe-wrapped so a filter for "|7|" cannot match user 17.
     $assigneeIds = '|'.$task->assignees->pluck('id')->implode('|').'|';
+    // The project's own fields, for the chips below and the filters above.
+    $fieldChips = $task->fieldChips();
 @endphp
 <div class="cu-task-card"
      data-id="{{ $task->id }}"
@@ -15,6 +17,7 @@
      data-owner="{{ $task->user_id }}"
      data-creator="{{ $task->created_by }}"
      data-assignees="{{ $assigneeIds }}"
+     data-fields="{{ \App\Support\ProjectFields::tokens($task) }}"
      data-open="{{ route('tasks.show', $task->id) }}"
      draggable="true"
      style="border-left:3px solid {{ $leftColor }};">
@@ -25,6 +28,16 @@
 
     @if($task->description)
         <div class="cu-task-desc">{{ \App\Support\RichText::toText($task->description) }}</div>
+    @endif
+
+    {{-- What this project records on its tasks, on the card where the board
+         can be read at a glance — the acquirer, the client, the region. --}}
+    @if($fieldChips->isNotEmpty())
+        <div class="cu-task-fields">
+            @foreach($fieldChips as $chip)
+                <span class="cu-field-chip" title="{{ $chip['name'] }}">{{ $chip['text'] }}</span>
+            @endforeach
+        </div>
     @endif
 
     <div class="cu-task-meta">
