@@ -8,6 +8,7 @@ use App\Models\TaskStatus;
 use App\Models\User;
 use App\Notifications\TaskAssignedNotification;
 use App\Notifications\TaskStatusChangedNotification;
+use App\Support\BoardColumns;
 use App\Support\Notifier;
 use App\Support\ProjectFields;
 use Carbon\CarbonImmutable;
@@ -44,11 +45,17 @@ class TaskObserver
      */
     public function saving(Task $task): void
     {
+        // A task arriving on a board that has never heard of the column it was
+        // in has to stand somewhere.
+        if ($task->isDirty('project_id')) {
+            $task->status = BoardColumns::keyFor($task);
+        }
+
         if (! $task->isDirty('status')) {
             return;
         }
 
-        $isCompleted = in_array($task->status, TaskStatus::completedKeys(), true);
+        $isCompleted = in_array($task->status, TaskStatus::completedKeys($task->project_id), true);
 
         if ($isCompleted) {
             $task->completed_at ??= CarbonImmutable::now();

@@ -148,7 +148,7 @@ class TaskReport
     public function summary(): array
     {
         $tasks = $this->tasks();
-        $completedKeys = TaskStatus::completedKeys();
+        $completedKeys = TaskStatus::completedKeysEverywhere();
         $today = CarbonImmutable::today();
 
         $done = $tasks->filter(fn (Task $t) => in_array($t->status, $completedKeys, true));
@@ -175,7 +175,7 @@ class TaskReport
     {
         $counts = $this->tasks()->countBy('status');
 
-        return TaskStatus::ordered()
+        return TaskStatus::everywhere()
             ->map(fn (TaskStatus $status) => [
                 'key' => $status->key,
                 'label' => $status->label,
@@ -320,7 +320,7 @@ class TaskReport
      */
     private function breakdown(callable $key): Collection
     {
-        $completedKeys = TaskStatus::completedKeys();
+        $completedKeys = TaskStatus::completedKeysEverywhere();
 
         return $this->tasks()
             ->groupBy($key)

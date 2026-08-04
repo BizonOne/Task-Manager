@@ -265,7 +265,7 @@
 
     {{-- ── Two-Panel Layout ──────────────────────────────────── --}}
     @php
-        $statuses = \App\Models\TaskStatus::ordered();
+        $statuses = \App\Models\TaskStatus::ordered($task->project_id);
         $priorityMap = [
             'low'    => ['label'=>'Low',    'class'=>'low'],
             'medium' => ['label'=>'Medium', 'class'=>'medium'],
@@ -273,8 +273,8 @@
         ];
         $priorityColors  = ['high'=>'#dc2626','medium'=>'#f59e0b','low'=>'#16a34a'];
         $avatarColor     = $priorityColors[$task->priority] ?? '#7c3aed';
-        $statusPalette   = \App\Models\TaskStatus::paletteFor($task->status);
-        $statusInfo      = ['label' => \App\Models\TaskStatus::labelFor($task->status), 'class' => $task->status];
+        $statusPalette   = \App\Models\TaskStatus::paletteFor($task->status, $task->project_id);
+        $statusInfo      = ['label' => \App\Models\TaskStatus::labelFor($task->status, $task->project_id), 'class' => $task->status];
         $priorityInfo    = $priorityMap[$task->priority] ?? $priorityMap['medium'];
     @endphp
 

@@ -70,7 +70,7 @@ class Task extends Model
      */
     public function getStatusLabelAttribute(): string
     {
-        return TaskStatus::labelFor($this->status);
+        return TaskStatus::labelFor($this->status, $this->project_id);
     }
 
     /**
@@ -78,7 +78,7 @@ class Task extends Model
      */
     public function isCompleted(): bool
     {
-        return in_array($this->status, TaskStatus::completedKeys(), true);
+        return in_array($this->status, TaskStatus::completedKeys($this->project_id), true);
     }
 
     /**
@@ -141,7 +141,10 @@ class Task extends Model
      */
     public function scopeCompleted($query)
     {
-        return $query->whereIn('status', TaskStatus::completedKeys());
+        // Every board's idea of finished: a query spanning projects cannot ask
+        // each one in turn, and a completed task left out of "completed" is
+        // worse than one wrongly counted in.
+        return $query->whereIn('status', TaskStatus::completedKeysEverywhere());
     }
 
     /**
@@ -149,7 +152,7 @@ class Task extends Model
      */
     public function scopeNotCompleted($query)
     {
-        return $query->whereNotIn('status', TaskStatus::completedKeys());
+        return $query->whereNotIn('status', TaskStatus::completedKeysEverywhere());
     }
 
     /**

@@ -97,6 +97,15 @@ class Project extends Model
     }
 
     /**
+     * The board columns this project keeps for itself. Empty means it uses
+     * the shared ones.
+     */
+    public function statuses()
+    {
+        return $this->hasMany(TaskStatus::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
      * The fields this project records on its tasks, in the order it set.
      */
     public function fields()

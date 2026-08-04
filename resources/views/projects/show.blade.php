@@ -432,7 +432,7 @@
         $projectColor = $colors[strlen($project->name) % count($colors)];
 
         $totalTasks     = $project->tasks->count();
-        $completedTasks = $project->tasks->whereIn('status', \App\Models\TaskStatus::completedKeys())->count();
+        $completedTasks = $project->tasks->whereIn('status', \App\Models\TaskStatus::completedKeysEverywhere())->count();
         $inProgressTasks= $project->tasks->where('status', 'in_progress')->count();
         $todoTasks      = $project->tasks->count() - $completedTasks - $inProgressTasks;
         $progress       = $totalTasks > 0 ? ($completedTasks / $totalTasks) * 100 : 0;

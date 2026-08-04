@@ -305,9 +305,9 @@
                                 <div class="activity-item-content">
                                     <div class="activity-item-title">{{ $task->title }}</div>
                                     <div class="activity-item-meta">
-                                        @php $sp = \App\Models\TaskStatus::paletteFor($task->status); @endphp
+                                        @php $sp = \App\Models\TaskStatus::paletteFor($task->status, $task->project_id); @endphp
                                         <span class="task-status-badge" style="background:{{ $sp['bg'] }};color:{{ $sp['text'] }};">
-                                            {{ \App\Models\TaskStatus::labelFor($task->status) }}
+                                            {{ \App\Models\TaskStatus::labelFor($task->status, $task->project_id) }}
                                         </span>
                                         @if($task->due_date != null)
                                             <span class="activity-item-date">{{ \Carbon\Carbon::parse($task->due_date)->format('M d') }}</span>

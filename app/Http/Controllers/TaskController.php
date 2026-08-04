@@ -62,7 +62,12 @@ class TaskController extends Controller
             ->get();
         $users = User::all();
         // Board columns come from the admin-managed status list.
-        $statuses = TaskStatus::ordered();
+        // A project's board shows that project's columns; "my tasks" mixes
+        // work from everywhere, so it shows the union — a column missing there
+        // is a task nobody can see.
+        $statuses = $project
+            ? TaskStatus::ordered($project->id)
+            : TaskStatus::forProjects(collect($tasks)->flatten()->pluck('project_id')->filter()->unique());
         // The projects on screen decide which of their own fields can be
         // filtered on: one project's board offers that project's fields, and
         // "my tasks" offers whatever the projects it is showing have.
@@ -97,7 +102,8 @@ class TaskController extends Controller
             'description' => 'nullable|string',
             'due_date' => 'nullable|date',
             'priority' => 'required|in:low,medium,high',
-            'status' => ['required', TaskStatus::validationRule()],
+            // Validated against the target project's own board below.
+            'status' => ['required', 'string'],
             'estimated_hours' => 'nullable|numeric|min:0.5',
             'tags' => 'nullable|string|max:400',
             'attachments' => 'sometimes|array|max:10',
@@ -107,6 +113,10 @@ class TaskController extends Controller
         // You may only create tasks inside a project you own or belong to.
         $targetProject = Project::findOrFail($request->project_id);
         abort_unless($targetProject->isAccessibleBy(Auth::user()), 403);
+
+        // Columns belong to a board, so which ones are valid depends on which
+        // board the task is landing on.
+        $request->validate(['status' => TaskStatus::validationRule($targetProject->id)]);
 
         // Honour the chosen owner, but only someone who can actually reach the
         // project. (Forcing the creator here silently discarded the person
@@ -153,7 +163,7 @@ class TaskController extends Controller
         // Everyone who can be mentioned or assigned.
         $mentionables = $task->participants();
         $assignableUsers = User::orderBy('name')->get(['id', 'name']);
-        $statuses = TaskStatus::ordered();
+        $statuses = TaskStatus::ordered($task->project_id);
         // Full history: field changes, assignments and comments in one list.
         $timeline = $task->timeline();
         // Relations, worded from this task's side and grouped by that wording.
@@ -179,7 +189,9 @@ class TaskController extends Controller
             'description' => 'nullable|string',
             'due_date' => 'nullable|date',
             'priority' => 'required|in:low,medium,high',
-            'status' => ['required', TaskStatus::validationRule()],
+            'status' => ['required', TaskStatus::validationRule(
+                (int) ($request->input('project_id') ?: $task->project_id) ?: null
+            )],
             'estimated_hours' => 'nullable|numeric|min:0.5',
             'user_id' => 'nullable|exists:users,id',
             'tags' => 'nullable|string|max:400',
@@ -227,7 +239,7 @@ class TaskController extends Controller
         // Collaborators (assignees, project team) can move the task too.
         abort_unless($task->isAccessibleBy(Auth::user()), 403);
         $request->validate([
-            'status' => ['required', TaskStatus::validationRule()],
+            'status' => ['required', TaskStatus::validationRule($task->project_id)],
         ]);
 
         $task->status = $request->input('status');

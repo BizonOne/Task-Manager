@@ -53,7 +53,7 @@ class TaskStatusChangedNotification extends Notification
                 'project' => $project,
                 'fromLabel' => $this->fromLabel(),
                 'toLabel' => $this->toLabel(),
-                'isFinished' => in_array($this->to, TaskStatus::completedKeys(), true),
+                'isFinished' => in_array($this->to, TaskStatus::completedKeys($this->task->project_id), true),
                 'taskUrl' => $taskUrl,
                 'projectUrl' => $project ? route('projects.show', $project) : null,
                 'boardUrl' => $project ? route('projects.tasks.index', $project) : route('tasks.index'),
