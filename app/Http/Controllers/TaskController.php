@@ -68,11 +68,15 @@ class TaskController extends Controller
         $statuses = $project
             ? TaskStatus::ordered($project->id)
             : TaskStatus::forProjects(collect($tasks)->flatten()->pluck('project_id')->filter()->unique());
-        // The projects on screen decide which of their own fields can be
-        // filtered on: one project's board offers that project's fields, and
-        // "my tasks" offers whatever the projects it is showing have.
+        // The work on screen decides which fields can be filtered on: a
+        // project's board offers that project's fields, and "my tasks" offers
+        // the fields of the projects its cards actually come from. Offering
+        // every field of every project somebody belongs to would put filters
+        // on the toolbar that can only ever empty the board.
         $projects->load('fields');
-        $fieldFilters = ProjectFields::filterable($project ? [$project->load('fields')] : $projects);
+        $fieldFilters = ProjectFields::filterable($project
+            ? [$project->load('fields')]
+            : collect($tasks)->flatten()->pluck('project')->filter()->unique('id'));
         // Tags are shared by every board, so the dropdown offers the ones
         // actually on screen rather than every tag anyone has ever typed.
         $tagFilters = collect($tasks)->flatten()->flatMap->tags->unique('id')->sortBy('name')->values();

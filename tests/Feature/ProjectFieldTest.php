@@ -324,7 +324,8 @@ class ProjectFieldTest extends TestCase
 
     public function test_a_filter_appears_the_moment_the_field_does(): void
     {
-        $this->task();
+        // Mel's own work, so it is on Mel's board to be filtered.
+        $this->task($this->member);
 
         // Nothing to install and no cache to clear: the filters are built from
         // the projects on screen, so a field added this morning is a filter
@@ -343,10 +344,40 @@ class ProjectFieldTest extends TestCase
             ->assertSee('data-field-key="acquirer"', false);
     }
 
+    public function test_only_people_on_the_project_are_offered_its_filter(): void
+    {
+        $this->field();
+        $this->task($this->member);
+
+        $outsider = User::create(['name' => 'Otto Outside', 'email' => 'otto@example.com', 'password' => bcrypt('secret')]);
+
+        // A field is a project's own business, and so is the filter for it.
+        $this->actingAs($outsider)
+            ->get(route('tasks.index'))
+            ->assertSuccessful()
+            ->assertDontSee('Any Acquirer');
+
+        $this->actingAs($outsider)
+            ->get(route('projects.tasks.index', $this->project))
+            ->assertForbidden();
+    }
+
+    public function test_a_filter_with_nothing_on_screen_to_match_is_not_offered(): void
+    {
+        $this->field();
+
+        // Mel belongs to the project but has no work in it. A dropdown that
+        // can only ever empty the board is not a filter worth showing.
+        $this->actingAs($this->member)
+            ->get(route('tasks.index'))
+            ->assertSuccessful()
+            ->assertDontSee('Any Acquirer');
+    }
+
     public function test_a_free_text_field_gets_no_filter(): void
     {
         $this->field(['name' => 'Contract reference', 'type' => ProjectField::TYPE_TEXT, 'options' => null]);
-        $this->task();
+        $this->task($this->member);
 
         // A dropdown of every sentence anybody has typed is not a filter.
         $this->actingAs($this->member)
@@ -358,7 +389,7 @@ class ProjectFieldTest extends TestCase
     public function test_the_same_field_on_two_projects_is_one_filter(): void
     {
         $this->field();
-        $this->task();
+        $this->task($this->member);
 
         $second = Project::create(['user_id' => $this->member->id, 'name' => 'Second', 'status' => 'in_progress']);
         $second->fields()->create([
