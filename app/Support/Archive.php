@@ -93,7 +93,7 @@ class Archive
             ->where('completed_at', '<=', CarbonImmutable::now()->subDays($days))
             // Belt and braces: a task whose status was changed without going
             // through the observer should not be archived while still open.
-            ->whereIn('status', TaskStatus::completedKeys());
+            ->whereIn('status', TaskStatus::completedKeysEverywhere());
     }
 
     /**

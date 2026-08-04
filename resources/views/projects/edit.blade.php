@@ -699,6 +699,126 @@
         </form>
     </div>
 
+    {{-- ── Columns on this project's board ───────────────────── --}}
+    @if($project->isManagedBy(auth()->user()))
+    @php
+        $ownColumns = \App\Models\TaskStatus::isCustomised($project->id);
+        $columns = \App\Models\TaskStatus::ordered($project->id);
+    @endphp
+    <div class="cu-section" style="margin-top:10px;">
+        <div class="cu-section-header">
+            <span class="cu-section-icon blue"><i class="bi bi-kanban"></i></span>
+            <span class="cu-section-title">Board columns</span>
+            <span class="cu-section-subtitle">{{ $ownColumns ? "This board's own" : 'Shared with every project' }}</span>
+        </div>
+        <div class="cu-section-body">
+            @error('column')<div class="invalid-feedback d-block" style="margin-bottom:12px;">{{ $message }}</div>@enderror
+
+            @unless($ownColumns)
+                <p style="color:#6b7280;font-size:13px;margin-bottom:12px;">
+                    This board uses the columns shared by every project:
+                    <strong>{{ $columns->pluck('label')->implode(' → ') }}</strong>.
+                    Give it its own and you can rename them, add and remove them, and put them in
+                    the order this team works in — without changing anybody else's board.
+                </p>
+                <form action="{{ route('projects.columns.adopt', $project) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="cu-btn-save cu-btn-sm">
+                        <i class="bi bi-sliders me-1"></i>Give this board its own columns
+                    </button>
+                </form>
+            @else
+                @foreach($columns as $column)
+                    <form id="removeColumn{{ $column->id }}" action="{{ route('projects.columns.destroy', $column) }}" method="POST"
+                          onsubmit="return confirm('Remove “{{ $column->label }}”? Anything in it moves to this board\'s default column.');">
+                        @csrf
+                        @method('DELETE')
+                    </form>
+                    <form action="{{ route('projects.columns.update', $column) }}" method="POST" class="cu-pf-row">
+                        @csrf
+                        @method('PUT')
+                        <div class="cu-pf-grid">
+                            <div>
+                                <label class="cu-label">Name</label>
+                                <input type="text" name="label" class="cu-input no-icon" value="{{ $column->label }}" maxlength="40" required>
+                            </div>
+                            <div>
+                                <label class="cu-label">Colour</label>
+                                <select name="color" class="cu-input no-icon">
+                                    @foreach(\App\Models\TaskStatus::colorOptions() as $value => $label)
+                                        <option value="{{ $value }}" @selected($column->color === $value)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="cu-label">Order</label>
+                                <input type="number" name="sort_order" class="cu-input no-icon" value="{{ $column->sort_order }}" min="0" max="999">
+                            </div>
+                        </div>
+                        <div class="cu-pf-foot">
+                            <div style="display:flex;gap:16px;flex-wrap:wrap;">
+                                <label class="cu-pf-toggle">
+                                    <input type="hidden" name="is_default" value="0">
+                                    <input type="checkbox" name="is_default" value="1" @checked($column->is_default)>
+                                    New tasks start here
+                                </label>
+                                <label class="cu-pf-toggle">
+                                    <input type="hidden" name="is_completed" value="0">
+                                    <input type="checkbox" name="is_completed" value="1" @checked($column->is_completed)>
+                                    Counts as finished
+                                </label>
+                            </div>
+                            <div style="display:flex;gap:8px;">
+                                <button type="submit" form="removeColumn{{ $column->id }}" class="cu-btn-danger cu-btn-sm">Remove</button>
+                                <button type="submit" class="cu-btn-save cu-btn-sm">Save</button>
+                            </div>
+                        </div>
+                    </form>
+                @endforeach
+
+                <form action="{{ route('projects.columns.store', $project) }}" method="POST" class="cu-pf-row" style="background:#faf9ff;">
+                    @csrf
+                    <div class="cu-pf-grid">
+                        <div>
+                            <label class="cu-label">Name</label>
+                            <input type="text" name="label" class="cu-input no-icon" placeholder="Rejected" maxlength="40" required>
+                        </div>
+                        <div>
+                            <label class="cu-label">Colour</label>
+                            <select name="color" class="cu-input no-icon">
+                                @foreach(\App\Models\TaskStatus::colorOptions() as $value => $label)
+                                    <option value="{{ $value }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="cu-label">Order</label>
+                            <input type="number" name="sort_order" class="cu-input no-icon" min="0" max="999" placeholder="last">
+                        </div>
+                    </div>
+                    <div class="cu-pf-foot">
+                        <label class="cu-pf-toggle">
+                            <input type="hidden" name="is_completed" value="0">
+                            <input type="checkbox" name="is_completed" value="1">
+                            Counts as finished
+                        </label>
+                        <button type="submit" class="cu-btn-save cu-btn-sm">
+                            <i class="bi bi-plus-lg me-1"></i>Add column
+                        </button>
+                    </div>
+                </form>
+
+                <form action="{{ route('projects.columns.release', $project) }}" method="POST" style="margin-top:8px;"
+                      onsubmit="return confirm('Put this board back on the shared columns? Anything standing in a column this project invented moves to the shared default.');">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="cu-btn-cancel cu-btn-sm">Use the shared columns again</button>
+                </form>
+            @endunless
+        </div>
+    </div>
+    @endif
+
     {{-- ── Fields this project keeps on its tasks ───────────── --}}
     @if($project->isManagedBy(auth()->user()))
     <div class="cu-section" style="margin-top:10px;">

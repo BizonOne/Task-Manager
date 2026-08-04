@@ -7,16 +7,22 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 /**
- * An admin-manageable task status (a column on the task board).
+ * A column on a task board.
  *
  * `tasks.status` stores this model's `key`, so statuses can be renamed,
  * recoloured, reordered and added without touching task rows.
+ *
+ * A row with no project is a shared column, used by every project that has
+ * not said otherwise. A project that wants to work differently keeps its own
+ * set and stops looking at the shared ones — because two teams always do work
+ * differently, and neither wants the other's columns on its screen.
  */
 class TaskStatus extends Model
 {
     private const CACHE_KEY = 'task_statuses.ordered';
 
     protected $fillable = [
+        'project_id',
         'key',
         'label',
         'color',
@@ -50,10 +56,12 @@ class TaskStatus extends Model
 
     protected static function booted(): void
     {
-        // Exactly one status is the default for new tasks.
+        // Exactly one status is the default for new tasks — on each board
+        // separately, since each board starts its own work somewhere.
         static::saved(function (self $status) {
             if ($status->is_default) {
                 static::where('id', '!=', $status->id)
+                    ->where('project_id', $status->project_id)
                     ->where('is_default', true)
                     ->update(['is_default' => false]);
             }
@@ -64,33 +72,116 @@ class TaskStatus extends Model
         static::deleted(fn () => static::forgetCached());
     }
 
+    public function project()
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    /**
+     * Whether this column belongs to one project rather than to everyone.
+     */
+    public function isPrivate(): bool
+    {
+        return $this->project_id !== null;
+    }
+
     public static function forgetCached(): void
     {
         Cache::forget(self::CACHE_KEY);
     }
 
     /**
-     * Every status in display order. Falls back to the built-in defaults if the
-     * table is missing or empty, so the app never renders a board with no
-     * columns.
+     * Every row there is, in display order, cached as one lump.
+     *
+     * One cache entry rather than one per project: the whole table is a few
+     * dozen rows, and a single entry is a single thing to forget.
      *
      * @return Collection<int, TaskStatus>
      */
-    public static function ordered(): Collection
+    private static function rows(): Collection
     {
         return Cache::rememberForever(self::CACHE_KEY, function () {
             try {
-                $statuses = static::query()->orderBy('sort_order')->orderBy('id')->get();
+                return static::query()->orderBy('sort_order')->orderBy('id')->get();
             } catch (\Throwable) {
-                $statuses = collect();
+                return collect();
             }
-
-            if ($statuses->isEmpty()) {
-                $statuses = collect(static::defaults())->map(fn (array $row) => new static($row));
-            }
-
-            return $statuses;
         });
+    }
+
+    /**
+     * The columns of one board, in display order.
+     *
+     * A project with columns of its own uses those and nothing else; every
+     * other project uses the shared set. Falls back to the built-in defaults
+     * if the table is missing or empty, so the app never renders a board with
+     * no columns at all.
+     *
+     * @return Collection<int, TaskStatus>
+     */
+    public static function ordered(?int $projectId = null): Collection
+    {
+        $rows = static::rows();
+
+        if ($projectId !== null) {
+            $own = $rows->where('project_id', $projectId)->values();
+
+            if ($own->isNotEmpty()) {
+                return $own;
+            }
+        }
+
+        $shared = $rows->whereNull('project_id')->values();
+
+        return $shared->isNotEmpty()
+            ? $shared
+            : collect(static::defaults())->map(fn (array $row) => new static($row));
+    }
+
+    /**
+     * Whether this project has taken its board into its own hands.
+     */
+    public static function isCustomised(?int $projectId): bool
+    {
+        return $projectId !== null && static::rows()->where('project_id', $projectId)->isNotEmpty();
+    }
+
+    /**
+     * The columns a board covering several projects has to show.
+     *
+     * "My tasks" mixes work from everywhere, so it needs the union — a column
+     * missing here is a task nobody can see.
+     *
+     * @param  iterable<int>  $projectIds
+     * @return Collection<int, TaskStatus>
+     */
+    public static function forProjects(iterable $projectIds): Collection
+    {
+        $columns = collect($projectIds)
+            ->map(fn ($id) => static::ordered((int) $id))
+            ->flatten(1)
+            ->concat(static::ordered());
+
+        return $columns
+            ->unique('key')
+            ->sortBy([['sort_order', 'asc'], ['label', 'asc']])
+            ->values();
+    }
+
+    /**
+     * Every column anywhere, one per key — for reports and filters that span
+     * the whole app.
+     *
+     * @return Collection<int, TaskStatus>
+     */
+    public static function everywhere(): Collection
+    {
+        $rows = static::rows();
+
+        return ($rows->isEmpty() ? static::ordered() : $rows)
+            ->unique('key')
+            ->sortBy([['sort_order', 'asc'], ['label', 'asc']])
+            ->values();
     }
 
     /**
@@ -98,9 +189,9 @@ class TaskStatus extends Model
      *
      * @return array<int, string>
      */
-    public static function keys(): array
+    public static function keys(?int $projectId = null): array
     {
-        return static::ordered()->pluck('key')->all();
+        return static::ordered($projectId)->pluck('key')->all();
     }
 
     /**
@@ -108,30 +199,38 @@ class TaskStatus extends Model
      *
      * @return array<string, string>
      */
-    public static function options(): array
+    public static function options(?int $projectId = null): array
     {
-        return static::ordered()->pluck('label', 'key')->all();
+        return static::ordered($projectId)->pluck('label', 'key')->all();
     }
 
     /**
      * A validation rule listing the currently valid status keys.
      */
-    public static function validationRule(): string
+    public static function validationRule(?int $projectId = null): string
     {
-        return 'in:'.implode(',', static::keys());
+        return 'in:'.implode(',', static::keys($projectId));
     }
 
-    public static function find_by_key(string $key): ?self
+    /**
+     * The column with that key on that board — or, failing that, anywhere.
+     *
+     * The fallback matters wherever a task is shown out of its own context:
+     * the dashboard, a report, a search result. Better the right label from
+     * another board than a raw key.
+     */
+    public static function find_by_key(string $key, ?int $projectId = null): ?self
     {
-        return static::ordered()->firstWhere('key', $key);
+        return static::ordered($projectId)->firstWhere('key', $key)
+            ?? static::rows()->firstWhere('key', $key);
     }
 
     /**
      * The key new tasks start in.
      */
-    public static function defaultKey(): string
+    public static function defaultKey(?int $projectId = null): string
     {
-        $statuses = static::ordered();
+        $statuses = static::ordered($projectId);
 
         return ($statuses->firstWhere('is_default', true) ?? $statuses->first())?->key ?? 'to_do';
     }
@@ -141,22 +240,35 @@ class TaskStatus extends Model
      *
      * @return array<int, string>
      */
-    public static function completedKeys(): array
+    public static function completedKeys(?int $projectId = null): array
     {
-        return static::ordered()->where('is_completed', true)->pluck('key')->all();
+        return static::ordered($projectId)->where('is_completed', true)->pluck('key')->all();
+    }
+
+    /**
+     * Keys that mean "finished" on any board at all.
+     *
+     * A query spanning projects cannot ask each one in turn, and a completed
+     * task left out of "completed" is worse than one wrongly counted in.
+     *
+     * @return array<int, string>
+     */
+    public static function completedKeysEverywhere(): array
+    {
+        return static::everywhere()->where('is_completed', true)->pluck('key')->unique()->values()->all();
     }
 
     /**
      * Human label for a stored key, falling back to a prettified key so a task
      * left on a deleted status still renders sensibly.
      */
-    public static function labelFor(?string $key): string
+    public static function labelFor(?string $key, ?int $projectId = null): string
     {
         if ($key === null || $key === '') {
             return '—';
         }
 
-        return static::find_by_key($key)?->label
+        return static::find_by_key($key, $projectId)?->label
             ?? ucwords(str_replace('_', ' ', $key));
     }
 
@@ -165,9 +277,9 @@ class TaskStatus extends Model
      *
      * @return array{bg: string, text: string, dot: string}
      */
-    public static function paletteFor(?string $key): array
+    public static function paletteFor(?string $key, ?int $projectId = null): array
     {
-        $color = static::find_by_key($key)?->color ?? 'gray';
+        $color = static::find_by_key($key, $projectId)?->color ?? 'gray';
 
         return self::palette()[$color] ?? self::palette()['gray'];
     }

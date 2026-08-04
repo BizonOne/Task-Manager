@@ -192,7 +192,7 @@
                     </thead>
                     <tbody>
                         @foreach($tasks as $task)
-                            @php $palette = \App\Models\TaskStatus::paletteFor($task->status); @endphp
+                            @php $palette = \App\Models\TaskStatus::paletteFor($task->status, $task->project_id); @endphp
                             <tr>
                                 <td class="ar-key">TASK-{{ str_pad($task->id, 4, '0', STR_PAD_LEFT) }}</td>
                                 <td>

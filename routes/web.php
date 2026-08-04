@@ -12,6 +12,7 @@ use App\Http\Controllers\MailController;
 use App\Http\Controllers\NoteController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ProjectColumnController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectFieldController;
 use App\Http\Controllers\ReminderController;
@@ -55,6 +56,14 @@ Route::middleware(['auth'])->group(function () {
     Route::post('projects/{project}/fields', [ProjectFieldController::class, 'store'])->name('projects.fields.store');
     Route::put('project-fields/{field}', [ProjectFieldController::class, 'update'])->name('projects.fields.update');
     Route::delete('project-fields/{field}', [ProjectFieldController::class, 'destroy'])->name('projects.fields.destroy');
+
+    // The columns on one project's board. Until a project takes a copy it
+    // uses the shared ones and none of this applies to it.
+    Route::post('projects/{project}/columns/adopt', [ProjectColumnController::class, 'adopt'])->name('projects.columns.adopt');
+    Route::delete('projects/{project}/columns', [ProjectColumnController::class, 'release'])->name('projects.columns.release');
+    Route::post('projects/{project}/columns', [ProjectColumnController::class, 'store'])->name('projects.columns.store');
+    Route::put('project-columns/{column}', [ProjectColumnController::class, 'update'])->name('projects.columns.update');
+    Route::delete('project-columns/{column}', [ProjectColumnController::class, 'destroy'])->name('projects.columns.destroy');
 
     Route::get('projects/{project}/tasks', [TaskController::class, 'index'])->name('projects.tasks.index');
     Route::post('projects/{project}/tasks', [TaskController::class, 'store'])->name('projects.tasks.store');

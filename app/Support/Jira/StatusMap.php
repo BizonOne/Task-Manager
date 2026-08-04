@@ -2,17 +2,19 @@
 
 namespace App\Support\Jira;
 
+use App\Models\Project;
 use App\Models\TaskStatus;
+use App\Support\BoardColumns;
 use Illuminate\Support\Str;
 
 /**
  * Which column an imported issue lands in.
  *
- * Jira boards carry whatever columns a team invented; this app's statuses are
- * global, shared by every board in it. So the mapping matters twice over — a
- * column created for one imported project shows up as an empty column on
- * everyone else's board, and a status folded onto the wrong one loses a
- * distinction the original team cared about.
+ * Jira boards carry whatever columns a team invented. A column this app has
+ * never heard of is created on the imported project's own board and nowhere
+ * else, so nobody else's screen changes — but folding one onto the wrong
+ * existing column still loses a distinction the original team cared about,
+ * which is why the operator gets the last word.
  *
  * Resolution, in order:
  *   1. an explicit instruction from the operator (--map="Acquirer=in_review")
@@ -54,6 +56,9 @@ class StatusMap
         'done' => 'completed',
     ];
 
+    /** The board being imported onto; null until the project exists. */
+    private ?Project $project = null;
+
     /** @var array<string, string> normalised Jira name => app status key */
     private array $overrides = [];
 
@@ -71,6 +76,17 @@ class StatusMap
         foreach ($overrides as $name => $key) {
             $this->overrides[self::normalise($name)] = $key;
         }
+    }
+
+    /**
+     * Which board these columns belong to. Set once the project exists.
+     */
+    public function onto(?Project $project): void
+    {
+        $this->project = $project;
+        // Resolved against a different board, so nothing decided before this
+        // point can be trusted.
+        $this->resolved = [];
     }
 
     /**
@@ -96,7 +112,7 @@ class StatusMap
             return $this->overrides[$normalised];
         }
 
-        foreach (TaskStatus::ordered() as $status) {
+        foreach (TaskStatus::ordered($this->project?->id) as $status) {
             if (self::normalise($status->label) === $normalised || $status->key === Str::snake($normalised)) {
                 return $status->key;
             }
@@ -107,7 +123,7 @@ class StatusMap
 
             // Only if that column actually exists here — an admin is free to
             // have deleted it.
-            if (TaskStatus::find_by_key($key) !== null) {
+            if (TaskStatus::find_by_key($key, $this->project?->id) !== null) {
                 return $key;
             }
         }
@@ -119,15 +135,21 @@ class StatusMap
         $key = Str::snake(Str::ascii($normalised)) ?: 'imported';
         $this->created[] = $name;
 
-        if ($dryRun) {
+        if ($dryRun || $this->project === null) {
             return $key;
         }
 
+        // The new column lands on this project's board, not on everybody's.
+        // Adopting first copies the shared columns across, so the board does
+        // not end up holding this one column and nothing else.
+        BoardColumns::adopt($this->project);
+
         TaskStatus::create([
+            'project_id' => $this->project->id,
             'key' => $key,
             'label' => $name,
             'color' => $category === 'done' ? 'green' : ($category === 'new' ? 'gray' : 'teal'),
-            'sort_order' => (int) TaskStatus::max('sort_order') + 1,
+            'sort_order' => (int) TaskStatus::where('project_id', $this->project->id)->max('sort_order') + 1,
             'is_completed' => $category === 'done',
             'is_default' => false,
         ]);
@@ -145,7 +167,8 @@ class StatusMap
     {
         $key = self::CATEGORIES[$category] ?? 'to_do';
 
-        return TaskStatus::find_by_key($key)?->key ?? TaskStatus::defaultKey();
+        return TaskStatus::find_by_key($key, $this->project?->id)?->key
+            ?? TaskStatus::defaultKey($this->project?->id);
     }
 
     /**

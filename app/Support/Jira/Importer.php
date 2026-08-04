@@ -67,6 +67,9 @@ class Importer
 
         $project = $this->project($this->jira->project($projectKey), $report);
 
+        // Columns belong to a board, and this is the board.
+        $this->statuses->onto($project);
+
         foreach ($this->jira->issues($projectKey) as $issue) {
             $task = $this->task($project, $issue, $report);
 
@@ -179,7 +182,7 @@ class Importer
         $task->created_at = $this->date($fields['created'] ?? null) ?? CarbonImmutable::now();
         $task->updated_at = $this->date($fields['updated'] ?? null) ?? $task->created_at;
 
-        if (in_array($status, TaskStatus::completedKeys(), true)) {
+        if (in_array($status, TaskStatus::completedKeys($project->id), true)) {
             $task->completed_at = $this->date($fields['resolutiondate'] ?? null) ?? $task->updated_at;
         }
 

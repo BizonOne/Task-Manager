@@ -51,7 +51,7 @@
     .cu-btn-new:hover{background:#6d28d9;}
 
     /* One column per managed status. */
-    .cu-kanban{display:grid;grid-template-columns:repeat({{ max(\App\Models\TaskStatus::ordered()->count(), 1) }},minmax(0,1fr));gap:12px;align-items:start;}
+    .cu-kanban{display:grid;grid-template-columns:repeat({{ max(count($statuses ?? []), 1) }},minmax(0,1fr));gap:12px;align-items:start;}
     @media(max-width:1100px){.cu-kanban{grid-template-columns:repeat(3,minmax(0,1fr));}}
     @media(max-width:860px){.cu-kanban{grid-template-columns:1fr;}}
     .cu-col{background:#f3f4f6;border-radius:10px;overflow:hidden;}
@@ -150,7 +150,7 @@
         display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;
         font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;
     }
-    @foreach(\App\Models\TaskStatus::ordered() as $s)
+    @foreach($statuses ?? [] as $s)
     @php $p = \App\Models\TaskStatus::palette()[$s->color] ?? \App\Models\TaskStatus::palette()['gray']; @endphp
     .cu-status-chip.{{ $s->key }} {background:{{ $p['bg'] }};color:{{ $p['text'] }};}
     @endforeach
@@ -243,7 +243,7 @@
     @php
         // Board columns come from the admin-managed status list, so a new
         // status shows up here (and in the total) without touching this view.
-        $statuses = $statuses ?? \App\Models\TaskStatus::ordered();
+        $statuses = $statuses ?? \App\Models\TaskStatus::ordered($project->id ?? null);
         $totalCnt = collect($tasks)->flatten()->count();
         $hasAny   = $totalCnt > 0;
         // Everyone who appears on the board — whoever raised a task, whoever
@@ -384,7 +384,7 @@
                 <div class="cu-list-sub">
                     <span class="cu-status-chip {{ $task->status }}">
                         <i class="bi bi-circle-fill" style="font-size:5px;"></i>
-                        {{ \App\Models\TaskStatus::labelFor($task->status) }}
+                        {{ \App\Models\TaskStatus::labelFor($task->status, $task->project_id) }}
                     </span>
                 </div>
             </div>
@@ -525,7 +525,7 @@
                         <span style="font-size:11px;color:#8a8f98;">Up to 10 files, {{ \App\Support\Uploads::maxMegabytes() }} MB each.</span>
                     </div>
 
-                    <input type="hidden" name="status" id="task_status" value="{{ \App\Models\TaskStatus::defaultKey() }}">
+                    <input type="hidden" name="status" id="task_status" value="{{ $statuses->firstWhere('is_default', true)->key ?? $statuses->first()->key ?? 'to_do' }}">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -543,8 +543,8 @@
 <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 <script>
 /* Board columns are admin-managed, so the keys come from the server. */
-const STATUS_KEYS    = @json(\App\Models\TaskStatus::keys());
-const DEFAULT_STATUS = @json(\App\Models\TaskStatus::defaultKey());
+const STATUS_KEYS    = @json($statuses->pluck('key'));
+const DEFAULT_STATUS = @json($statuses->firstWhere('is_default', true)->key ?? $statuses->first()->key ?? 'to_do');
 
 document.addEventListener('DOMContentLoaded', function () {
     const kanban = document.getElementById('cuKanban');

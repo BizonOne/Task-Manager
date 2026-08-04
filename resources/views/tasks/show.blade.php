@@ -108,7 +108,7 @@
 }
 .ts-status:hover { opacity:.8; }
 .ts-status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-@foreach(\App\Models\TaskStatus::ordered() as $s)
+@foreach(\App\Models\TaskStatus::ordered($task->project_id) as $s)
 @php $p = \App\Models\TaskStatus::palette()[$s->color] ?? \App\Models\TaskStatus::palette()['gray']; @endphp
 .ts-status.{{ $s->key }} { background:{{ $p['bg'] }}; color:{{ $p['text'] }}; }
 .ts-status.{{ $s->key }} .ts-status-dot { background:{{ $p['dot'] }}; }
@@ -445,7 +445,7 @@
     display:inline-flex; align-items:center; gap:6px;
     padding:5px 10px; border-radius:20px; font-size:12px; font-weight:600;
 }
-@foreach(\App\Models\TaskStatus::ordered() as $s)
+@foreach(\App\Models\TaskStatus::ordered($task->project_id) as $s)
 @php $p = \App\Models\TaskStatus::palette()[$s->color] ?? \App\Models\TaskStatus::palette()['gray']; @endphp
 .ts-status-chip.{{ $s->key }} { background:{{ $p['bg'] }}; color:{{ $p['text'] }}; }
 @endforeach
@@ -504,9 +504,9 @@
 
 @section('content')
 @php
-    $statuses = $statuses ?? \App\Models\TaskStatus::ordered();
+    $statuses = $statuses ?? \App\Models\TaskStatus::ordered($task->project_id);
     $statusClass = $task->status;
-    $statusLabel = \App\Models\TaskStatus::labelFor($task->status);
+    $statusLabel = \App\Models\TaskStatus::labelFor($task->status, $task->project_id);
     $isDone = $task->isCompleted();
     $priorityColor = ['high' => '#dc2626', 'medium' => '#f59e0b', 'low' => '#16a34a'][$task->priority] ?? '#7c3aed';
 
