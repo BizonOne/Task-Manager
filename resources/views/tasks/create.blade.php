@@ -135,6 +135,52 @@
                         @enderror
                     </div>
 
+                    {{-- This page used to ask for a title, a date and a priority
+                         and nothing else — no project, nobody to give it to —
+                         so submitting it could only fail. The board's modal had
+                         all of this and the page never caught up. --}}
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="project_id" class="form-label">Project *</label>
+                            <select name="project_id" id="project_id" required
+                                    class="form-control {{ $errors->has('project_id') ? 'is-invalid' : '' }}">
+                                <option value="">Select a project…</option>
+                                @foreach($projects as $proj)
+                                    <option value="{{ $proj->id }}" @selected(old('project_id') == $proj->id)>{{ $proj->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('project_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+
+                        <div class="form-group">
+                            <label for="user_id" class="form-label">Assign To *</label>
+                            <select name="user_id" id="user_id" required
+                                    class="form-control {{ $errors->has('user_id') ? 'is-invalid' : '' }}">
+                                <option value="{{ auth()->id() }}" @selected(! old('user_id') || old('user_id') == auth()->id())>Me</option>
+                                @foreach($users as $person)
+                                    @continue($person->id === auth()->id())
+                                    <option value="{{ $person->id }}" @selected(old('user_id') == $person->id)>{{ $person->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('user_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                    </div>
+
+                    {{-- Whatever the chosen project records on its tasks. --}}
+                    @include('tasks._fields', ['projects' => $projects])
+
+                    <div class="form-group">
+                        <label class="form-label" for="tags">Tags</label>
+                        <input type="text" name="tags" id="tags" list="taskTagList" maxlength="400"
+                               class="form-control" placeholder="urgent, compliance" value="{{ old('tags') }}">
+                        <datalist id="taskTagList">
+                            @foreach($tagVocabulary as $tag)
+                                <option value="{{ $tag->name }}"></option>
+                            @endforeach
+                        </datalist>
+                        <small class="text-muted">Separate with commas. New ones are made as you type them.</small>
+                    </div>
+
                     <div class="form-group">
                         <label class="form-label" for="attachments">Attachments</label>
                         <input type="file"

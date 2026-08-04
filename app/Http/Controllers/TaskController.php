@@ -89,8 +89,9 @@ class TaskController extends Controller
         // project in the system, leaking names to people with no access.
         $projects = $this->availableProjects()->load('fields');
         $users = User::orderBy('name')->get();
+        $tagVocabulary = Tag::orderBy('name')->get();
 
-        return view('tasks.create', compact('projects', 'users'));
+        return view('tasks.create', compact('projects', 'users', 'tagVocabulary'));
     }
 
     public function store(Request $request, ?Project $project = null)
@@ -102,8 +103,9 @@ class TaskController extends Controller
             'description' => 'nullable|string',
             'due_date' => 'nullable|date',
             'priority' => 'required|in:low,medium,high',
-            // Validated against the target project's own board below.
-            'status' => ['required', 'string'],
+            // Left out, a task starts in whatever column that board starts
+            // work in. Validated against the target project's board below.
+            'status' => ['nullable', 'string'],
             'estimated_hours' => 'nullable|numeric|min:0.5',
             'tags' => 'nullable|string|max:400',
             'attachments' => 'sometimes|array|max:10',
@@ -116,6 +118,9 @@ class TaskController extends Controller
 
         // Columns belong to a board, so which ones are valid depends on which
         // board the task is landing on.
+        $request->merge([
+            'status' => $request->input('status') ?: TaskStatus::defaultKey($targetProject->id),
+        ]);
         $request->validate(['status' => TaskStatus::validationRule($targetProject->id)]);
 
         // Honour the chosen owner, but only someone who can actually reach the
