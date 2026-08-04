@@ -186,6 +186,14 @@ class Task extends Model
     }
 
     /**
+     * The words somebody has written on this task.
+     */
+    public function tags()
+    {
+        return $this->belongsToMany(Tag::class, 'task_tag')->orderBy('name');
+    }
+
+    /**
      * This task's answers to the fields its project defined.
      */
     public function fieldValues()

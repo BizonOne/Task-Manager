@@ -720,6 +720,20 @@
                 </div>
                 @endif
 
+                @if($task->tags->isNotEmpty())
+                <div class="ts-meta-row">
+                    <div class="ts-meta-icon"><i class="bi bi-tags"></i></div>
+                    <div>
+                        <div class="ts-meta-label">Tags</div>
+                        <div class="ts-meta-val" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:2px;">
+                            @foreach($task->tags as $tag)
+                                <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:{{ $tag->palette()['bg'] }};color:{{ $tag->palette()['text'] }};">#{{ $tag->name }}</span>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+                @endif
+
                 {{-- Whatever this project records on its tasks. Blank ones are
                      left out — an empty row says nothing. --}}
                 @foreach($task->fieldAnswers() as $answer)

@@ -213,6 +213,10 @@
         padding:2px 7px; border-radius:4px;
         background:#f1f5f9; color:#475569; border:1px solid #e2e8f0;
     }
+    .cu-tag-chip {
+        font-size:10px; font-weight:600; letter-spacing:.02em;
+        padding:2px 7px; border-radius:10px;
+    }
     .ql-toolbar{border-color:#e3e4e8 !important;border-radius:7px 7px 0 0;}
     .ql-container.ql-snow{border-color:#e3e4e8 !important;border-radius:0 0 7px 7px;}
     #task-quill-editor{height:120px;}
@@ -294,6 +298,14 @@
             {{-- One dropdown per field the projects on screen define. On a
                  project board that is that project's fields; on "my tasks" it
                  is whatever the projects it is showing keep. --}}
+            @if(($tagFilters ?? collect())->isNotEmpty())
+                <select class="cu-filter-select" id="cuTag">
+                    <option value="">All tags</option>
+                    @foreach($tagFilters as $tag)
+                        <option value="{{ $tag->slug }}">{{ $tag->name }}</option>
+                    @endforeach
+                </select>
+            @endif
             @foreach($fieldFilters ?? [] as $field)
                 <select class="cu-filter-select cu-field-filter" data-field-key="{{ $field->key }}">
                     <option value="">All {{ strtolower($field->name) }}</option>
@@ -365,6 +377,7 @@
              data-creator="{{ $task->created_by }}"
              data-assignees="|{{ $task->assignees->pluck('id')->implode('|') }}|"
              data-fields="{{ \App\Support\ProjectFields::tokens($task) }}"
+             data-tags="{{ \App\Support\Tags::tokens($task) }}"
              data-open="{{ route('tasks.show', $task->id) }}">
             <div>
                 <a href="{{ route('tasks.show', $task->id) }}" class="cu-list-title">{{ $task->title }}</a>
@@ -490,6 +503,18 @@
                     @include('tasks._fields', ['projects' => $projects])
 
                     <div class="cu-field">
+                        <label class="cu-label">Tags</label>
+                        <input type="text" name="tags" class="cu-input" list="cuTagList"
+                               placeholder="urgent, compliance" maxlength="400">
+                        <span style="font-size:11px;color:#8a8f98;">Separate with commas. New ones are made as you type them.</span>
+                        <datalist id="cuTagList">
+                            @foreach($tagVocabulary ?? [] as $tag)
+                                <option value="{{ $tag->name }}"></option>
+                            @endforeach
+                        </datalist>
+                    </div>
+
+                    <div class="cu-field">
                         {{-- The spec, the screenshot or the contract usually
                              exists before the task does; making people create
                              the task first and attach afterwards is a step for
@@ -554,6 +579,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return raised || assigned;
     }
 
+    const tagSelect = document.getElementById('cuTag');
     const fieldSelects = Array.from(document.querySelectorAll('.cu-field-filter'));
 
     // A card answers a field filter when it carries that exact key and value.
@@ -569,16 +595,19 @@ document.addEventListener('DOMContentLoaded', function () {
         const priority = prioritySelect?.value || '';
         const project  = projectSelect?.value  || '';
         const assignee = assigneeSelect?.value || '';
+        const tag      = tagSelect?.value      || '';
         document.querySelectorAll('.cu-task-card, .cu-list-row').forEach(el => {
             const show = el.dataset.title.includes(term)
                       && (!priority || el.dataset.priority === priority)
                       && (!project  || el.dataset.project  === project)
                       && matchesAssignee(el, assignee)
-                      && matchesFields(el);
+                      && matchesFields(el)
+                      && (!tag || (el.dataset.tags || '').includes(`|${tag}|`));
             el.style.display = show ? '' : 'none';
         });
         updateCounts();
     }
+    tagSelect?.addEventListener('change', applyFilters);
     fieldSelects.forEach(select => select.addEventListener('change', applyFilters));
     searchInput?.addEventListener('input', applyFilters);
     prioritySelect?.addEventListener('change', applyFilters);
