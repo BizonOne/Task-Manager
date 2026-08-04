@@ -306,10 +306,13 @@
                     @endforeach
                 </select>
             @endif
-            @foreach($fieldFilters ?? [] as $field)
-                <select class="cu-filter-select cu-field-filter" data-field-key="{{ $field->key }}">
-                    <option value="">All {{ strtolower($field->name) }}</option>
-                    @foreach($field->choices() as $choice)
+            @foreach($fieldFilters ?? [] as $filter)
+                <select class="cu-filter-select cu-field-filter" data-field-key="{{ $filter['key'] }}">
+                    {{-- "Any Acquirer", not "All acquirer": the field is named
+                         by whoever added it, in whatever language, so the
+                         wording has to work without bending their word. --}}
+                    <option value="">Any {{ $filter['name'] }}</option>
+                    @foreach($filter['choices'] as $choice)
                         <option value="{{ $choice }}">{{ $choice }}</option>
                     @endforeach
                 </select>

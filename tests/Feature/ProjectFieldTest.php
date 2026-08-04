@@ -136,7 +136,7 @@ class ProjectFieldTest extends TestCase
         $this->actingAs($this->manager)
             ->get(route('projects.tasks.index', $other))
             ->assertSuccessful()
-            ->assertDontSee('All acquirer');
+            ->assertDontSee('Any Acquirer');
     }
 
     // --- answering them ------------------------------------------------------
@@ -320,6 +320,62 @@ class ProjectFieldTest extends TestCase
             ->assertSee('data-field-key="acquirer"', false)
             // Pipe-wrapped both sides, so "GURU" cannot match "GURUPAY".
             ->assertSee('|acquirer::GURUPAY|', false);
+    }
+
+    public function test_a_filter_appears_the_moment_the_field_does(): void
+    {
+        $this->task();
+
+        // Nothing to install and no cache to clear: the filters are built from
+        // the projects on screen, so a field added this morning is a filter
+        // this morning.
+        $this->actingAs($this->member)
+            ->get(route('tasks.index'))
+            ->assertSuccessful()
+            ->assertDontSee('Any Acquirer');
+
+        $this->field();
+
+        $this->actingAs($this->member)
+            ->get(route('tasks.index'))
+            ->assertSuccessful()
+            ->assertSee('Any Acquirer')
+            ->assertSee('data-field-key="acquirer"', false);
+    }
+
+    public function test_a_free_text_field_gets_no_filter(): void
+    {
+        $this->field(['name' => 'Contract reference', 'type' => ProjectField::TYPE_TEXT, 'options' => null]);
+        $this->task();
+
+        // A dropdown of every sentence anybody has typed is not a filter.
+        $this->actingAs($this->member)
+            ->get(route('tasks.index'))
+            ->assertSuccessful()
+            ->assertDontSee('Any Contract reference');
+    }
+
+    public function test_the_same_field_on_two_projects_is_one_filter(): void
+    {
+        $this->field();
+        $this->task();
+
+        $second = Project::create(['user_id' => $this->member->id, 'name' => 'Second', 'status' => 'in_progress']);
+        $second->fields()->create([
+            'name' => 'Acquirer',
+            'type' => ProjectField::TYPE_SELECT,
+            'options' => ['GURUPAY', 'ORO'],
+        ]);
+        $this->actingAs($this->member);
+        Task::create(['user_id' => $this->member->id, 'project_id' => $second->id, 'title' => 'Other', 'priority' => 'low', 'status' => 'to_do']);
+
+        $html = $this->actingAs($this->member)->get(route('tasks.index'))->assertSuccessful()->getContent();
+
+        // Two dropdowns with the same name would look identical and quietly
+        // narrow each other; one holds both sets of choices.
+        $this->assertSame(1, substr_count($html, 'data-field-key="acquirer"'));
+        $this->assertStringContainsString('>ORO<', $html);
+        $this->assertStringContainsString('>MADFIN<', $html);
     }
 
     public function test_a_field_kept_off_the_card_is_still_on_the_task(): void

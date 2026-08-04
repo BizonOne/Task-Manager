@@ -100,16 +100,33 @@ class ProjectFields
     }
 
     /**
-     * The fields worth putting a filter on: the ones answered by choosing.
+     * The fields worth putting a filter on, and what each one can be filtered
+     * to.
+     *
+     * Only the fields answered by choosing: a free-text field has no list to
+     * offer, and a dropdown of every sentence anybody has typed is not a
+     * filter.
+     *
+     * Built from whatever projects are on screen, which is what makes a field
+     * added this morning a filter this morning — there is nothing to install
+     * and no cache to clear. Fields sharing a key across projects become one
+     * dropdown holding both sets of choices, rather than two that look
+     * identical and quietly narrow each other.
      *
      * @param  Collection<int, Project>|iterable<Project>  $projects
-     * @return Collection<int, ProjectField>
+     * @return Collection<int, array{key: string, name: string, choices: array<int, string>}>
      */
     public static function filterable(iterable $projects): Collection
     {
         return collect($projects)
             ->flatMap(fn ($project) => $project->fields)
             ->filter(fn (ProjectField $field) => $field->isChoice() && $field->choices() !== [])
+            ->groupBy('key')
+            ->map(fn (Collection $sameKey) => [
+                'key' => (string) $sameKey->first()->key,
+                'name' => (string) $sameKey->first()->name,
+                'choices' => $sameKey->flatMap->choices()->unique()->values()->all(),
+            ])
             ->values();
     }
 
