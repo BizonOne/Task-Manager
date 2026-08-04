@@ -71,8 +71,11 @@ class BoardNavigationTest extends TestCase
             ->get('/tasks')
             ->assertSuccessful()
             ->assertSee('data-owner="'.$this->owner->id.'"', false)
-            // Pipe-wrapped, so a filter for "|7|" cannot match user 17.
-            ->assertSee('data-assignees="|'.$this->mate->id.'|"', false);
+            // Pipe-wrapped, so a filter for "|7|" cannot match user 17. The
+            // named assignee is on the list too, so this checks containment
+            // rather than the whole attribute.
+            ->assertSee('|'.$this->mate->id.'|', false)
+            ->assertSee('|'.$this->owner->id.'|', false);
     }
 
     public function test_a_task_you_are_only_assigned_to_carries_its_real_owner(): void
@@ -84,7 +87,7 @@ class BoardNavigationTest extends TestCase
             ->get('/tasks')
             ->assertSuccessful()
             ->assertSee('data-owner="'.$this->mate->id.'"', false)
-            ->assertSee('data-assignees="|'.$this->owner->id.'|"', false);
+            ->assertSee('|'.$this->owner->id.'|', false);
     }
 
     public function test_the_project_board_offers_the_same_filter(): void

@@ -73,6 +73,12 @@ class TaskObserver
     {
         TaskActivity::record($task, TaskActivity::EVENT_CREATED);
 
+        // The person picked on the create form joins the assignee list, so the
+        // list is complete from the first moment. Without this the page said
+        // "assigned to X" while the Assignees card was empty, and the two
+        // drifted apart from there.
+        $this->keepAssigneeListInStep($task);
+
         // A task raised for somebody else is the moment they need to hear about
         // it — waiting for them to notice it on a board is not a handover.
         $this->notifyOwner($task);
@@ -93,6 +99,13 @@ class TaskObserver
 
         if ($task->wasChanged('status')) {
             $this->announceStatusChange($task);
+        }
+
+        // Changing "Assigned to" on the edit form puts that person on the task
+        // for real, rather than naming somebody the assignee list has never
+        // heard of.
+        if ($task->wasChanged('user_id')) {
+            $this->keepAssigneeListInStep($task);
         }
 
         foreach (self::TRACKED as $field) {
@@ -151,6 +164,22 @@ class TaskObserver
         foreach (User::whereIn('id', $recipients)->get() as $person) {
             Notifier::send($person, $notification);
         }
+    }
+
+    /**
+     * The person named as "Assigned to" is on the assignee list, always.
+     *
+     * Attached quietly rather than through TaskAssignment: the handover has
+     * already been recorded and the person already told, and doing it twice
+     * for one act is noise.
+     */
+    private function keepAssigneeListInStep(Task $task): void
+    {
+        if ($task->user_id === null) {
+            return;
+        }
+
+        $task->assignees()->syncWithoutDetaching([$task->user_id]);
     }
 
     /**
