@@ -35,6 +35,15 @@ return [
         ],
     ],
 
+    // Read-only, and only used by `php artisan jira:import`. The token is an
+    // Atlassian API token belonging to JIRA_USER; it is a password, so it
+    // lives in the environment and nowhere else.
+    'jira' => [
+        'url' => env('JIRA_URL'),
+        'user' => env('JIRA_USER'),
+        'token' => env('JIRA_TOKEN'),
+    ],
+
     'gemini' => [
         'key' => env('GEMINI_API_KEY'),
         // Tried in order; the first that answers wins. Keep the fastest model
