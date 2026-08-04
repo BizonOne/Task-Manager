@@ -624,11 +624,22 @@
                 </div>
                 @endif
 
+                {{-- The whole list, not one name out of it. Showing a single
+                     "Assigned To" while the Assignees card listed somebody else
+                     is exactly how the two came to contradict each other. --}}
                 <div class="ts-meta-row">
                     <div class="ts-meta-icon"><i class="bi bi-person"></i></div>
                     <div>
                         <div class="ts-meta-label">Assigned To</div>
-                        <div class="ts-meta-val">{{ $task->user->name }}</div>
+                        <div class="ts-meta-val">
+                            @php
+                                $assignedTo = collect([$task->user])
+                                    ->merge($task->assignees)
+                                    ->filter()
+                                    ->unique('id');
+                            @endphp
+                            {{ $assignedTo->pluck('name')->implode(', ') ?: 'No one yet' }}
+                        </div>
                     </div>
                 </div>
 
@@ -955,6 +966,11 @@
             <div class="ts-card">
                 <div class="ts-card-header">
                     <div class="ts-card-title"><i class="bi bi-people"></i> Assignees</div>
+                </div>
+                <div style="padding:0 16px; margin-top:-4px;">
+                    <p style="font-size:11px; color:#9ca3af; margin:0 0 4px;">
+                        Everyone working on this task. Remove yourself to hand it over.
+                    </p>
                 </div>
                 <div class="ts-card-body">
                     <div id="assignee-list" class="ts-assignees">
