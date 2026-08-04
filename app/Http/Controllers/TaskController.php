@@ -23,7 +23,9 @@ class TaskController extends Controller
             $tasks = Task::where('project_id', $project->id)
                 // The archive exists so finished work stops crowding the board.
                 ->active()
-                ->with('project')
+                // Assignees, so the board can be filtered by who is actually on
+                // a task and not only by who owns it.
+                ->with(['project', 'assignees'])
                 ->get()
                 ->groupBy('status');
         } else {
@@ -38,7 +40,7 @@ class TaskController extends Controller
                 ->whereHas('project', function ($query) {
                     $query->whereNotIn('status', ['completed', 'closed']);
                 })
-                ->with('project')
+                ->with(['project', 'assignees'])
                 ->get()
                 ->groupBy('status');
         }

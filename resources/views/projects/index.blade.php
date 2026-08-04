@@ -250,6 +250,7 @@
     }
 
     .cu-card-name {
+        display: block;
         font-size: 13px;
         font-weight: 700;
         color: #1a1d23;
@@ -257,7 +258,13 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        text-decoration: none;
     }
+
+    .cu-card-name:hover { color: #7c3aed; text-decoration: underline; }
+
+    /* The whole card opens the project; the buttons on it still do their own job. */
+    .project-item[data-open] { cursor: pointer; }
 
     .cu-card-desc {
         font-size: 11px;
@@ -404,11 +411,16 @@
         min-width: 0;
     }
 
-    .cu-list-name span {
+    .cu-list-name span,
+    .cu-list-name a {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        color: inherit;
+        text-decoration: none;
     }
+
+    .cu-list-name a:hover { color: #7c3aed; text-decoration: underline; }
 
     .cu-list-avatar {
         width: 26px;
@@ -636,7 +648,8 @@
                      data-name="{{ strtolower($project->name) }}"
                      data-status="{{ $project->status }}"
                      data-progress="{{ $progress }}"
-                     data-created="{{ $project->created_at->timestamp }}">
+                     data-created="{{ $project->created_at->timestamp }}"
+                     data-open="{{ route('projects.show', $project) }}">
                     <div class="cu-color-bar" style="background:{{ $projectColor }};"></div>
                     <div class="cu-card-body">
                         <div class="cu-card-top">
@@ -644,12 +657,12 @@
                                 {{ strtoupper(substr($project->name, 0, 1)) }}
                             </div>
                             <div class="flex-grow-1 min-w-0">
-                                <div class="cu-card-name" title="{{ $project->name }}">
+                                <a href="{{ route('projects.show', $project) }}" class="cu-card-name" title="{{ $project->name }}">
                                     {{ $project->name }}
                                     @if($project->user_id !== auth()->id())
                                         <span style="font-size:9px;font-weight:700;color:#7c3aed;background:#f5f3ff;border-radius:999px;padding:1px 6px;vertical-align:middle;">MEMBER</span>
                                     @endif
-                                </div>
+                                </a>
                                 <div class="cu-card-desc">{{ \App\Support\RichText::toText($project->description) ?: 'No description' }}</div>
                             </div>
                         </div>
@@ -731,10 +744,11 @@
                      data-name="{{ strtolower($project->name) }}"
                      data-status="{{ $project->status }}"
                      data-progress="{{ $progress }}"
-                     data-created="{{ $project->created_at->timestamp }}">
+                     data-created="{{ $project->created_at->timestamp }}"
+                     data-open="{{ route('projects.show', $project) }}">
                     <div class="cu-list-name">
                         <div class="cu-list-avatar" style="background:{{ $projectColor }};">{{ strtoupper(substr($project->name,0,1)) }}</div>
-                        <span title="{{ $project->name }}">{{ $project->name }}</span>
+                        <a href="{{ route('projects.show', $project) }}" title="{{ $project->name }}">{{ $project->name }}</a>
                     </div>
                     <div class="cu-list-meta col-meta">
                         @if($project->end_date)
