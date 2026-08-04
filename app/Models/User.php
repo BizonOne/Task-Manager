@@ -39,6 +39,15 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * Whether this person oversees other people's work rather than only their
+     * own. Decides how wide their reports and their archive reach.
+     */
+    public function oversees(): bool
+    {
+        return $this->hasAnyRole(['super_admin', 'admin']);
+    }
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var array

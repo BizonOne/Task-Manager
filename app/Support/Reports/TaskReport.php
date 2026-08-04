@@ -89,7 +89,10 @@ class TaskReport
     public function query(): Builder
     {
         $query = Task::query()
-            ->visibleTo($this->viewer)
+            // A member accounts for their own work; an admin oversees. Both
+            // the reports page and the archive read this, so they can never
+            // disagree about who is entitled to see what.
+            ->accountableTo($this->viewer)
             ->with(['project', 'user']);
 
         if ($projects = $this->filters['project_id']) {
@@ -245,6 +248,49 @@ class TaskReport
         }
 
         return $parts === [] ? 'All tasks you have access to' : implode(' · ', $parts);
+    }
+
+    /**
+     * Projects a person may narrow a report or the archive to.
+     *
+     * Lives here rather than in the two controllers that need it: the archive
+     * and the reports page must offer the same choices, or one of them ends up
+     * offering a project whose tasks the other refuses to show.
+     *
+     * @return Collection<int, Project>
+     */
+    public static function projectOptionsFor(User $user): Collection
+    {
+        if ($user->isSuperAdmin()) {
+            return Project::orderBy('name')->get(['id', 'name']);
+        }
+
+        if ($user->oversees()) {
+            return Project::where('user_id', $user->id)
+                ->orWhereHas('users', fn ($q) => $q->where('users.id', $user->id))
+                ->orderBy('name')
+                ->get(['id', 'name']);
+        }
+
+        // A member's report only ever covers their own tasks, so the only
+        // projects worth offering are the ones those tasks are in.
+        return Project::whereHas('tasks', fn ($q) => $q->involving($user))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
+    /**
+     * People a person may narrow a report or the archive to.
+     *
+     * @return Collection<int, User>
+     */
+    public static function peopleOptionsFor(User $user): Collection
+    {
+        // A member can only ever report on themselves. Offering the full list
+        // would be useless to them and hand out a roster of everyone here.
+        return $user->oversees()
+            ? User::orderBy('name')->get(['id', 'name'])
+            : User::whereKey($user->id)->get(['id', 'name']);
     }
 
     /**

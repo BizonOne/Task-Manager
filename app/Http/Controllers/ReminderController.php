@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Reminder;
 use App\Support\Dates;
+use App\Support\Permissions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -170,7 +171,7 @@ class ReminderController extends Controller
 
     public function show(Reminder $reminder)
     {
-        if ($reminder->user_id !== Auth::id()) {
+        if (! Permissions::allows(Auth::user(), 'view', $reminder)) {
             abort(403);
         }
 
@@ -179,7 +180,7 @@ class ReminderController extends Controller
 
     public function edit(Reminder $reminder)
     {
-        if ($reminder->user_id !== Auth::id()) {
+        if (! Permissions::allows(Auth::user(), 'view', $reminder)) {
             abort(403);
         }
 
@@ -202,7 +203,7 @@ class ReminderController extends Controller
 
     public function update(Request $request, Reminder $reminder)
     {
-        if ($reminder->user_id !== Auth::id()) {
+        if (! Permissions::allows(Auth::user(), 'view', $reminder)) {
             abort(403);
         }
 
@@ -240,7 +241,7 @@ class ReminderController extends Controller
 
     public function destroy(Reminder $reminder)
     {
-        if ($reminder->user_id !== Auth::id()) {
+        if (! Permissions::allows(Auth::user(), 'view', $reminder)) {
             abort(403);
         }
 
@@ -251,7 +252,7 @@ class ReminderController extends Controller
 
     public function toggleComplete(Reminder $reminder): JsonResponse
     {
-        if ($reminder->user_id !== Auth::id()) {
+        if (! Permissions::allows(Auth::user(), 'view', $reminder)) {
             abort(403);
         }
 
@@ -273,7 +274,7 @@ class ReminderController extends Controller
 
     public function snooze(Request $request, Reminder $reminder): JsonResponse
     {
-        if ($reminder->user_id !== Auth::id()) {
+        if (! Permissions::allows(Auth::user(), 'view', $reminder)) {
             abort(403);
         }
 
@@ -291,7 +292,7 @@ class ReminderController extends Controller
 
     public function duplicate(Reminder $reminder)
     {
-        if ($reminder->user_id !== Auth::id()) {
+        if (! Permissions::allows(Auth::user(), 'view', $reminder)) {
             abort(403);
         }
 

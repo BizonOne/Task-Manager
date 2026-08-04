@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Permissions;
 use App\Support\RichText;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -139,8 +140,18 @@ class Project extends Model
      */
     public function isAccessibleBy(User $user): bool
     {
-        return $user->isSuperAdmin()
-            || $this->user_id === $user->id
+        return Permissions::allows($user, 'view', $this);
+    }
+
+    /**
+     * Raw membership: the owner, or someone on the team.
+     *
+     * Deliberately free of any permission check — the permission layer asks
+     * this question to answer "team", so it cannot be the answer as well.
+     */
+    public function hasMember(User $user): bool
+    {
+        return $this->user_id === $user->id
             || $this->users()->where('users.id', $user->id)->exists();
     }
 

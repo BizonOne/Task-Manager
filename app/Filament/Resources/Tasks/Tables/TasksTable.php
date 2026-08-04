@@ -33,8 +33,14 @@ class TasksTable
                     ->searchable()
                     ->sortable()
                     ->toggleable(),
-                TextColumn::make('user.name')
+                TextColumn::make('creator.name')
                     ->label('Owner')
+                    ->description(fn (Task $record): string => 'raised this task')
+                    ->searchable()
+                    ->sortable()
+                    ->toggleable(),
+                TextColumn::make('user.name')
+                    ->label('Assigned to')
                     ->searchable()
                     ->sortable()
                     ->toggleable(),

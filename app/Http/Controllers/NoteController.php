@@ -3,9 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Note;
+use App\Support\Permissions;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Http\JsonResponse;
 
 class NoteController extends Controller
 {
@@ -41,7 +42,7 @@ class NoteController extends Controller
         if ($request->ajax()) {
             return response()->json([
                 'html' => view('notes.partials.notes-grid', compact('notes'))->render(),
-                'count' => $notes->count()
+                'count' => $notes->count(),
             ]);
         }
 
@@ -86,15 +87,16 @@ class NoteController extends Controller
 
     public function show(Note $note)
     {
-        if ($note->user_id !== Auth::id()) {
+        if (! Permissions::allows(Auth::user(), 'view', $note)) {
             abort(403);
         }
+
         return view('notes.show', compact('note'));
     }
 
     public function edit(Note $note)
     {
-        if ($note->user_id !== Auth::id()) {
+        if (! Permissions::allows(Auth::user(), 'view', $note)) {
             abort(403);
         }
 
@@ -110,7 +112,7 @@ class NoteController extends Controller
 
     public function update(Request $request, Note $note)
     {
-        if ($note->user_id !== Auth::id()) {
+        if (! Permissions::allows(Auth::user(), 'view', $note)) {
             abort(403);
         }
 
@@ -138,36 +140,37 @@ class NoteController extends Controller
 
     public function destroy(Note $note)
     {
-        if ($note->user_id !== Auth::id()) {
+        if (! Permissions::allows(Auth::user(), 'view', $note)) {
             abort(403);
         }
 
         $note->delete();
+
         return redirect()->route('notes.index')->with('success', 'Note deleted successfully.');
     }
 
     public function toggleFavorite(Note $note): JsonResponse
     {
-        if ($note->user_id !== Auth::id()) {
+        if (! Permissions::allows(Auth::user(), 'view', $note)) {
             abort(403);
         }
 
-        $note->update(['is_favorite' => !$note->is_favorite]);
+        $note->update(['is_favorite' => ! $note->is_favorite]);
 
         return response()->json([
             'success' => true,
-            'is_favorite' => $note->is_favorite
+            'is_favorite' => $note->is_favorite,
         ]);
     }
 
     public function duplicate(Note $note)
     {
-        if ($note->user_id !== Auth::id()) {
+        if (! Permissions::allows(Auth::user(), 'view', $note)) {
             abort(403);
         }
 
         $newNote = $note->replicate();
-        $newNote->title = $note->title . ' (Copy)';
+        $newNote->title = $note->title.' (Copy)';
         $newNote->save();
 
         return redirect()->route('notes.index')->with('success', 'Note duplicated successfully.');

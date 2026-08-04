@@ -235,11 +235,12 @@
         $statuses = $statuses ?? \App\Models\TaskStatus::ordered();
         $totalCnt = collect($tasks)->flatten()->count();
         $hasAny   = $totalCnt > 0;
-        // Everyone who appears on the board, owner or assignee. Built from the
-        // tasks on screen rather than the whole user table, so the dropdown
-        // never offers a person who would filter everything away.
+        // Everyone who appears on the board — whoever raised a task, whoever
+        // it is assigned to, and anyone else on it. Built from the tasks on
+        // screen rather than the whole user table, so the dropdown never
+        // offers a person who would filter everything away.
         $boardPeople = collect($tasks)->flatten()
-            ->flatMap(fn ($t) => collect([$t->user])->merge($t->assignees))
+            ->flatMap(fn ($t) => collect([$t->user, $t->creator])->merge($t->assignees))
             ->filter()
             ->unique('id')
             ->sortBy('name')
@@ -271,7 +272,7 @@
                      were merely added to. These two separate them. --}}
                 @unless(isset($project))
                     <optgroup label="Me">
-                        <option value="owner:{{ auth()->id() }}">Owned by me</option>
+                        <option value="creator:{{ auth()->id() }}">Raised by me</option>
                         <option value="assignee:{{ auth()->id() }}">Assigned to me</option>
                     </optgroup>
                 @endunless
@@ -343,6 +344,7 @@
              data-priority="{{ $task->priority }}"
              data-project="{{ $task->project_id }}"
              data-owner="{{ $task->user_id }}"
+             data-creator="{{ $task->created_by }}"
              data-assignees="|{{ $task->assignees->pluck('id')->implode('|') }}|"
              data-open="{{ route('tasks.show', $task->id) }}">
             <div>
@@ -400,7 +402,8 @@
                 <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>New Task</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ isset($project) ? route('projects.tasks.store', $project) : route('tasks.store') }}" method="POST">
+            <form action="{{ isset($project) ? route('projects.tasks.store', $project) : route('tasks.store') }}"
+                  method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-body">
                     <div class="row g-3">
@@ -464,6 +467,17 @@
                             </div>
                         </div>
                     </div>
+                    <div class="cu-field">
+                        {{-- The spec, the screenshot or the contract usually
+                             exists before the task does; making people create
+                             the task first and attach afterwards is a step for
+                             the software's convenience, not theirs. --}}
+                        <label class="cu-label">Attachments</label>
+                        <input type="file" name="attachments[]" class="cu-input" multiple
+                               accept="{{ \App\Support\Uploads::acceptAttribute() }}">
+                        <span style="font-size:11px;color:#8a8f98;">Up to 10 files, {{ \App\Support\Uploads::maxMegabytes() }} MB each.</span>
+                    </div>
+
                     <input type="hidden" name="status" id="task_status" value="{{ \App\Models\TaskStatus::defaultKey() }}">
                 </div>
                 <div class="modal-footer">
@@ -504,17 +518,18 @@ document.addEventListener('DOMContentLoaded', function () {
     const projectSelect  = document.getElementById('cuProject');
     const assigneeSelect = document.getElementById('cuAssignee');
 
-    // "owner:7"    — 7 owns it
-    // "assignee:7" — 7 was added to it, whoever owns it
-    // "any:7"      — either of the two
+    // "creator:7"  — 7 raised it
+    // "assignee:7" — 7 is the one it is on, or was added to it
+    // "any:7"      — any of the three
     function matchesAssignee(el, value) {
         if (!value) return true;
         const [kind, id] = value.split(':');
-        const owns     = el.dataset.owner === id;
-        const assigned = (el.dataset.assignees || '').includes(`|${id}|`);
-        if (kind === 'owner')    return owns;
+        const raised   = el.dataset.creator === id;
+        const assigned = el.dataset.owner === id
+                      || (el.dataset.assignees || '').includes(`|${id}|`);
+        if (kind === 'creator')  return raised;
         if (kind === 'assignee') return assigned;
-        return owns || assigned;
+        return raised || assigned;
     }
 
     function applyFilters() {

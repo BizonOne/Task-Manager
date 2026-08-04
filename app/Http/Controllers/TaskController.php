@@ -25,22 +25,24 @@ class TaskController extends Controller
                 ->active()
                 // Assignees, so the board can be filtered by who is actually on
                 // a task and not only by who owns it.
-                ->with(['project', 'assignees'])
+                ->with(['project', 'assignees', 'creator'])
                 ->get()
                 ->groupBy('status');
         } else {
-            // "My tasks": tasks the user owns or is assigned to, in active
-            // projects. A super admin oversees everything and sees every task.
-            $tasks = Task::active()->when(! $user->isSuperAdmin(), function ($query) use ($user) {
-                $query->where(function ($q) use ($user) {
-                    $q->where('user_id', $user->id)
-                        ->orWhereHas('assignees', fn ($a) => $a->where('users.id', $user->id));
-                });
-            })
+            // "My tasks", in active projects. A super admin oversees
+            // everything and sees every task.
+            //
+            // involving(): raised by you, assigned to you, or added to you.
+            // Work you raised for a colleague belongs on your board too — you
+            // asked for it, and you are the one waiting on it.
+            $tasks = Task::active()->when(
+                ! $user->isSuperAdmin(),
+                fn ($query) => $query->involving($user),
+            )
                 ->whereHas('project', function ($query) {
                     $query->whereNotIn('status', ['completed', 'closed']);
                 })
-                ->with(['project', 'assignees'])
+                ->with(['project', 'assignees', 'creator'])
                 ->get()
                 ->groupBy('status');
         }
@@ -83,6 +85,8 @@ class TaskController extends Controller
             'priority' => 'required|in:low,medium,high',
             'status' => ['required', TaskStatus::validationRule()],
             'estimated_hours' => 'nullable|numeric|min:0.5',
+            'attachments' => 'sometimes|array|max:10',
+            'attachments.*' => Uploads::rule(),
         ]);
 
         // You may only create tasks inside a project you own or belong to.
@@ -100,7 +104,13 @@ class TaskController extends Controller
                 ->withErrors(['user_id' => 'That person is not a member of this project.']);
         }
 
-        Task::create(array_merge($request->all(), ['user_id' => $owner->id]));
+        $task = Task::create(array_merge($request->except('attachments'), ['user_id' => $owner->id]));
+
+        // The spec usually exists before the task does, so a file can come
+        // along with it rather than needing a second trip.
+        foreach ($request->file('attachments') ?: [] as $upload) {
+            Uploads::store($upload, Auth::user(), task: $task);
+        }
 
         // Redirect based on context
         if ($project) {

@@ -49,6 +49,26 @@ class Uploads
     }
 
     /**
+     * The `accept` attribute for a file input, built from the same list the
+     * validator uses — so the picker and the server never disagree about what
+     * a person is allowed to choose.
+     */
+    public static function acceptAttribute(): string
+    {
+        return collect(explode(',', self::ALLOWED_MIMES))
+            ->map(fn (string $extension): string => '.'.trim($extension))
+            ->implode(',');
+    }
+
+    /**
+     * The size limit as a person would say it.
+     */
+    public static function maxMegabytes(): int
+    {
+        return (int) round(self::MAX_KILOBYTES / 1024);
+    }
+
+    /**
      * Store an upload and record it, optionally hung on a task or a comment.
      */
     public static function store(

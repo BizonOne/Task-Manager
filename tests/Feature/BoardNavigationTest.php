@@ -55,9 +55,9 @@ class BoardNavigationTest extends TestCase
             ->get('/tasks')
             ->assertSuccessful()
             ->assertSee('All assignees')
-            // Owning it and being added to it are different things, and the
+            // Raising a task and being given one are different things, and the
             // board used to mix them together with no way to separate them.
-            ->assertSee('Owned by me')
+            ->assertSee('Raised by me')
             ->assertSee('Assigned to me')
             ->assertSee('Mira Mate');
     }

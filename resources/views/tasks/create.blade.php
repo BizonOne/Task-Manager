@@ -25,7 +25,7 @@
             </div>
 
             <div class="form-body">
-                <form action="{{ route('tasks.store') }}" method="POST" id="createTaskForm">
+                <form action="{{ route('tasks.store') }}" method="POST" id="createTaskForm" enctype="multipart/form-data">
                     @csrf
 
                     <div class="form-group">
@@ -132,6 +132,22 @@
                         </div>
                         @error('priority')
                             <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="attachments">Attachments</label>
+                        <input type="file"
+                               name="attachments[]"
+                               id="attachments"
+                               multiple
+                               accept="{{ \App\Support\Uploads::acceptAttribute() }}"
+                               class="form-control {{ $errors->has('attachments.*') ? 'is-invalid' : '' }}">
+                        <small class="text-muted">
+                            Up to 10 files, {{ \App\Support\Uploads::maxMegabytes() }} MB each. They land on the task straight away.
+                        </small>
+                        @error('attachments.*')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
                     </div>
 

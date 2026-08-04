@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Permissions;
 use App\Support\RichText;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -30,6 +31,14 @@ class Task extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Who raised the task — not necessarily who it is for.
+     */
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function project()
@@ -92,6 +101,39 @@ class Task extends Model
                     ->where('projects.user_id', $user->id)
                     ->orWhereHas('users', fn ($u) => $u->where('users.id', $user->id)));
         });
+    }
+
+    /**
+     * Limit to the tasks a person is personally on: they raised it, or they
+     * were assigned to it.
+     *
+     * Narrower than visibleTo() on purpose — it leaves out the rest of the
+     * work in projects they merely belong to.
+     */
+    public function scopeInvolving($query, User $user)
+    {
+        return $query->where(function ($q) use ($user) {
+            $q->where('tasks.user_id', $user->id)
+                ->orWhere('tasks.created_by', $user->id)
+                ->orWhereHas('assignees', fn ($a) => $a->where('users.id', $user->id));
+        });
+    }
+
+    /**
+     * What a person's reports and archive cover.
+     *
+     * A member accounts for their own work — what they raised and what they
+     * were given — not for everything happening in a project they are on.
+     * Belonging to a project is a reason to see its board, not a reason to
+     * pull colleagues' tasks into your report.
+     *
+     * Admins oversee, so they keep the wider view.
+     */
+    public function scopeAccountableTo($query, User $user)
+    {
+        return $user->oversees()
+            ? $query->visibleTo($user)
+            : $query->involving($user);
     }
 
     /**
@@ -311,8 +353,7 @@ class Task extends Model
      */
     public function isAccessibleBy(User $user): bool
     {
-        return $user->isSuperAdmin()
-            || $this->participants()->contains('id', $user->id);
+        return Permissions::allows($user, 'view', $this);
     }
 
     /**
@@ -321,8 +362,9 @@ class Task extends Model
      */
     public function isManageableBy(User $user): bool
     {
-        return $user->isSuperAdmin()
-            || $this->user_id === $user->id
+        // A project manager keeps their say over the project's work regardless
+        // of the matrix — managing the project is what the role is for.
+        return Permissions::allows($user, 'edit', $this)
             || ($this->project && $this->project->isManagedBy($user));
     }
 }

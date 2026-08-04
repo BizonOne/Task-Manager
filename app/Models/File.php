@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Permissions;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -62,11 +63,7 @@ class File extends Model
      */
     public function isAccessibleBy(User $user): bool
     {
-        if ($user->isSuperAdmin() || $this->user_id === $user->id) {
-            return true;
-        }
-
-        return $this->task !== null && $this->task->isAccessibleBy($user);
+        return Permissions::allows($user, 'view', $this);
     }
 
     /**
@@ -75,11 +72,9 @@ class File extends Model
      */
     public function isManageableBy(User $user): bool
     {
-        if ($user->isSuperAdmin() || $this->user_id === $user->id) {
-            return true;
-        }
-
-        return $this->task !== null && $this->task->isManageableBy($user);
+        // Whoever manages the task a file hangs on manages the file too.
+        return Permissions::allows($user, 'edit', $this)
+            || ($this->task !== null && $this->task->isManageableBy($user));
     }
 
     /**

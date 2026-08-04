@@ -2,10 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Project;
 use App\Models\Task;
 use App\Models\TaskStatus;
-use App\Models\User;
 use App\Support\Archive;
 use App\Support\Reports\TaskReport;
 use Illuminate\Http\Request;
@@ -29,21 +27,15 @@ class ArchiveController extends Controller
             'archive' => 'archived',
         ]);
 
-        $report = new TaskReport(Auth::user(), $filters);
         $user = Auth::user();
-
-        $projects = $user->isSuperAdmin()
-            ? Project::orderBy('name')->get(['id', 'name'])
-            : Project::where('user_id', $user->id)
-                ->orWhereHas('users', fn ($q) => $q->where('users.id', $user->id))
-                ->orderBy('name')
-                ->get(['id', 'name']);
+        $report = new TaskReport($user, $filters);
 
         return view('archive.index', [
             'report' => $report,
             'tasks' => $report->tasks(),
-            'projects' => $projects,
-            'people' => User::orderBy('name')->get(['id', 'name']),
+            // Same choices as the reports page, from the same place.
+            'projects' => TaskReport::projectOptionsFor($user),
+            'people' => TaskReport::peopleOptionsFor($user),
             'statuses' => TaskStatus::ordered(),
             'dateFields' => TaskReport::DATE_FIELDS,
             'afterDays' => Archive::afterDays(),

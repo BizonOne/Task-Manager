@@ -13,6 +13,7 @@
      data-priority="{{ $task->priority }}"
      data-project="{{ $task->project_id }}"
      data-owner="{{ $task->user_id }}"
+     data-creator="{{ $task->created_by }}"
      data-assignees="{{ $assigneeIds }}"
      data-open="{{ route('tasks.show', $task->id) }}"
      draggable="true"
@@ -37,11 +38,12 @@
                 @endif
             </span>
         @endif
-        {{-- Owner first, then anyone else assigned — otherwise filtering by a
-             person shows cards with somebody else's initial on them. --}}
+        {{-- The person it is assigned to first, then anyone else on it —
+             otherwise filtering by a person shows cards with somebody else's
+             initial on them. --}}
         <div class="cu-people" style="margin-left:auto;">
             @if($task->user)
-                <div class="cu-assignee" title="{{ $task->user->name }} (owner)">
+                <div class="cu-assignee" title="{{ $task->user->name }} — assigned">
                     {{ strtoupper(substr($task->user->name, 0, 1)) }}
                 </div>
             @endif
