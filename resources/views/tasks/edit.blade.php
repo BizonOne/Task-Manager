@@ -445,6 +445,14 @@
                         <div style="margin-top:12px;">
                             @include('tasks._fields', ['projects' => $projects, 'task' => $task])
                         </div>
+
+                        <div class="cu-field" style="margin-top:12px;margin-bottom:0;">
+                            <label for="tags" class="cu-label">Tags</label>
+                            <input type="text" name="tags" id="tags" class="cu-input no-icon" maxlength="400"
+                                   placeholder="urgent, compliance"
+                                   value="{{ old('tags', \App\Support\Tags::toInput($task)) }}">
+                            <small style="font-size:11px;color:#8a8f98;">Separate with commas.</small>
+                        </div>
                     </div>
                 </div>
 

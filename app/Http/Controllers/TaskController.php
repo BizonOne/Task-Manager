@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\Tag;
 use App\Models\Task;
 use App\Models\TaskStatus;
 use App\Models\User;
 use App\Support\ProjectFields;
+use App\Support\Tags;
 use App\Support\Uploads;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -26,7 +28,7 @@ class TaskController extends Controller
                 ->active()
                 // Assignees, so the board can be filtered by who is actually on
                 // a task and not only by who owns it.
-                ->with(['project.fields', 'assignees', 'creator', 'fieldValues'])
+                ->with(['project.fields', 'assignees', 'creator', 'fieldValues', 'tags'])
                 ->get()
                 ->groupBy('status');
         } else {
@@ -43,7 +45,7 @@ class TaskController extends Controller
                 ->whereHas('project', function ($query) {
                     $query->whereNotIn('status', ['completed', 'closed']);
                 })
-                ->with(['project.fields', 'assignees', 'creator', 'fieldValues'])
+                ->with(['project.fields', 'assignees', 'creator', 'fieldValues', 'tags'])
                 ->get()
                 ->groupBy('status');
         }
@@ -66,8 +68,14 @@ class TaskController extends Controller
         // "my tasks" offers whatever the projects it is showing have.
         $projects->load('fields');
         $fieldFilters = ProjectFields::filterable($project ? [$project->load('fields')] : $projects);
+        // Tags are shared by every board, so the dropdown offers the ones
+        // actually on screen rather than every tag anyone has ever typed.
+        $tagFilters = collect($tasks)->flatten()->flatMap->tags->unique('id')->sortBy('name')->values();
+        // Everything anyone has used, so typing an existing tag is a choice
+        // rather than a spelling test.
+        $tagVocabulary = Tag::orderBy('name')->get();
 
-        return view('tasks.index', compact('tasks', 'projects', 'users', 'project', 'statuses', 'fieldFilters'));
+        return view('tasks.index', compact('tasks', 'projects', 'users', 'project', 'statuses', 'fieldFilters', 'tagFilters', 'tagVocabulary'));
     }
 
     public function create()
@@ -91,6 +99,7 @@ class TaskController extends Controller
             'priority' => 'required|in:low,medium,high',
             'status' => ['required', TaskStatus::validationRule()],
             'estimated_hours' => 'nullable|numeric|min:0.5',
+            'tags' => 'nullable|string|max:400',
             'attachments' => 'sometimes|array|max:10',
             'attachments.*' => Uploads::rule(),
         ]);
@@ -110,10 +119,12 @@ class TaskController extends Controller
                 ->withErrors(['user_id' => 'That person is not a member of this project.']);
         }
 
-        $task = Task::create(array_merge($request->except(['attachments', 'fields']), ['user_id' => $owner->id]));
+        $task = Task::create(array_merge($request->except(['attachments', 'fields', 'tags']), ['user_id' => $owner->id]));
 
-        // Whatever this project decided to record on its tasks.
+        // Whatever this project decided to record on its tasks, and whatever
+        // the person filing it wanted to write on this one.
         ProjectFields::apply($task, $request->input('fields'));
+        Tags::apply($task, $request->input('tags'));
 
         // The spec usually exists before the task does, so a file can come
         // along with it rather than needing a second trip.
@@ -133,7 +144,7 @@ class TaskController extends Controller
     {
         // Owner, project owner, assignees and project team can all view a task.
         abort_unless($task->isAccessibleBy(Auth::user()), 403);
-        $task->load('user', 'project.fields', 'fieldValues', 'checklistItems', 'assignees', 'comments.user', 'comments.files', 'activities.user', 'files.user',
+        $task->load('user', 'project.fields', 'fieldValues', 'tags', 'checklistItems', 'assignees', 'comments.user', 'comments.files', 'activities.user', 'files.user',
             'outgoingLinks.linkedTask.project', 'incomingLinks.task.project');
 
         // The task owner or a project manager may add/remove assignees.
@@ -171,6 +182,7 @@ class TaskController extends Controller
             'status' => ['required', TaskStatus::validationRule()],
             'estimated_hours' => 'nullable|numeric|min:0.5',
             'user_id' => 'nullable|exists:users,id',
+            'tags' => 'nullable|string|max:400',
         ]);
 
         // The edit form can reassign the task, so hold the new owner to the
@@ -185,9 +197,10 @@ class TaskController extends Controller
             }
         }
 
-        $task->update($request->except('fields'));
+        $task->update($request->except(['fields', 'tags']));
 
         ProjectFields::apply($task, $request->input('fields'));
+        Tags::apply($task, $request->input('tags'));
 
         return redirect()->route('tasks.show', $task->id)->with('success', 'Task updated successfully.');
     }

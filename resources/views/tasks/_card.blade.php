@@ -18,6 +18,7 @@
      data-creator="{{ $task->created_by }}"
      data-assignees="{{ $assigneeIds }}"
      data-fields="{{ \App\Support\ProjectFields::tokens($task) }}"
+     data-tags="{{ \App\Support\Tags::tokens($task) }}"
      data-open="{{ route('tasks.show', $task->id) }}"
      draggable="true"
      style="border-left:3px solid {{ $leftColor }};">
@@ -32,10 +33,13 @@
 
     {{-- What this project records on its tasks, on the card where the board
          can be read at a glance — the acquirer, the client, the region. --}}
-    @if($fieldChips->isNotEmpty())
+    @if($fieldChips->isNotEmpty() || $task->tags->isNotEmpty())
         <div class="cu-task-fields">
             @foreach($fieldChips as $chip)
                 <span class="cu-field-chip" title="{{ $chip['name'] }}">{{ $chip['text'] }}</span>
+            @endforeach
+            @foreach($task->tags as $tag)
+                <span class="cu-tag-chip" style="background:{{ $tag->palette()['bg'] }};color:{{ $tag->palette()['text'] }};">#{{ $tag->name }}</span>
             @endforeach
         </div>
     @endif
