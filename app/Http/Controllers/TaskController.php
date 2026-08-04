@@ -83,6 +83,8 @@ class TaskController extends Controller
             'priority' => 'required|in:low,medium,high',
             'status' => ['required', TaskStatus::validationRule()],
             'estimated_hours' => 'nullable|numeric|min:0.5',
+            'attachments' => 'sometimes|array|max:10',
+            'attachments.*' => Uploads::rule(),
         ]);
 
         // You may only create tasks inside a project you own or belong to.
@@ -100,7 +102,13 @@ class TaskController extends Controller
                 ->withErrors(['user_id' => 'That person is not a member of this project.']);
         }
 
-        Task::create(array_merge($request->all(), ['user_id' => $owner->id]));
+        $task = Task::create(array_merge($request->except('attachments'), ['user_id' => $owner->id]));
+
+        // The spec usually exists before the task does, so a file can come
+        // along with it rather than needing a second trip.
+        foreach ($request->file('attachments') ?: [] as $upload) {
+            Uploads::store($upload, Auth::user(), task: $task);
+        }
 
         // Redirect based on context
         if ($project) {

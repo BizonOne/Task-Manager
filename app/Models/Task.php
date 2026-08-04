@@ -32,6 +32,14 @@ class Task extends Model
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * Who raised the task — not necessarily who it is for.
+     */
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
     public function project()
     {
         return $this->belongsTo(Project::class);
@@ -105,6 +113,7 @@ class Task extends Model
     {
         return $query->where(function ($q) use ($user) {
             $q->where('tasks.user_id', $user->id)
+                ->orWhere('tasks.created_by', $user->id)
                 ->orWhereHas('assignees', fn ($a) => $a->where('users.id', $user->id));
         });
     }
@@ -355,6 +364,10 @@ class Task extends Model
     {
         return $user->isSuperAdmin()
             || $this->user_id === $user->id
+            // The person who wrote it can edit it. Raising work for a
+            // colleague used to mean losing the ability to fix your own
+            // wording, because the author was never recorded.
+            || ($this->created_by !== null && $this->created_by === $user->id)
             || ($this->project && $this->project->isManagedBy($user));
     }
 }

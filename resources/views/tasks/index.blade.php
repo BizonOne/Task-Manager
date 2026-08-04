@@ -400,7 +400,8 @@
                 <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>New Task</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ isset($project) ? route('projects.tasks.store', $project) : route('tasks.store') }}" method="POST">
+            <form action="{{ isset($project) ? route('projects.tasks.store', $project) : route('tasks.store') }}"
+                  method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-body">
                     <div class="row g-3">
@@ -464,6 +465,17 @@
                             </div>
                         </div>
                     </div>
+                    <div class="cu-field">
+                        {{-- The spec, the screenshot or the contract usually
+                             exists before the task does; making people create
+                             the task first and attach afterwards is a step for
+                             the software's convenience, not theirs. --}}
+                        <label class="cu-label">Attachments</label>
+                        <input type="file" name="attachments[]" class="cu-input" multiple
+                               accept="{{ \App\Support\Uploads::acceptAttribute() }}">
+                        <span style="font-size:11px;color:#8a8f98;">Up to 10 files, {{ \App\Support\Uploads::maxMegabytes() }} MB each.</span>
+                    </div>
+
                     <input type="hidden" name="status" id="task_status" value="{{ \App\Models\TaskStatus::defaultKey() }}">
                 </div>
                 <div class="modal-footer">

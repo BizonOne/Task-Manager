@@ -61,6 +61,13 @@ class TaskObserver
         $task->archived_at = null;
     }
 
+    public function creating(Task $task): void
+    {
+        // Who raised it, recorded once. Deliberately not fillable, so a form
+        // cannot claim authorship of somebody else's task.
+        $task->created_by ??= Auth::id();
+    }
+
     public function created(Task $task): void
     {
         TaskActivity::record($task, TaskActivity::EVENT_CREATED);
