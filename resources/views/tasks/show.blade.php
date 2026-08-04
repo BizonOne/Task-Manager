@@ -720,6 +720,24 @@
                 </div>
                 @endif
 
+                {{-- Imported work keeps a way back to where it came from, so
+                     "what was the original ticket?" has an answer. --}}
+                @if($task->external_key)
+                <div class="ts-meta-row">
+                    <div class="ts-meta-icon"><i class="bi bi-box-arrow-up-right"></i></div>
+                    <div>
+                        <div class="ts-meta-label">Imported from</div>
+                        <div class="ts-meta-val">
+                            @if($task->external_url)
+                                <a href="{{ $task->external_url }}" target="_blank" rel="noopener noreferrer">{{ $task->external_key }}</a>
+                            @else
+                                {{ $task->external_key }}
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                @endif
+
                 @if($checklistTotal > 0)
                 <div class="ts-divider" style="margin-top:16px;"></div>
                 <div style="margin-bottom:4px;">
