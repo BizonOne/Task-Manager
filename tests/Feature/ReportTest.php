@@ -36,6 +36,12 @@ class ReportTest extends TestCase
         $this->mate = User::create(['name' => 'Mate', 'email' => 'mate@example.com', 'password' => bcrypt('secret')]);
         $this->outsider = User::create(['name' => 'Outsider', 'email' => 'out@example.com', 'password' => bcrypt('secret')]);
 
+        // Owner runs reports across a project they manage, so they hold the
+        // overseeing role. Mate is a plain member and only accounts for their
+        // own work — see ReportScopeTest for that rule in detail.
+        $this->owner->assignRole('admin');
+        $this->mate->assignRole('member');
+
         $this->apollo = Project::create(['user_id' => $this->owner->id, 'name' => 'Apollo', 'status' => 'in_progress']);
         $this->apollo->users()->attach($this->mate->id, ['role' => 'member']);
 
@@ -57,7 +63,8 @@ class ReportTest extends TestCase
 
     public function test_a_report_covers_only_the_tasks_you_can_reach(): void
     {
-        $this->task(['title' => 'Apollo work']);
+        $mine = $this->task(['title' => 'Apollo work']);
+        $mine->assignees()->attach($this->mate->id);
         Task::create([
             'user_id' => $this->outsider->id, 'project_id' => $this->skunkworks->id,
             'title' => 'Secret work', 'priority' => 'low', 'status' => 'to_do',
@@ -85,6 +92,8 @@ class ReportTest extends TestCase
 
     public function test_the_filter_form_only_offers_projects_you_belong_to(): void
     {
+        $this->task(['title' => 'Apollo work'])->assignees()->attach($this->mate->id);
+
         $this->actingAs($this->mate)->get(route('reports.index'))
             ->assertSuccessful()
             ->assertSee('Apollo')

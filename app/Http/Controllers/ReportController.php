@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\TaskStatus;
-use App\Models\User;
 use App\Support\Reports\PdfExport;
 use App\Support\Reports\SpreadsheetExport;
 use App\Support\Reports\TaskReport;
@@ -58,16 +57,9 @@ class ReportController extends Controller
     {
         $user = Auth::user();
 
-        $projects = $user->isSuperAdmin()
-            ? Project::orderBy('name')->get(['id', 'name'])
-            : Project::where('user_id', $user->id)
-                ->orWhereHas('users', fn ($q) => $q->where('users.id', $user->id))
-                ->orderBy('name')
-                ->get(['id', 'name']);
-
         return [
-            'projects' => $projects,
-            'people' => User::orderBy('name')->get(['id', 'name']),
+            'projects' => TaskReport::projectOptionsFor($user),
+            'people' => TaskReport::peopleOptionsFor($user),
             'statuses' => TaskStatus::ordered(),
             'dateFields' => TaskReport::DATE_FIELDS,
             'archiveStates' => TaskReport::ARCHIVE_STATES,
