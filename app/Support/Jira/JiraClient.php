@@ -17,15 +17,17 @@ use RuntimeException;
 class JiraClient
 {
     /**
-     * The fields worth asking for. Requesting them by name rather than taking
-     * `*all` keeps the responses small — a Jira issue carries a hundred custom
-     * fields nobody here will ever read.
+     * Every field a Jira board shows, custom ones included — a team's real
+     * data often lives in a field they added themselves, and on the project
+     * this was written for it did.
+     *
+     * Not `*all`: that adds comment and worklog bodies to every issue in every
+     * page, and comments are fetched properly, one issue at a time.
      */
-    private const FIELDS = [
-        'summary', 'description', 'status', 'priority', 'assignee', 'reporter',
-        'created', 'updated', 'duedate', 'resolutiondate', 'timeoriginalestimate',
-        'issuetype', 'labels', 'parent',
-    ];
+    private const FIELDS = ['*navigable'];
+
+    /** @var array<string, string>|null field id => human name */
+    private ?array $fieldNames = null;
 
     public function __construct(
         private readonly string $site,
@@ -64,6 +66,31 @@ class JiraClient
     public function me(): array
     {
         return $this->get('/rest/api/3/myself');
+    }
+
+    /**
+     * What every field id on this site is actually called.
+     *
+     * Issues come back keyed by `customfield_10216`; a person reading the
+     * imported task needs to see "Acquirer".
+     *
+     * @return array<string, string>
+     */
+    public function fieldNames(): array
+    {
+        if ($this->fieldNames !== null) {
+            return $this->fieldNames;
+        }
+
+        $names = [];
+
+        foreach ($this->get('/rest/api/3/field') as $field) {
+            if (is_array($field) && isset($field['id'])) {
+                $names[(string) $field['id']] = (string) ($field['name'] ?? $field['id']);
+            }
+        }
+
+        return $this->fieldNames = $names;
     }
 
     /**

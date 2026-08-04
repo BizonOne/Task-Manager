@@ -86,6 +86,15 @@ class JiraImportTest extends TestCase
                 return Http::response(['displayName' => 'Importer Bot']);
             }
 
+            if (str_contains($url, '/rest/api/3/field')) {
+                return Http::response([
+                    ['id' => 'customfield_10216', 'name' => 'Acquirer'],
+                    ['id' => 'customfield_10300', 'name' => 'Onboarding notes'],
+                    ['id' => 'customfield_10301', 'name' => 'Products'],
+                    ['id' => 'customfield_10019', 'name' => 'Rank'],
+                ]);
+            }
+
             if (str_contains($url, '/rest/api/3/project/')) {
                 return Http::response([
                     'key' => 'AO',
@@ -237,6 +246,46 @@ class JiraImportTest extends TestCase
         $this->import();
 
         $this->assertStringContainsString('psp, q2', Task::where('external_key', 'AO-1')->first()->description);
+    }
+
+    public function test_a_field_the_team_added_themselves_comes_across(): void
+    {
+        $this->fakeJira([$this->issue('AO-1', ['fields' => [
+            'customfield_10216' => ['value' => 'GURUPAY', 'id' => '10152'],
+            'customfield_10301' => [['value' => 'Cards'], ['value' => 'SEPA']],
+            'customfield_10300' => ['type' => 'doc', 'content' => [
+                ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Waiting on the apostille.']]],
+            ]],
+            // Jira's own bookkeeping, and no use to anybody here.
+            'customfield_10019' => '0|i001w3:',
+        ]])]);
+
+        $this->import();
+
+        $description = Task::where('external_key', 'AO-1')->first()->description;
+
+        // The whole point of the project lived in a field like this one: every
+        // description was empty and the acquirer's name was the data.
+        $this->assertStringContainsString('Acquirer', $description);
+        $this->assertStringContainsString('GURUPAY', $description);
+        $this->assertStringContainsString('Cards, SEPA', $description);
+        $this->assertStringContainsString('Waiting on the apostille.', $description);
+        $this->assertStringNotContainsString('Rank', $description);
+        $this->assertStringNotContainsString('0|i001w3:', $description);
+    }
+
+    public function test_an_issue_with_nothing_but_custom_fields_is_still_worth_something(): void
+    {
+        // Every description on the imported project was empty, so this is the
+        // ordinary case rather than the edge one.
+        $this->fakeJira([$this->issue('AO-1', [
+            'renderedFields' => ['description' => null],
+            'fields' => ['description' => null, 'customfield_10216' => ['value' => 'GURUPAY']],
+        ])]);
+
+        $this->import();
+
+        $this->assertStringContainsString('GURUPAY', Task::where('external_key', 'AO-1')->first()->description);
     }
 
     // --- people --------------------------------------------------------------

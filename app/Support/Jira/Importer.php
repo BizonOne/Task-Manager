@@ -30,6 +30,17 @@ class Importer
 {
     public const SOURCE = 'jira';
 
+    /**
+     * Custom fields that are Jira's own machinery rather than anybody's data.
+     * Their names are lowercased before the comparison.
+     */
+    private const PLUMBING = [
+        'rank', 'development', 'votes', 'watchers', 'issue color', 'epic color',
+        'epic status', 'parent link', 'request type', 'request participants',
+        'organizations', 'approvals', 'satisfaction', 'satisfaction date',
+        'time to resolution', 'time to first response', 'change type',
+    ];
+
     /** @var array<string, User|null> lowercased email or account id => user */
     private array $people = [];
 
@@ -178,25 +189,120 @@ class Importer
     }
 
     /**
-     * The issue's description, with anything the app has nowhere to keep noted
-     * underneath it rather than dropped.
+     * The issue's description, with everything the app has nowhere to keep
+     * written underneath it rather than dropped.
+     *
+     * Teams put their real data in the fields they added themselves. On the
+     * project this was written for the descriptions were empty to the last
+     * issue and the thing that mattered — which acquirer each one was about —
+     * lived in a custom field. Losing that would be losing the project.
      *
      * @param  array<string, mixed>  $issue
      */
     private function description(array $issue): ?string
     {
-        $html = $this->richText(
+        $html = (string) $this->richText(
             $issue['renderedFields']['description'] ?? null,
             $issue['fields']['description'] ?? null,
         );
 
-        $labels = array_filter((array) ($issue['fields']['labels'] ?? []));
+        $extras = $this->extras($issue);
 
-        if ($labels !== []) {
-            $html .= '<p><em>Jira labels: '.e(implode(', ', $labels)).'</em></p>';
+        if ($extras !== []) {
+            // The rule only separates something from something else; on this
+            // project every description was empty and there is nothing above.
+            $html .= ($html === '' ? '' : '<hr>').'<p><em>From Jira</em></p><ul>';
+
+            foreach ($extras as $label => $value) {
+                $html .= '<li><strong>'.e($label).':</strong> '.e($value).'</li>';
+            }
+
+            $html .= '</ul>';
         }
 
         return RichText::clean($html);
+    }
+
+    /**
+     * The fields worth carrying over that have nowhere of their own to go.
+     *
+     * @param  array<string, mixed>  $issue
+     * @return array<string, string>
+     */
+    private function extras(array $issue): array
+    {
+        $extras = [];
+
+        $labels = array_filter((array) ($issue['fields']['labels'] ?? []));
+
+        if ($labels !== []) {
+            $extras['Labels'] = implode(', ', $labels);
+        }
+
+        $names = $this->jira->fieldNames();
+
+        foreach ($issue['fields'] ?? [] as $id => $value) {
+            if (! str_starts_with((string) $id, 'customfield_')) {
+                continue;
+            }
+
+            $name = $names[$id] ?? null;
+
+            if ($name === null || in_array(mb_strtolower($name), self::PLUMBING, true)) {
+                continue;
+            }
+
+            $text = $this->scalar($value);
+
+            if ($text !== null && trim($text) !== '') {
+                $extras[$name] = $text;
+            }
+        }
+
+        return $extras;
+    }
+
+    /**
+     * A custom field's value as a line of text.
+     *
+     * Jira answers with a bare string, an option object, a person, a list of
+     * any of those, or a whole rich-text document, depending on the field.
+     */
+    private function scalar(mixed $value): ?string
+    {
+        if ($value === null || $value === '' || $value === []) {
+            return null;
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'Yes' : 'No';
+        }
+
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
+
+        if (! is_array($value)) {
+            return null;
+        }
+
+        if (($value['type'] ?? null) === 'doc') {
+            return RichText::toText(Adf::toHtml($value));
+        }
+
+        foreach (['value', 'displayName', 'name', 'label', 'text'] as $key) {
+            if (isset($value[$key]) && is_scalar($value[$key])) {
+                return (string) $value[$key];
+            }
+        }
+
+        if (array_is_list($value)) {
+            $parts = array_filter(array_map(fn ($item) => $this->scalar($item), $value));
+
+            return $parts === [] ? null : implode(', ', $parts);
+        }
+
+        return null;
     }
 
     // --- comments ------------------------------------------------------------
