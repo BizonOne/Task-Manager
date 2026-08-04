@@ -6,6 +6,7 @@ use App\Models\File;
 use App\Models\Task;
 use App\Models\TaskComment;
 use App\Support\Dates;
+use App\Support\Permissions;
 use App\Support\RichText;
 use App\Support\Uploads;
 use Illuminate\Http\Request;
@@ -74,14 +75,11 @@ class TaskCommentController extends Controller
         $user = Auth::user();
         $task = $comment->task;
 
-        // The comment author, the task owner, the project owner or a super
-        // admin may delete it.
-        $canDelete = $user->isSuperAdmin()
-            || $comment->user_id === $user->id
-            || $task->user_id === $user->id
-            || $task->project?->user_id === $user->id;
-
-        abort_unless($canDelete, 403);
+        // Whoever the matrix allows, plus whoever manages the task it sits on.
+        abort_unless(
+            Permissions::allows($user, 'delete', $comment) || $task->isManageableBy($user),
+            403
+        );
 
         // The rows cascade, but the stored objects would be left behind in the
         // bucket paying rent forever.

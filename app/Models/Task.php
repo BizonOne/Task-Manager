@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Permissions;
 use App\Support\RichText;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -352,8 +353,7 @@ class Task extends Model
      */
     public function isAccessibleBy(User $user): bool
     {
-        return $user->isSuperAdmin()
-            || $this->participants()->contains('id', $user->id);
+        return Permissions::allows($user, 'view', $this);
     }
 
     /**
@@ -362,12 +362,9 @@ class Task extends Model
      */
     public function isManageableBy(User $user): bool
     {
-        return $user->isSuperAdmin()
-            || $this->user_id === $user->id
-            // The person who wrote it can edit it. Raising work for a
-            // colleague used to mean losing the ability to fix your own
-            // wording, because the author was never recorded.
-            || ($this->created_by !== null && $this->created_by === $user->id)
+        // A project manager keeps their say over the project's work regardless
+        // of the matrix — managing the project is what the role is for.
+        return Permissions::allows($user, 'edit', $this)
             || ($this->project && $this->project->isManagedBy($user));
     }
 }
