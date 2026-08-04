@@ -294,7 +294,7 @@ class ProjectColumnTest extends TestCase
         $this->actingAs($this->manager)
             ->get(route('projects.edit', $this->project))
             ->assertSuccessful()
-            ->assertSee('Board columns')
+            ->assertSee('Task board columns')
             ->assertSee('Give this board its own columns');
 
         BoardColumns::adopt($this->project);
@@ -302,6 +302,20 @@ class ProjectColumnTest extends TestCase
         $this->actingAs($this->manager)
             ->get(route('projects.edit', $this->project))
             ->assertSuccessful()
-            ->assertSee('Use the shared columns again');
+            ->assertSee('Use the shared columns again')
+            // Opened by its button, not sitting on the page as an empty row.
+            ->assertSee('id="addColumnForm" hidden', false);
+    }
+
+    public function test_the_project_own_status_is_not_the_same_thing_and_says_so(): void
+    {
+        // Two sections on one page both called "Status" is a question nobody
+        // should have to work out from the chips underneath.
+        $this->actingAs($this->manager)
+            ->get(route('projects.edit', $this->project))
+            ->assertSuccessful()
+            ->assertSee('Project status')
+            ->assertSee('Where the project itself stands')
+            ->assertSee('Task board columns');
     }
 }

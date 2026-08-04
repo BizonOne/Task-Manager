@@ -355,6 +355,70 @@ class ProjectFieldTest extends TestCase
             ->assertSee('data-project-fields="'.$this->project->id.'"', false);
     }
 
+    public function test_the_full_create_page_asks_the_same_questions_as_the_board(): void
+    {
+        $field = $this->field();
+
+        // This page used to ask for a title, a date and a priority and nothing
+        // else — no project, nobody to give it to — so submitting it could
+        // only fail. Whoever landed on it saw none of the project's fields and
+        // reasonably concluded they were an admin-only thing.
+        $this->actingAs($this->member)
+            ->get(route('tasks.create'))
+            ->assertSuccessful()
+            ->assertSee('name="project_id"', false)
+            ->assertSee('name="user_id"', false)
+            ->assertSee('name="tags"', false)
+            ->assertSee('name="fields['.$field->id.']"', false);
+    }
+
+    public function test_an_ordinary_member_is_asked_the_same_questions_everywhere(): void
+    {
+        $field = $this->field();
+        $this->task();
+
+        // Nothing here is gated on a role: a field belongs to a project, and
+        // anybody who can put a task in the project can answer it.
+        foreach ([route('tasks.index'), route('projects.tasks.index', $this->project)] as $url) {
+            $this->actingAs($this->member)
+                ->get($url)
+                ->assertSuccessful()
+                ->assertSee('name="fields['.$field->id.']"', false);
+        }
+    }
+
+    public function test_a_member_can_answer_a_field_when_they_file_the_task(): void
+    {
+        $field = $this->field();
+
+        $this->actingAs($this->member)->post(route('tasks.store'), [
+            'project_id' => $this->project->id,
+            'user_id' => $this->member->id,
+            'title' => 'Onboard Acme',
+            'priority' => 'medium',
+            'fields' => [$field->id => 'GURUPAY'],
+        ])->assertRedirect();
+
+        $task = Task::where('title', 'Onboard Acme')->first();
+
+        $this->assertSame(['GURUPAY'], $task->fieldAnswers()->first()['value']);
+        // No status on the form: work starts where the board starts it.
+        $this->assertSame('to_do', $task->status);
+    }
+
+    public function test_the_add_field_form_stays_out_of_the_way_until_it_is_wanted(): void
+    {
+        $this->field();
+
+        // An empty row sitting on the page reads as a second, half-finished
+        // field rather than as a form.
+        $this->actingAs($this->manager)
+            ->get(route('projects.edit', $this->project))
+            ->assertSuccessful()
+            ->assertSee('id="addFieldForm" hidden action', false)
+            ->assertSee('data-reveals="addFieldForm"', false);
+    }
+
     public function test_two_fields_keep_their_order(): void
     {
         $this->field(['name' => 'Second', 'sort_order' => 2]);

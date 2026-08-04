@@ -651,8 +651,8 @@
                 <div class="cu-section">
                     <div class="cu-section-header">
                         <span class="cu-section-icon green"><i class="bi bi-ui-checks"></i></span>
-                        <span class="cu-section-title">Status</span>
-                        <span class="cu-section-subtitle">Select current state</span>
+                        <span class="cu-section-title">Project status</span>
+                        <span class="cu-section-subtitle">Where the project itself stands</span>
                     </div>
                     <div class="cu-section-body">
                         <div class="cu-status-chips">
@@ -708,10 +708,14 @@
     <div class="cu-section" style="margin-top:10px;">
         <div class="cu-section-header">
             <span class="cu-section-icon blue"><i class="bi bi-kanban"></i></span>
-            <span class="cu-section-title">Board columns</span>
+            <span class="cu-section-title">Task board columns</span>
             <span class="cu-section-subtitle">{{ $ownColumns ? "This board's own" : 'Shared with every project' }}</span>
         </div>
         <div class="cu-section-body">
+            <p style="color:#6b7280;font-size:12px;margin:-4px 0 14px;">
+                The columns tasks move through on this project's board — not the same thing as
+                <strong>Project status</strong> above, which is where the project as a whole stands.
+            </p>
             @error('column')<div class="invalid-feedback d-block" style="margin-bottom:12px;">{{ $message }}</div>@enderror
 
             @unless($ownColumns)
@@ -776,7 +780,10 @@
                     </form>
                 @endforeach
 
-                <form action="{{ route('projects.columns.store', $project) }}" method="POST" class="cu-pf-row" style="background:#faf9ff;">
+                <button type="button" class="cu-btn-save cu-btn-sm" data-reveals="addColumnForm">
+                    <i class="bi bi-plus-lg me-1"></i>Add column
+                </button>
+                <form id="addColumnForm" hidden action="{{ route('projects.columns.store', $project) }}" method="POST" class="cu-pf-row" style="background:#faf9ff;margin-top:12px;">
                     @csrf
                     <div class="cu-pf-grid">
                         <div>
@@ -802,9 +809,10 @@
                             <input type="checkbox" name="is_completed" value="1">
                             Counts as finished
                         </label>
-                        <button type="submit" class="cu-btn-save cu-btn-sm">
-                            <i class="bi bi-plus-lg me-1"></i>Add column
-                        </button>
+                        <div style="display:flex;gap:8px;">
+                            <button type="button" class="cu-btn-cancel cu-btn-sm" data-hides="addColumnForm">Cancel</button>
+                            <button type="submit" class="cu-btn-save cu-btn-sm">Add column</button>
+                        </div>
                     </div>
                 </form>
 
@@ -886,7 +894,10 @@
                 </div>
             @endif
 
-            <form action="{{ route('projects.fields.store', $project) }}" method="POST" class="cu-pf-row" style="background:#faf9ff;">
+            <button type="button" class="cu-btn-save cu-btn-sm" data-reveals="addFieldForm" {{ $errors->has('options') ? 'hidden' : '' }}>
+                <i class="bi bi-plus-lg me-1"></i>Add field
+            </button>
+            <form id="addFieldForm" {{ $errors->has('options') ? '' : 'hidden' }} action="{{ route('projects.fields.store', $project) }}" method="POST" class="cu-pf-row" style="background:#faf9ff;margin-top:12px;">
                 @csrf
                 <div class="cu-pf-grid">
                     <div>
@@ -917,9 +928,10 @@
                         <input type="checkbox" name="show_on_card" value="1" checked>
                         Show on the task card
                     </label>
-                    <button type="submit" class="cu-btn-save cu-btn-sm">
-                        <i class="bi bi-plus-lg me-1"></i>Add field
-                    </button>
+                    <div style="display:flex;gap:8px;">
+                        <button type="button" class="cu-btn-cancel cu-btn-sm" data-hides="addFieldForm">Cancel</button>
+                        <button type="submit" class="cu-btn-save cu-btn-sm">Add field</button>
+                    </div>
                 </div>
             </form>
             @error('options')<div class="invalid-feedback d-block mt-2">{{ $message }}</div>@enderror
@@ -953,6 +965,30 @@
 
 @push('scripts')
 <script>
+// "Add field" and "Add column" open their form rather than leaving an empty
+// one sitting on the page pretending to be a real record.
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-reveals]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const target = document.getElementById(button.dataset.reveals);
+            if (!target) return;
+            target.hidden = false;
+            button.hidden = true;
+            target.querySelector('input, select, textarea')?.focus();
+        });
+    });
+
+    document.querySelectorAll('[data-hides]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const target = document.getElementById(button.dataset.hides);
+            if (!target) return;
+            target.hidden = true;
+            target.reset();
+            document.querySelector('[data-reveals="' + button.dataset.hides + '"]').hidden = false;
+        });
+    });
+});
+
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('editProjectForm');
     const startDateInput = document.getElementById('start_date');
