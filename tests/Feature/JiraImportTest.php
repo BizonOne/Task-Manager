@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Project;
+use App\Models\ProjectField;
 use App\Models\Task;
 use App\Models\TaskComment;
 use App\Models\TaskStatus;
@@ -239,13 +240,17 @@ class JiraImportTest extends TestCase
         $this->assertSame('2026-03-20', $task->completed_at->setTimezone('Europe/Riga')->toDateString());
     }
 
-    public function test_labels_are_written_down_rather_than_dropped(): void
+    public function test_labels_become_a_field_of_the_project(): void
     {
         $this->fakeJira([$this->issue('AO-1', ['fields' => ['labels' => ['psp', 'q2']]])]);
 
         $this->import();
 
-        $this->assertStringContainsString('psp, q2', Task::where('external_key', 'AO-1')->first()->description);
+        $task = Task::where('external_key', 'AO-1')->first();
+        $answer = $task->fieldAnswers()->firstWhere('field.name', 'Labels');
+
+        $this->assertNotNull($answer);
+        $this->assertSame(['psp', 'q2'], $answer['value']);
     }
 
     public function test_a_field_the_team_added_themselves_comes_across(): void
@@ -262,16 +267,42 @@ class JiraImportTest extends TestCase
 
         $this->import();
 
-        $description = Task::where('external_key', 'AO-1')->first()->description;
+        $project = Project::where('external_key', 'AO')->first();
+        $task = Task::where('external_key', 'AO-1')->first();
+        $answers = $task->fieldAnswers()->keyBy(fn (array $a) => $a['field']->name);
 
         // The whole point of the project lived in a field like this one: every
-        // description was empty and the acquirer's name was the data.
-        $this->assertStringContainsString('Acquirer', $description);
-        $this->assertStringContainsString('GURUPAY', $description);
-        $this->assertStringContainsString('Cards, SEPA', $description);
-        $this->assertStringContainsString('Waiting on the apostille.', $description);
-        $this->assertStringNotContainsString('Rank', $description);
-        $this->assertStringNotContainsString('0|i001w3:', $description);
+        // description was empty and the acquirer's name was the data. It comes
+        // across as a real field, so the board can be filtered by it.
+        $this->assertSame(['GURUPAY'], $answers['Acquirer']['value']);
+        $this->assertSame(ProjectField::TYPE_SELECT, $answers['Acquirer']['field']->type);
+        $this->assertSame(['GURUPAY'], $answers['Acquirer']['field']->choices());
+
+        $this->assertSame(['Cards', 'SEPA'], $answers['Products']['value']);
+        $this->assertSame(ProjectField::TYPE_MULTI, $answers['Products']['field']->type);
+
+        // Prose is prose, however tidily it would fit in a dropdown.
+        $this->assertSame(['Waiting on the apostille.'], $answers['Onboarding notes']['value']);
+        $this->assertSame(ProjectField::TYPE_TEXT, $answers['Onboarding notes']['field']->type);
+
+        // Jira's own bookkeeping is not anybody's data.
+        $this->assertNull($project->fields()->where('name', 'Rank')->first());
+    }
+
+    public function test_a_choice_seen_on_a_later_issue_widens_the_field(): void
+    {
+        $this->fakeJira([
+            $this->issue('AO-1', ['fields' => ['customfield_10216' => ['value' => 'GURUPAY']]]),
+            $this->issue('AO-2', ['fields' => ['customfield_10216' => ['value' => 'XSELL']]]),
+        ]);
+
+        $this->import();
+
+        $field = Project::where('external_key', 'AO')->first()->fields()->where('name', 'Acquirer')->first();
+
+        // One field with both choices on it, not two fields and not a choice
+        // the dropdown cannot offer.
+        $this->assertEqualsCanonicalizing(['GURUPAY', 'XSELL'], $field->choices());
     }
 
     public function test_an_issue_with_nothing_but_custom_fields_is_still_worth_something(): void
@@ -285,7 +316,10 @@ class JiraImportTest extends TestCase
 
         $this->import();
 
-        $this->assertStringContainsString('GURUPAY', Task::where('external_key', 'AO-1')->first()->description);
+        $task = Task::where('external_key', 'AO-1')->first();
+
+        $this->assertNull($task->description);
+        $this->assertSame(['GURUPAY'], $task->fieldAnswers()->firstWhere('field.name', 'Acquirer')['value']);
     }
 
     // --- people --------------------------------------------------------------

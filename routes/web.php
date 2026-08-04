@@ -13,6 +13,7 @@ use App\Http\Controllers\NoteController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectFieldController;
 use App\Http\Controllers\ReminderController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoutineController;
@@ -50,6 +51,11 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('projects', ProjectController::class);
     Route::post('project/team', [ProjectController::class, 'addMember'])->name('projects.addMember');
     Route::delete('projects/{project}/members/{user}', [ProjectController::class, 'removeMember'])->name('projects.removeMember');
+    // Fields a project keeps on its own tasks, managed by whoever manages it.
+    Route::post('projects/{project}/fields', [ProjectFieldController::class, 'store'])->name('projects.fields.store');
+    Route::put('project-fields/{field}', [ProjectFieldController::class, 'update'])->name('projects.fields.update');
+    Route::delete('project-fields/{field}', [ProjectFieldController::class, 'destroy'])->name('projects.fields.destroy');
+
     Route::get('projects/{project}/tasks', [TaskController::class, 'index'])->name('projects.tasks.index');
     Route::post('projects/{project}/tasks', [TaskController::class, 'store'])->name('projects.tasks.store');
 
