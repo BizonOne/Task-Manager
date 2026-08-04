@@ -609,7 +609,21 @@
 
                 <div class="ts-divider"></div>
 
-                {{-- Meta rows --}}
+                {{-- Meta rows.
+                     Owner and assignee are different people and were being
+                     shown as one: raising work for a colleague made *them* the
+                     owner of a task they never asked for. The owner is whoever
+                     raised it and does not move; assignment does. --}}
+                @if($task->creator)
+                <div class="ts-meta-row">
+                    <div class="ts-meta-icon"><i class="bi bi-person-badge"></i></div>
+                    <div>
+                        <div class="ts-meta-label">Owner</div>
+                        <div class="ts-meta-val">{{ $task->creator->name }}</div>
+                    </div>
+                </div>
+                @endif
+
                 <div class="ts-meta-row">
                     <div class="ts-meta-icon"><i class="bi bi-person"></i></div>
                     <div>

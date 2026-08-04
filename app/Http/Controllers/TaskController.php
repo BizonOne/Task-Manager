@@ -25,22 +25,24 @@ class TaskController extends Controller
                 ->active()
                 // Assignees, so the board can be filtered by who is actually on
                 // a task and not only by who owns it.
-                ->with(['project', 'assignees'])
+                ->with(['project', 'assignees', 'creator'])
                 ->get()
                 ->groupBy('status');
         } else {
-            // "My tasks": tasks the user owns or is assigned to, in active
-            // projects. A super admin oversees everything and sees every task.
-            $tasks = Task::active()->when(! $user->isSuperAdmin(), function ($query) use ($user) {
-                $query->where(function ($q) use ($user) {
-                    $q->where('user_id', $user->id)
-                        ->orWhereHas('assignees', fn ($a) => $a->where('users.id', $user->id));
-                });
-            })
+            // "My tasks", in active projects. A super admin oversees
+            // everything and sees every task.
+            //
+            // involving(): raised by you, assigned to you, or added to you.
+            // Work you raised for a colleague belongs on your board too — you
+            // asked for it, and you are the one waiting on it.
+            $tasks = Task::active()->when(
+                ! $user->isSuperAdmin(),
+                fn ($query) => $query->involving($user),
+            )
                 ->whereHas('project', function ($query) {
                     $query->whereNotIn('status', ['completed', 'closed']);
                 })
-                ->with(['project', 'assignees'])
+                ->with(['project', 'assignees', 'creator'])
                 ->get()
                 ->groupBy('status');
         }

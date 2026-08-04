@@ -7,6 +7,7 @@ use App\Models\TaskActivity;
 use App\Models\TaskStatus;
 use App\Models\User;
 use App\Notifications\TaskAssignedNotification;
+use App\Notifications\TaskStatusChangedNotification;
 use App\Support\Notifier;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Auth;
@@ -90,6 +91,10 @@ class TaskObserver
             TaskActivity::record($task, TaskActivity::EVENT_UNARCHIVED);
         }
 
+        if ($task->wasChanged('status')) {
+            $this->announceStatusChange($task);
+        }
+
         foreach (self::TRACKED as $field) {
             if (! $task->wasChanged($field)) {
                 continue;
@@ -104,6 +109,47 @@ class TaskObserver
                 'old_value' => $this->stringify($old),
                 'new_value' => $this->stringify($new),
             ]);
+        }
+    }
+
+    /**
+     * Tell the people waiting on this task that it moved.
+     *
+     * The person who raised the work is the point of this: they asked for it
+     * and otherwise have no way of knowing it is done short of opening the
+     * board and looking. Whoever it is assigned to hears too, for the same
+     * reason in reverse.
+     */
+    private function announceStatusChange(Task $task): void
+    {
+        $actor = Auth::user();
+
+        // No actor means a seeder or a console command; nobody moved anything.
+        if ($actor === null) {
+            return;
+        }
+
+        $task->loadMissing('assignees');
+
+        $recipients = collect([$task->created_by, $task->user_id])
+            ->merge($task->assignees->pluck('id'))
+            ->filter()
+            ->unique()
+            ->reject(fn ($id) => $id === $actor->id);
+
+        if ($recipients->isEmpty()) {
+            return;
+        }
+
+        $notification = new TaskStatusChangedNotification(
+            $task,
+            $actor,
+            $task->getOriginal('status'),
+            $task->status,
+        );
+
+        foreach (User::whereIn('id', $recipients)->get() as $person) {
+            Notifier::send($person, $notification);
         }
     }
 
