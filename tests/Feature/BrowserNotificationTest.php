@@ -304,15 +304,40 @@ class BrowserNotificationTest extends TestCase
         $this->assertStringContainsString('showNotification', file_get_contents(public_path('sw.js')));
     }
 
-    public function test_a_second_notification_about_the_same_thing_still_announces_itself(): void
+    public function test_every_notification_is_its_own_notification(): void
     {
-        $worker = file_get_contents(public_path('sw.js'));
+        // The comments in that file discuss both of these at length, so read
+        // the code without them.
+        $code = preg_replace('#^\s*//.*$#m', '', file_get_contents(public_path('sw.js')));
 
-        // Notifications are grouped by tag so three comments on one task are
-        // one entry. Replacing quietly is the default, and it makes the second
-        // one look exactly like a notification that never arrived.
-        $this->assertStringContainsString('renotify: true', $worker);
-        $this->assertStringContainsString('tag:', $worker);
+        // Notifications were grouped by task, which is tidier and cost two
+        // rounds of "nothing arrived": one replacing an earlier one with the
+        // same tag is silent by default, and the operating system may fold it
+        // away even when told not to. A tidy list is worth nothing next to a
+        // notification that shows up.
+        $this->assertStringNotContainsString('tag:', $code);
+        // And no tag means no renotify: Chrome throws on renotify without one,
+        // and a throw in the push handler means no notification at all.
+        $this->assertStringNotContainsString('renotify', $code);
+    }
+
+    public function test_a_test_message_is_different_every_time_it_is_sent(): void
+    {
+        $channel = $this->subscribed();
+
+        $seen = [];
+        WebPush::sendUsing(function ($channel, $message) use (&$seen) {
+            $seen[] = $message->toText();
+        });
+
+        $this->actingAs($this->user)->post(route('profile.notifications.test', $channel));
+        $this->travel(1)->minutes();
+        $this->actingAs($this->user)->post(route('profile.notifications.test', $channel));
+
+        // Two identical messages are indistinguishable from one that never
+        // arrived — which is the exact confusion this button exists to settle.
+        $this->assertCount(2, $seen);
+        $this->assertNotSame($seen[0], $seen[1]);
     }
 
     public function test_the_service_worker_takes_over_as_soon_as_it_changes(): void
