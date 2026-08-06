@@ -14,6 +14,14 @@ class User extends Authenticatable implements FilamentUser
     use HasFactory, HasRoles, Notifiable;
 
     /**
+     * Where this person has asked to be told about their work.
+     */
+    public function notificationChannels()
+    {
+        return $this->hasMany(NotificationChannel::class);
+    }
+
+    /**
      * Roles that are allowed to sign in to the Filament admin panel.
      */
     public const STAFF_ROLES = ['super_admin', 'admin'];
