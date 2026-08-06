@@ -19,6 +19,7 @@ use App\Http\Controllers\ProjectFieldController;
 use App\Http\Controllers\ReminderController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoutineController;
+use App\Http\Controllers\ServiceWorkerController;
 use App\Http\Controllers\TaskAssigneeController;
 use App\Http\Controllers\TaskCommentController;
 use App\Http\Controllers\TaskController;
@@ -29,6 +30,11 @@ use Illuminate\Support\Facades\Route;
 Route::get('login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('login', [LoginController::class, 'login']);
 Route::post('logout', [LoginController::class, 'logout'])->name('logout');
+
+// The service worker, served without a cache. As a file in public/ it went out
+// with a four-hour max-age, and a service worker update obeys the HTTP cache —
+// so a fix to it reached nobody until the cache expired.
+Route::get('sw.js', ServiceWorkerController::class)->name('service-worker');
 
 // Brand logo over HTTP, so emails can show it (data: URIs are blocked in mail).
 Route::get('brand/logo', [BrandAssetController::class, 'logo'])->name('brand.logo');

@@ -357,6 +357,20 @@
                 button.hidden = true;
                 if (done) done.hidden = false;
                 say('');
+
+                // Fetch the worker again while we are here. Without this a
+                // browser that already has a subscription never re-checks the
+                // script, and a fix to it waits for a cache to expire.
+                registration.update().catch(function () {});
+                return;
+            }
+
+            // We think this browser is subscribed and it disagrees — it
+            // rotated the subscription, or dropped it. Say so, rather than
+            // leaving somebody with a settings page that claims a channel
+            // works while nothing arrives.
+            if (!existing) {
+                say('This browser is no longer subscribed. Press the button to enable it again.');
             }
         } catch (e) {
             // Nothing to say: the button simply stays offered.
@@ -389,7 +403,11 @@
                 return;
             }
 
-            const registration = await navigator.serviceWorker.register('/sw.js');
+            // updateViaCache: 'none' so the browser fetches the worker itself
+            // rather than trusting whatever it has cached — belt and braces
+            // with the no-cache header, since a stale worker is a fix nobody
+            // receives.
+            const registration = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
             await navigator.serviceWorker.ready;
 
             const subscription = await registration.pushManager.subscribe({

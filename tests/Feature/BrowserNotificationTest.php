@@ -300,15 +300,41 @@ class BrowserNotificationTest extends TestCase
     {
         // A service worker can only act for pages under its own path, so one
         // served from /js/ could not cover the site.
-        $this->assertFileExists(public_path('sw.js'));
-        $this->assertStringContainsString('showNotification', file_get_contents(public_path('sw.js')));
+        $this->get('/sw.js')
+            ->assertSuccessful()
+            ->assertHeader('Content-Type', 'text/javascript; charset=utf-8')
+            ->assertHeader('Service-Worker-Allowed', '/')
+            ->assertSee('showNotification', false);
+    }
+
+    public function test_the_service_worker_is_never_cached(): void
+    {
+        // It began life as a file in public/, handed out with a four-hour
+        // max-age. Updating a service worker obeys the ordinary HTTP cache, so
+        // that told every browser to keep the version it already had — and two
+        // fixes to the push handler reached nobody. A bug you cannot deploy a
+        // fix to is the worst kind.
+        $response = $this->get('/sw.js')->assertSuccessful();
+
+        $this->assertStringContainsString('no-cache', $response->headers->get('Cache-Control'));
+        $this->assertFileDoesNotExist(public_path('sw.js'));
+    }
+
+    public function test_the_page_fetches_the_worker_rather_than_trusting_a_cached_copy(): void
+    {
+        $this->actingAs($this->user)
+            ->get(route('profile.notifications'))
+            ->assertSuccessful()
+            // Belt and braces with the header: a stale worker is a fix nobody
+            // receives.
+            ->assertSee("updateViaCache: 'none'", false);
     }
 
     public function test_every_notification_is_its_own_notification(): void
     {
         // The comments in that file discuss both of these at length, so read
         // the code without them.
-        $code = preg_replace('#^\s*//.*$#m', '', file_get_contents(public_path('sw.js')));
+        $code = preg_replace('#^\s*//.*$#m', '', $this->get('/sw.js')->getContent());
 
         // Notifications were grouped by task, which is tidier and cost two
         // rounds of "nothing arrived": one replacing an earlier one with the
@@ -342,7 +368,7 @@ class BrowserNotificationTest extends TestCase
 
     public function test_the_service_worker_takes_over_as_soon_as_it_changes(): void
     {
-        $worker = file_get_contents(public_path('sw.js'));
+        $worker = $this->get('/sw.js')->getContent();
 
         // Otherwise a fix in here waits for every tab on the site to close,
         // which for a tool people leave open all day is never.
