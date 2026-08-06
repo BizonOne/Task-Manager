@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\User;
 use App\Support\Brand;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -12,7 +13,7 @@ use Illuminate\Notifications\Notification;
  * Invites someone to the workspace. Mail only — an invited user has no account
  * to sign in to yet, so there is no bell for a database notification.
  */
-class UserInvitationNotification extends Notification
+class UserInvitationNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

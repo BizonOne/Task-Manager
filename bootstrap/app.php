@@ -16,6 +16,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             TrackLastActive::class,
         ]);
+
+        // Telegram posts without a session and without our token. The webhook
+        // authenticates itself with the secret Telegram echoes back on every
+        // update, which the controller checks before doing anything at all.
+        $middleware->validateCsrfTokens(except: [
+            'telegram/webhook',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

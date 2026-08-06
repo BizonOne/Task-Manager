@@ -35,6 +35,15 @@ return [
         ],
     ],
 
+    // The notification bot. TELEGRAM_WEBHOOK_SECRET is a shared secret
+    // Telegram sends back on every update, which is what makes the public
+    // webhook endpoint safe to leave open.
+    'telegram' => [
+        'token' => env('TELEGRAM_BOT_TOKEN'),
+        'bot' => env('TELEGRAM_BOT_USERNAME'),
+        'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
+    ],
+
     // Read-only, and only used by `php artisan jira:import`. The token is an
     // Atlassian API token belonging to JIRA_USER; it is a password, so it
     // lives in the environment and nowhere else.

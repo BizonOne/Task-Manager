@@ -5,9 +5,11 @@ namespace App\Notifications;
 use App\Models\Task;
 use App\Models\TaskStatus;
 use App\Models\User;
+use App\Notifications\Concerns\GoesWherePeopleAre;
 use App\Support\Brand;
 use App\Support\Dates;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Str;
@@ -19,9 +21,9 @@ use Illuminate\Support\Str;
  * for it and then have no way of knowing it is done short of opening the board
  * and looking.
  */
-class TaskStatusChangedNotification extends Notification
+class TaskStatusChangedNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use GoesWherePeopleAre, Queueable;
 
     public function __construct(
         public Task $task,
@@ -29,14 +31,6 @@ class TaskStatusChangedNotification extends Notification
         public ?string $from,
         public string $to,
     ) {}
-
-    /**
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
-    {
-        return ['database', 'mail'];
-    }
 
     public function toMail(object $notifiable): MailMessage
     {

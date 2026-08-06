@@ -1,0 +1,181 @@
+@extends('layouts.app')
+
+@section('title', 'Notifications')
+
+@push('styles')
+<style>
+    .main-content { padding: 14px 16px; background: #f7f8fa; min-height: 100vh; }
+    .content-header {
+        background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+        border-radius: 10px; padding: 12px 18px; color: #fff; margin-bottom: 14px;
+        border: 1px solid var(--primary-500); box-shadow: 0 2px 8px rgba(99,102,241,.3);
+    }
+    .content-title { color: #fff; font-weight: 700; font-size: 17px; margin-bottom: 2px; }
+    .content-subtitle { color: rgba(255,255,255,.8); font-size: 12px; margin: 0; }
+
+    .nc-section { background:#fff; border:1px solid #e3e4e8; border-radius:8px; overflow:hidden; margin-bottom:10px; }
+    .nc-section-header { display:flex; align-items:center; gap:8px; padding:10px 16px; background:#fafbfc; border-bottom:1px solid #e3e4e8; }
+    .nc-section-icon { width:26px; height:26px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:13px; }
+    .nc-section-title { font-size:13px; font-weight:700; color:#1a1d23; }
+    .nc-section-sub { font-size:11px; color:#8a8f98; margin-left:auto; }
+    .nc-section-body { padding:16px; }
+
+    .nc-lead { font-size:13px; color:#6b7280; margin:0 0 14px; line-height:1.55; }
+
+    .nc-channel { border:1px solid #e6e6eb; border-radius:10px; padding:14px; margin-bottom:12px; }
+    .nc-channel-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .nc-channel-name { font-size:14px; font-weight:700; color:#1a1d23; }
+    .nc-badge { font-size:10px; font-weight:700; letter-spacing:.03em; padding:2px 8px; border-radius:10px; text-transform:uppercase; }
+    .nc-badge.live { background:#dcfce7; color:#15803d; }
+    .nc-badge.off { background:#f3f4f6; color:#6b7280; }
+    .nc-badge.waiting { background:#fef3c7; color:#b45309; }
+    .nc-meta { font-size:12px; color:#8a8f98; }
+    .nc-error { font-size:12px; color:#b91c1c; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:8px 10px; margin-top:10px; }
+    .nc-events { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:6px 16px; margin-top:12px; }
+    .nc-event { font-size:12px; color:#4b5563; display:flex; align-items:center; gap:6px; }
+    .nc-actions { display:flex; gap:8px; align-items:center; margin-top:12px; flex-wrap:wrap; }
+
+    .nc-btn { border:none; border-radius:6px; padding:7px 14px; font-size:12px; font-weight:600; cursor:pointer; }
+    .nc-btn-primary { background:#7c3aed; color:#fff; }
+    .nc-btn-primary:hover { background:#6d28d9; }
+    .nc-btn-quiet { background:#fff; color:#4b5563; border:1px solid #d3d5db; }
+    .nc-btn-danger { background:#fff; color:#dc2626; border:1px solid #fecaca; }
+    .nc-connect { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+    .nc-connect-text { font-size:13px; color:#4b5563; max-width:640px; line-height:1.55; }
+</style>
+@endpush
+
+@section('content')
+<div class="main-content">
+    <div class="content-header">
+        <h1 class="content-title">Notifications</h1>
+        <p class="content-subtitle">Where you hear about your work</p>
+    </div>
+
+    @if(session('success'))
+        <div class="alert alert-success py-2">{{ session('success') }}</div>
+    @endif
+    @error('channel')<div class="alert alert-danger py-2">{{ $message }}</div>@enderror
+
+    <div class="nc-section">
+        <div class="nc-section-header">
+            <span class="nc-section-icon" style="background:#ede9fe;color:#7c3aed;"><i class="bi bi-broadcast"></i></span>
+            <span class="nc-section-title">Connected channels</span>
+            <span class="nc-section-sub">{{ $channels->count() }} connected</span>
+        </div>
+        <div class="nc-section-body">
+            <p class="nc-lead">
+                Everything already goes to the bell and to <strong>{{ $user->email }}</strong>. Anything you connect
+                here gets the same news as well — it does not replace your email, so unhooking a channel can never
+                make you miss something.
+            </p>
+
+            @forelse($channels as $channel)
+                @php $muted = (array) $channel->muted_events; @endphp
+                <form action="{{ route('profile.notifications.update', $channel) }}" method="POST" class="nc-channel">
+                    @csrf
+                    @method('PUT')
+                    <div class="nc-channel-head">
+                        <i class="bi bi-{{ $channel->type === 'telegram' ? 'telegram' : 'slack' }}" style="font-size:18px;color:#7c3aed;"></i>
+                        <span class="nc-channel-name">{{ $channel->typeLabel() }}</span>
+                        @if(! $channel->verified_at)
+                            <span class="nc-badge waiting">Waiting for you</span>
+                        @elseif($channel->enabled)
+                            <span class="nc-badge live">On</span>
+                        @else
+                            <span class="nc-badge off">Paused</span>
+                        @endif
+                        @if($channel->label)<span class="nc-meta">{{ $channel->label }}</span>@endif
+                        @if($channel->last_sent_at)<span class="nc-meta">· last message {{ $channel->last_sent_at->diffForHumans() }}</span>@endif
+                    </div>
+
+                    @if($channel->last_error)
+                        <div class="nc-error">
+                            <strong>The last message did not arrive.</strong> {{ $channel->last_error }}
+                            @if($channel->type === 'telegram')
+                                <br>If you blocked the bot, unblock it and press Send test.
+                            @endif
+                        </div>
+                    @endif
+
+                    @if($channel->verified_at)
+                        <label class="nc-event" style="margin-top:12px;font-weight:600;color:#1a1d23;">
+                            <input type="hidden" name="enabled" value="0">
+                            <input type="checkbox" name="enabled" value="1" @checked($channel->enabled)>
+                            Send notifications here
+                        </label>
+
+                        <div class="nc-events">
+                            @foreach($events as $key => $label)
+                                <label class="nc-event">
+                                    <input type="checkbox" name="muted_events[]" value="{{ $key }}" @checked(in_array($key, $muted, true))>
+                                    Mute: {{ $label }}
+                                </label>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="nc-meta" style="margin-top:10px;">
+                            Press Start in the chat that opened. The link expires
+                            {{ $channel->connect_expires_at?->diffForHumans() ?? 'shortly' }}.
+                        </p>
+                    @endif
+
+                    <div class="nc-actions">
+                        @if($channel->verified_at)
+                            <button type="submit" class="nc-btn nc-btn-primary">Save</button>
+                        @endif
+                        @if($channel->verified_at)
+                            <button type="submit" class="nc-btn nc-btn-quiet" form="test{{ $channel->id }}">Send test</button>
+                        @endif
+                        <button type="submit" class="nc-btn nc-btn-danger" form="drop{{ $channel->id }}">Disconnect</button>
+                    </div>
+                </form>
+
+                {{-- Beside the settings form rather than inside it: a form cannot contain another. --}}
+                <form id="test{{ $channel->id }}" action="{{ route('profile.notifications.test', $channel) }}" method="POST">@csrf</form>
+                <form id="drop{{ $channel->id }}" action="{{ route('profile.notifications.destroy', $channel) }}" method="POST"
+                      onsubmit="return confirm('Stop sending notifications to your {{ $channel->typeLabel() }}?');">
+                    @csrf @method('DELETE')
+                </form>
+            @empty
+                <p class="nc-meta" style="margin-bottom:0;">Nothing connected yet.</p>
+            @endforelse
+        </div>
+    </div>
+
+    <div class="nc-section">
+        <div class="nc-section-header">
+            <span class="nc-section-icon" style="background:#dbeafe;color:#2563eb;"><i class="bi bi-plug"></i></span>
+            <span class="nc-section-title">Add a channel</span>
+        </div>
+        <div class="nc-section-body">
+            <div class="nc-connect">
+                <div class="nc-connect-text">
+                    <strong>Telegram.</strong> Opens our bot with a one-time code already in the Start button —
+                    nothing to type. A bot cannot message you until you press Start, which is what makes that press
+                    the permission.
+                </div>
+                @if($telegramReady)
+                    <form action="{{ route('profile.notifications.telegram') }}" method="POST">
+                        @csrf
+                        <button type="submit" class="nc-btn nc-btn-primary">
+                            <i class="bi bi-telegram me-1"></i>Connect Telegram
+                        </button>
+                    </form>
+                @else
+                    <span class="nc-meta">Not configured yet.</span>
+                @endif
+            </div>
+
+            <hr style="margin:16px 0;border-color:#eef0f3;">
+
+            <div class="nc-connect">
+                <div class="nc-connect-text" style="color:#8a8f98;">
+                    <strong>Slack</strong> and <strong>browser notifications</strong> are next.
+                </div>
+                <span class="nc-meta">Coming soon</span>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection

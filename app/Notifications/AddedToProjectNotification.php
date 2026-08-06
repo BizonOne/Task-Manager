@@ -4,29 +4,23 @@ namespace App\Notifications;
 
 use App\Models\Project;
 use App\Models\User;
+use App\Notifications\Concerns\GoesWherePeopleAre;
 use App\Support\Brand;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Str;
 
-class AddedToProjectNotification extends Notification
+class AddedToProjectNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use GoesWherePeopleAre, Queueable;
 
     public function __construct(
         public Project $project,
         public User $addedBy,
     ) {}
-
-    /**
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
-    {
-        return ['database', 'mail'];
-    }
 
     public function toMail(object $notifiable): MailMessage
     {

@@ -10,6 +10,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\NoteController;
+use App\Http\Controllers\NotificationChannelController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectColumnController;
@@ -22,6 +23,7 @@ use App\Http\Controllers\TaskAssigneeController;
 use App\Http\Controllers\TaskCommentController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskLinkController;
+use App\Http\Controllers\TelegramWebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('login', [LoginController::class, 'showLoginForm'])->name('login');
@@ -30,6 +32,11 @@ Route::post('logout', [LoginController::class, 'logout'])->name('logout');
 
 // Brand logo over HTTP, so emails can show it (data: URIs are blocked in mail).
 Route::get('brand/logo', [BrandAssetController::class, 'logo'])->name('brand.logo');
+
+// Telegram's webhook. Public because Telegram will not sign in; what makes it
+// safe is the secret token it sends back on every update, checked in the
+// controller. Outside the auth group and exempt from CSRF for the same reason.
+Route::post('telegram/webhook', TelegramWebhookController::class)->name('telegram.webhook');
 
 // Invitation acceptance — an invited user sets their own password here.
 Route::get('invitation/{token}', [InvitationController::class, 'show'])->name('invitation.show');
@@ -43,6 +50,14 @@ Route::middleware(['auth'])->group(function () {
     Route::get('profile/password', [ProfileController::class, 'showPasswordForm'])->name('profile.password');
     Route::put('profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
     Route::delete('profile/avatar', [ProfileController::class, 'deleteAvatar'])->name('profile.avatar.delete');
+
+    // Where a person wants to hear about their work. Their own only — an
+    // administrator has no business hooking somebody's Telegram up for them.
+    Route::get('profile/notifications', [NotificationChannelController::class, 'index'])->name('profile.notifications');
+    Route::post('profile/notifications/telegram', [NotificationChannelController::class, 'connectTelegram'])->name('profile.notifications.telegram');
+    Route::put('profile/notifications/{channel}', [NotificationChannelController::class, 'update'])->name('profile.notifications.update');
+    Route::post('profile/notifications/{channel}/test', [NotificationChannelController::class, 'test'])->name('profile.notifications.test');
+    Route::delete('profile/notifications/{channel}', [NotificationChannelController::class, 'destroy'])->name('profile.notifications.destroy');
     // Avatars are served by the app for the same reason as files.
     Route::get('avatar/{user}', [ProfileController::class, 'avatar'])->name('avatar.show');
 
