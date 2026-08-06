@@ -288,4 +288,25 @@ class BrowserNotificationTest extends TestCase
         $this->assertFileExists(public_path('sw.js'));
         $this->assertStringContainsString('showNotification', file_get_contents(public_path('sw.js')));
     }
+
+    public function test_a_second_notification_about_the_same_thing_still_announces_itself(): void
+    {
+        $worker = file_get_contents(public_path('sw.js'));
+
+        // Notifications are grouped by tag so three comments on one task are
+        // one entry. Replacing quietly is the default, and it makes the second
+        // one look exactly like a notification that never arrived.
+        $this->assertStringContainsString('renotify: true', $worker);
+        $this->assertStringContainsString('tag:', $worker);
+    }
+
+    public function test_the_service_worker_takes_over_as_soon_as_it_changes(): void
+    {
+        $worker = file_get_contents(public_path('sw.js'));
+
+        // Otherwise a fix in here waits for every tab on the site to close,
+        // which for a tool people leave open all day is never.
+        $this->assertStringContainsString('skipWaiting', $worker);
+        $this->assertStringContainsString('clients.claim', $worker);
+    }
 }
