@@ -255,6 +255,20 @@ class BrowserNotificationTest extends TestCase
             ->assertSee('added to the');
     }
 
+    public function test_the_page_explains_a_browser_that_is_blocking_it(): void
+    {
+        // Finding out by pressing a button that can only fail teaches nothing
+        // about how to fix it, so the page says it up front and says where to
+        // look — including the operating system, which is the other half of
+        // why a browser goes quiet.
+        $this->actingAs($this->user)
+            ->get(route('profile.notifications'))
+            ->assertSuccessful()
+            ->assertSee('will not even ask', false)
+            ->assertSee('padlock next to the address')
+            ->assertSee('Do Not Disturb');
+    }
+
     public function test_the_button_is_absent_until_the_keys_are(): void
     {
         config(['services.webpush.public_key' => null, 'services.webpush.private_key' => null]);
@@ -273,5 +287,26 @@ class BrowserNotificationTest extends TestCase
         // served from /js/ could not cover the site.
         $this->assertFileExists(public_path('sw.js'));
         $this->assertStringContainsString('showNotification', file_get_contents(public_path('sw.js')));
+    }
+
+    public function test_a_second_notification_about_the_same_thing_still_announces_itself(): void
+    {
+        $worker = file_get_contents(public_path('sw.js'));
+
+        // Notifications are grouped by tag so three comments on one task are
+        // one entry. Replacing quietly is the default, and it makes the second
+        // one look exactly like a notification that never arrived.
+        $this->assertStringContainsString('renotify: true', $worker);
+        $this->assertStringContainsString('tag:', $worker);
+    }
+
+    public function test_the_service_worker_takes_over_as_soon_as_it_changes(): void
+    {
+        $worker = file_get_contents(public_path('sw.js'));
+
+        // Otherwise a fix in here waits for every tab on the site to close,
+        // which for a tool people leave open all day is never.
+        $this->assertStringContainsString('skipWaiting', $worker);
+        $this->assertStringContainsString('clients.claim', $worker);
     }
 }

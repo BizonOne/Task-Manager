@@ -11,6 +11,17 @@
  * payload arrives ready to display.
  */
 
+// Take over as soon as a new version of this file lands. Without these two a
+// fix here waits for every tab on the site to be closed, which for a tool
+// people leave open all day means it effectively never ships.
+self.addEventListener('install', function () {
+    self.skipWaiting();
+});
+
+self.addEventListener('activate', function (event) {
+    event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener('push', function (event) {
     if (!event.data) return;
 
@@ -28,9 +39,14 @@ self.addEventListener('push', function (event) {
             badge: '/brand/logo',
             data: { url: payload.url || '/' },
             // Replaces an unread notification about the same thing rather than
-            // stacking a second one on top of it.
+            // stacking a second one on top of it — three comments on one task
+            // are one entry, not three.
             tag: payload.url || 'update',
-            renotify: false,
+            // But it still announces itself. Replacing quietly is the default,
+            // and it makes the second notification about the same task look
+            // exactly like a notification that never arrived.
+            renotify: true,
+            timestamp: Date.now(),
         })
     );
 });

@@ -42,6 +42,18 @@
     .nc-btn-danger { background:#fff; color:#dc2626; border:1px solid #fecaca; }
     .nc-connect { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
     .nc-connect-text { font-size:13px; color:#4b5563; max-width:640px; line-height:1.55; }
+
+    .nc-help { margin-top:12px; border:1px solid #e6e6eb; border-radius:8px; background:#fbfbfd; }
+    .nc-help > summary { cursor:pointer; padding:9px 12px; font-size:12px; font-weight:600; color:#4b5563; list-style:none; }
+    .nc-help > summary::-webkit-details-marker { display:none; }
+    .nc-help > summary::before { content:'▸ '; color:#8a8f98; }
+    .nc-help[open] > summary::before { content:'▾ '; }
+    .nc-help-body { padding:0 12px 12px; }
+    .nc-help table { width:100%; border-collapse:collapse; font-size:12px; }
+    .nc-help th, .nc-help td { text-align:left; padding:7px 8px; border-top:1px solid #eceef2; vertical-align:top; }
+    .nc-help th { color:#8a8f98; font-weight:700; width:150px; white-space:nowrap; }
+    .nc-help td { color:#4b5563; line-height:1.5; }
+    .nc-help code { background:#f1f2f5; border-radius:4px; padding:1px 5px; font-size:11px; color:#374151; }
 </style>
 @endpush
 
@@ -187,12 +199,84 @@
             </div>
             <p id="ncBrowserNote" class="nc-meta" style="margin:10px 0 0;"></p>
 
+            {{-- Written out per browser on purpose. "Allow it in your browser
+                 settings" is true and useless; the menu is in a different place
+                 in every one of them, and somebody who has to go and ask has
+                 already given up. --}}
+            <details class="nc-help">
+                <summary>Nothing arrives, or the button says this browser is blocking it — how to fix it</summary>
+                <div class="nc-help-body">
+                    <table>
+                        <tr>
+                            <th>Chrome / Edge</th>
+                            <td>
+                                Click the padlock (or the sliders icon) left of the address → <strong>Notifications</strong> → Allow.
+                                Or open <code>chrome://settings/content/notifications</code>, find <code>{{ request()->getHost() }}</code>
+                                under the blocked list and remove it. Then reload this page.
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Firefox</th>
+                            <td>Padlock left of the address → <strong>Permissions</strong> → clear the block on “Receive Notifications”, then reload.</td>
+                        </tr>
+                        <tr>
+                            <th>Safari (Mac)</th>
+                            <td>Safari → Settings → <strong>Websites</strong> → Notifications → find <code>{{ request()->getHost() }}</code> → Allow.</td>
+                        </tr>
+                        <tr>
+                            <th>iPhone / iPad</th>
+                            <td>Share → <strong>Add to Home Screen</strong>, then open the app from the home screen and press Enable there. Safari in a normal tab cannot do this — Apple's rule.</td>
+                        </tr>
+                        <tr>
+                            <th>Still nothing</th>
+                            <td>
+                                Check the computer itself: notifications for the browser may be off
+                                (Mac: System Settings → Notifications; Windows: Settings → System → Notifications),
+                                or Do Not Disturb / Focus may be on. A private window cannot keep a subscription at all.
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </details>
+
             <hr style="margin:16px 0;border-color:#eef0f3;">
 
             <div class="nc-connect">
-                <div class="nc-connect-text" style="color:#8a8f98;"><strong>Slack</strong> is next.</div>
-                <span class="nc-meta">Coming soon</span>
+                <div class="nc-connect-text">
+                    <strong>Slack.</strong> Our bot writes to you directly. We look you up in the workspace by
+                    your email — nothing to authorise, nothing to paste.
+                </div>
+                @if($slackReady)
+                    <form action="{{ route('profile.notifications.slack') }}" method="POST">
+                        @csrf
+                        <button type="submit" class="nc-btn nc-btn-primary">
+                            <i class="bi bi-slack me-1"></i>Connect Slack
+                        </button>
+                    </form>
+                @else
+                    <span class="nc-meta">Not configured yet.</span>
+                @endif
             </div>
+
+            @if($slackReady)
+                @error('slack')<div class="nc-error" style="margin-top:10px;">{{ $message }}</div>@enderror
+
+                {{-- The fallback that makes the lookup honest: plenty of people
+                     are in Slack under a personal address, and "not found" with
+                     no way forward is a dead end. --}}
+                <details class="nc-help" @if($errors->has('slack')) open @endif>
+                    <summary>My Slack uses a different email address</summary>
+                    <div class="nc-help-body">
+                        <form action="{{ route('profile.notifications.slack') }}" method="POST"
+                              style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                            @csrf
+                            <input type="email" name="email" class="form-control" style="max-width:320px;height:34px;font-size:13px;"
+                                   placeholder="the address your Slack account uses" value="{{ old('email') }}" required>
+                            <button type="submit" class="nc-btn nc-btn-quiet">Look me up by this address</button>
+                        </form>
+                    </div>
+                </details>
+            @endif
         </div>
     </div>
 </div>
@@ -221,6 +305,31 @@
         return;
     }
 
+    // Say it before the button is pressed, not after. A browser that has
+    // already been told "block" answers "denied" instantly without asking
+    // anybody anything, so pressing the button can only ever fail — and
+    // finding that out by pressing it teaches nothing about how to fix it.
+    const blockedAdvice = 'This browser is blocking notifications for this site, so it will not even ask. '
+        + 'Click the padlock next to the address → Notifications → Allow, then reload this page. '
+        + 'If that is already allowed, check your operating system: notifications for the browser itself '
+        + 'may be switched off, or Do Not Disturb / Focus may be on.';
+
+    function reflectPermission() {
+        if (Notification.permission === 'denied') {
+            button.disabled = true;
+            say(blockedAdvice);
+            return true;
+        }
+
+        if (Notification.permission === 'granted') {
+            say('This browser has already allowed notifications. Press the button to subscribe it.');
+        }
+
+        return false;
+    }
+
+    if (reflectPermission()) return;
+
     // The key arrives base64url and the browser wants raw bytes.
     function urlBase64ToUint8Array(base64String) {
         const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -237,9 +346,12 @@
             const permission = await Notification.requestPermission();
 
             if (permission !== 'granted') {
-                say(permission === 'denied'
-                    ? 'This browser is blocking notifications for this site. Allow them in the padlock menu next to the address, then try again.'
-                    : 'Not allowed yet.');
+                if (permission === 'denied') {
+                    say(blockedAdvice);
+                    return;
+                }
+
+                say('Nothing chosen yet — press the button and answer the browser prompt.');
                 button.disabled = false;
                 return;
             }

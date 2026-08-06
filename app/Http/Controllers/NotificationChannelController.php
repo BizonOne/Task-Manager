@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\NotificationChannel;
 use App\Support\Notifications\ChatMessage;
 use App\Support\Notifications\Delivery;
+use App\Support\Notifications\Slack;
 use App\Support\Notifications\Telegram;
 use App\Support\Notifications\WebPush;
 use Illuminate\Http\Request;
@@ -30,6 +31,7 @@ class NotificationChannelController extends Controller
             'events' => Delivery::events(),
             'telegramReady' => Telegram::configured() && Telegram::botUsername() !== null,
             'webPushReady' => WebPush::configured(),
+            'slackReady' => Slack::configured(),
             'vapidPublicKey' => WebPush::publicKey(),
         ]);
     }
@@ -52,6 +54,63 @@ class NotificationChannelController extends Controller
         ]);
 
         return redirect()->away(Telegram::connectLink($channel->startConnecting()));
+    }
+
+    /**
+     * Connect Slack by finding the person in the workspace.
+     *
+     * One bot, installed once by an administrator, rather than an OAuth dance
+     * per person: everybody here is in the same Slack. What that costs is the
+     * lookup — somebody whose Slack account uses a different address than the
+     * one they have here will not be found, which is why this will take an
+     * address to look for.
+     */
+    public function connectSlack(Request $request)
+    {
+        abort_unless(Slack::configured(), 404);
+
+        $user = Auth::user();
+        // validate() returns only the keys that were actually sent, so the
+        // ordinary case — pressing Connect with no address — has no key at all.
+        $validated = $request->validate(['email' => 'nullable|email']);
+        $email = trim((string) ($validated['email'] ?? '')) ?: $user->email;
+
+        try {
+            $found = Slack::lookupByEmail($email);
+
+            if ($found === null) {
+                return back()->withErrors(['slack' => 'Slack has no account for '.$email
+                    .'. If your Slack uses a different address, type it below and try again.']);
+            }
+
+            $conversation = Slack::openConversation($found['id']);
+        } catch (Throwable $e) {
+            return back()->withErrors(['slack' => $e->getMessage()]);
+        }
+
+        $channel = $user->notificationChannels()->firstOrNew([
+            'type' => NotificationChannel::SLACK,
+            'target' => $conversation,
+        ]);
+        $channel->type = NotificationChannel::SLACK;
+        $channel->enabled = true;
+        $channel->meta = ['slack_user_id' => $found['id'], 'email' => $email];
+        $channel->save();
+        $channel->complete($conversation, $found['name']);
+
+        // The proof, not the claim: if this arrives, it works.
+        try {
+            Slack::postMessage($conversation, (new ChatMessage(
+                title: 'Connected',
+                lines: ['You will get your '.config('app.name').' notifications here.'],
+                url: route('profile.notifications'),
+            ))->toSlackMarkdown());
+            $channel->recordDelivery();
+        } catch (Throwable $e) {
+            $channel->recordFailure($e->getMessage());
+        }
+
+        return back()->with('success', 'Slack connected for '.$found['name'].'.');
     }
 
     /**
@@ -148,6 +207,7 @@ class NotificationChannelController extends Controller
             match ($channel->type) {
                 NotificationChannel::TELEGRAM => Telegram::sendMessage($channel->target, $message->toTelegramHtml()),
                 NotificationChannel::WEBPUSH => WebPush::send($channel, $message),
+                NotificationChannel::SLACK => Slack::postMessage($channel->target, $message->toSlackMarkdown()),
                 default => throw new \RuntimeException('Nothing knows how to send to that channel yet.'),
             };
         } catch (Throwable $e) {
