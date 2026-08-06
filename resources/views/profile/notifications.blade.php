@@ -221,6 +221,31 @@
         return;
     }
 
+    // Say it before the button is pressed, not after. A browser that has
+    // already been told "block" answers "denied" instantly without asking
+    // anybody anything, so pressing the button can only ever fail — and
+    // finding that out by pressing it teaches nothing about how to fix it.
+    const blockedAdvice = 'This browser is blocking notifications for this site, so it will not even ask. '
+        + 'Click the padlock next to the address → Notifications → Allow, then reload this page. '
+        + 'If that is already allowed, check your operating system: notifications for the browser itself '
+        + 'may be switched off, or Do Not Disturb / Focus may be on.';
+
+    function reflectPermission() {
+        if (Notification.permission === 'denied') {
+            button.disabled = true;
+            say(blockedAdvice);
+            return true;
+        }
+
+        if (Notification.permission === 'granted') {
+            say('This browser has already allowed notifications. Press the button to subscribe it.');
+        }
+
+        return false;
+    }
+
+    if (reflectPermission()) return;
+
     // The key arrives base64url and the browser wants raw bytes.
     function urlBase64ToUint8Array(base64String) {
         const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -237,9 +262,12 @@
             const permission = await Notification.requestPermission();
 
             if (permission !== 'granted') {
-                say(permission === 'denied'
-                    ? 'This browser is blocking notifications for this site. Allow them in the padlock menu next to the address, then try again.'
-                    : 'Not allowed yet.');
+                if (permission === 'denied') {
+                    say(blockedAdvice);
+                    return;
+                }
+
+                say('Nothing chosen yet — press the button and answer the browser prompt.');
                 button.disabled = false;
                 return;
             }
