@@ -44,6 +44,16 @@ return [
         'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
     ],
 
+    // Browser notifications. The key pair is this application's identity to
+    // the push services; generate one with `php artisan webpush:keys`.
+    // Changing it invalidates every existing subscription.
+    'webpush' => [
+        'public_key' => env('VAPID_PUBLIC_KEY'),
+        'private_key' => env('VAPID_PRIVATE_KEY'),
+        // Where a push service can complain about this application.
+        'subject' => env('VAPID_SUBJECT'),
+    ],
+
     // Read-only, and only used by `php artisan jira:import`. The token is an
     // Atlassian API token belonging to JIRA_USER; it is a password, so it
     // lives in the environment and nowhere else.

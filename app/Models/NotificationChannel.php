@@ -32,6 +32,7 @@ class NotificationChannel extends Model
         'label',
         'enabled',
         'muted_events',
+        'meta',
     ];
 
     protected $casts = [
@@ -40,6 +41,7 @@ class NotificationChannel extends Model
         'last_sent_at' => 'datetime',
         'enabled' => 'boolean',
         'muted_events' => 'array',
+        'meta' => 'array',
     ];
 
     /**
