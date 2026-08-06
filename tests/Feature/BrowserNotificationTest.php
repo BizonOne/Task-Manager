@@ -297,6 +297,35 @@ class BrowserNotificationTest extends TestCase
             ->assertSee('fcm.googleapis.com', false);
     }
 
+    public function test_the_page_says_what_this_browser_actually_believes(): void
+    {
+        $this->subscribed();
+
+        // Three rounds of "nothing arrives" were spent guessing at things only
+        // the browser could see: which worker is running, and whether the
+        // subscription it holds is the one being sent to. It says so itself
+        // now, rather than leaving that to somebody reading DevTools.
+        $this->actingAs($this->user)
+            ->get(route('profile.notifications'))
+            ->assertSuccessful()
+            ->assertSee('ncBrowserState', false)
+            ->assertSee('NOT known to the server', false);
+    }
+
+    public function test_a_browser_can_throw_its_subscription_away_and_make_a_new_one(): void
+    {
+        $this->subscribed();
+
+        // The recovery path for a subscription the push service still accepts
+        // while the browser no longer listens to it — which looks, from the
+        // outside, exactly like everything working and nothing arriving.
+        $this->actingAs($this->user)
+            ->get(route('profile.notifications'))
+            ->assertSuccessful()
+            ->assertSee('Re-subscribe this browser')
+            ->assertSee('unsubscribe()', false);
+    }
+
     public function test_the_service_worker_is_served_from_the_root(): void
     {
         // A service worker can only act for pages under its own path, so one
