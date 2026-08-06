@@ -202,11 +202,19 @@
                         <i class="bi bi-window me-1"></i>Enable in this browser
                     </button>
                     <span class="nc-done" id="ncBrowserDone" hidden><i class="bi bi-check-circle-fill"></i> Enabled in this browser</span>
+                    <button type="button" class="nc-btn nc-btn-quiet" id="ncResubscribe" hidden>Re-subscribe this browser</button>
                 @else
                     <span class="nc-meta">Not configured yet.</span>
                 @endif
             </div>
             <p id="ncBrowserNote" class="nc-meta" style="margin:10px 0 0;"></p>
+
+            {{-- What this browser actually believes, in words.
+                 Three rounds of "nothing arrives" were spent guessing at
+                 things only the browser could see: which worker is running,
+                 and whether the subscription it holds is the one we are
+                 sending to. It says so itself now. --}}
+            <p id="ncBrowserState" class="nc-meta" style="margin:6px 0 0;font-family:ui-monospace,monospace;font-size:11px;"></p>
 
             {{-- Written out per browser on purpose. "Allow it in your browser
                  settings" is true and useless; the menu is in a different place
@@ -346,36 +354,107 @@
     const knownEndpoints = @json($subscribedEndpoints ?? []);
     const done = document.getElementById('ncBrowserDone');
 
-    (async function () {
-        if (!knownEndpoints.length) return;
+    const state = document.getElementById('ncBrowserState');
+    const resubscribe = document.getElementById('ncResubscribe');
+
+    async function describe() {
+        if (!state) return;
 
         try {
             const registration = await navigator.serviceWorker.getRegistration();
-            const existing = await registration?.pushManager.getSubscription();
 
-            if (existing && knownEndpoints.includes(existing.endpoint)) {
+            if (!registration) {
+                state.textContent = 'worker: none registered in this browser';
+                return;
+            }
+
+            const worker = registration.active || registration.waiting || registration.installing;
+            const existing = await registration.pushManager.getSubscription();
+            const known = existing ? knownEndpoints.includes(existing.endpoint) : false;
+
+            state.textContent = 'worker: ' + (worker ? worker.scriptURL.replace(location.origin, '') : '?')
+                + ' (' + (worker ? worker.state : 'none') + ')'
+                + ' · subscription: ' + (existing ? (known ? 'known to the server' : 'NOT known to the server') : 'none');
+
+            if (existing && known) {
                 button.hidden = true;
                 if (done) done.hidden = false;
+                if (resubscribe) resubscribe.hidden = false;
                 say('');
 
                 // Fetch the worker again while we are here. Without this a
                 // browser that already has a subscription never re-checks the
                 // script, and a fix to it waits for a cache to expire.
                 registration.update().catch(function () {});
+
                 return;
             }
 
-            // We think this browser is subscribed and it disagrees — it
-            // rotated the subscription, or dropped it. Say so, rather than
-            // leaving somebody with a settings page that claims a channel
-            // works while nothing arrives.
-            if (!existing) {
+            // The browser holds a subscription the server has never seen — it
+            // rotated behind our back. Hand it over rather than leaving a
+            // settings page that claims a channel works while nothing arrives.
+            if (existing && !known) {
+                say('This browser had rotated its subscription. Reconnecting it…');
+                await store(existing);
+                window.location.reload();
+                return;
+            }
+
+            if (knownEndpoints.length) {
                 say('This browser is no longer subscribed. Press the button to enable it again.');
             }
         } catch (e) {
-            // Nothing to say: the button simply stays offered.
+            state.textContent = 'worker: could not be inspected (' + e.message + ')';
         }
-    })();
+    }
+
+    async function store(subscription) {
+        const payload = subscription.toJSON();
+
+        const response = await fetch(@json(route('profile.notifications.browser')), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+            },
+            body: JSON.stringify({
+                endpoint: payload.endpoint,
+                keys: payload.keys,
+                encoding: (PushManager.supportedContentEncodings || ['aesgcm'])[0],
+                label: navigator.userAgent.match(/Chrome|Firefox|Safari|Edg/)?.[0] || 'This browser',
+            }),
+        });
+
+        if (!response.ok) throw new Error('The server would not take the subscription.');
+    }
+
+    describe();
+
+    // Throw the subscription away and make a new one. The recovery path for a
+    // subscription the push service still accepts while the browser no longer
+    // listens to it — which looks, from the outside, exactly like everything
+    // working and nothing arriving.
+    resubscribe?.addEventListener('click', async function () {
+        resubscribe.disabled = true;
+        say('Making a new subscription for this browser…');
+
+        try {
+            const registration = await navigator.serviceWorker.getRegistration();
+            const existing = await registration?.pushManager.getSubscription();
+            await existing?.unsubscribe();
+
+            const fresh = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(@json($vapidPublicKey)),
+            });
+
+            await store(fresh);
+            window.location.reload();
+        } catch (error) {
+            say('Could not re-subscribe: ' + error.message);
+            resubscribe.disabled = false;
+        }
+    });
 
     // The key arrives base64url and the browser wants raw bytes.
     function urlBase64ToUint8Array(base64String) {
