@@ -270,16 +270,52 @@ class NotificationChannelTest extends TestCase
 
     // --- the settings page ------------------------------------------------------
 
-    public function test_the_page_lists_the_channels_and_offers_telegram(): void
+    public function test_the_page_offers_telegram_until_it_is_connected(): void
+    {
+        $this->actingAs($this->user)
+            ->get(route('profile.notifications'))
+            ->assertSuccessful()
+            ->assertSee('Connect Telegram');
+    }
+
+    public function test_the_page_lists_a_connected_channel_and_what_it_can_be_muted_from(): void
     {
         $this->connected();
 
         $this->actingAs($this->user)
             ->get(route('profile.notifications'))
             ->assertSuccessful()
-            ->assertSee('Connect Telegram')
             ->assertSee('@nadia')
             ->assertSee('A task is given to me');
+    }
+
+    public function test_a_connected_channel_stops_being_offered(): void
+    {
+        $this->actingAs($this->user)
+            ->get(route('profile.notifications'))
+            ->assertSuccessful()
+            ->assertSee('Connect Telegram');
+
+        $this->connected();
+
+        // Offering to connect something that is already connected is how a
+        // settings page teaches people to distrust it.
+        $this->actingAs($this->user)
+            ->get(route('profile.notifications'))
+            ->assertSuccessful()
+            ->assertDontSee('Connect Telegram');
+    }
+
+    public function test_a_half_finished_connection_does_not_count_as_connected(): void
+    {
+        $this->connected(['verified_at' => null]);
+
+        // Somebody who opened the bot and never pressed Start needs the button
+        // to still be there.
+        $this->actingAs($this->user)
+            ->get(route('profile.notifications'))
+            ->assertSuccessful()
+            ->assertSee('Connect Telegram');
     }
 
     public function test_nobody_touches_anybody_elses_channels(): void
