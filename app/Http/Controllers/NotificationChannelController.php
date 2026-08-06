@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\NotificationChannel;
+use App\Support\Dates;
 use App\Support\Notifications\ChatMessage;
 use App\Support\Notifications\Delivery;
 use App\Support\Notifications\Slack;
@@ -210,9 +211,16 @@ class NotificationChannelController extends Controller
             return back()->withErrors(['channel' => 'That channel is not connected yet.']);
         }
 
+        // The time is in it so that pressing the button twice produces two
+        // visibly different messages. Two identical ones are indistinguishable
+        // from one that never arrived, which is exactly the confusion this
+        // button exists to settle.
         $message = new ChatMessage(
             title: 'Test message',
-            lines: ['Notifications from '.config('app.name').' will arrive here.'],
+            lines: [
+                'Notifications from '.config('app.name').' will arrive here.',
+                'Sent at '.Dates::dateTime(now()).'.',
+            ],
             url: route('tasks.index'),
         );
 

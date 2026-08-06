@@ -38,14 +38,18 @@ self.addEventListener('push', function (event) {
             icon: '/brand/logo',
             badge: '/brand/logo',
             data: { url: payload.url || '/' },
-            // Replaces an unread notification about the same thing rather than
-            // stacking a second one on top of it — three comments on one task
-            // are one entry, not three.
-            tag: payload.url || 'update',
-            // But it still announces itself. Replacing quietly is the default,
-            // and it makes the second notification about the same task look
-            // exactly like a notification that never arrived.
-            renotify: true,
+            // Every notification is its own notification.
+            //
+            // These used to be grouped by task, so three comments on one task
+            // were one entry instead of three. That is tidier and it cost two
+            // rounds of "nothing arrived": a notification replacing an earlier
+            // one with the same tag is silent by default, and even with
+            // renotify the operating system may still fold it into what is
+            // already sitting in its notification centre. A tidy list is worth
+            // nothing next to a notification that shows up.
+            //
+            // No tag also means no renotify — Chrome throws on renotify
+            // without one, and a throw in here means no notification at all.
             timestamp: Date.now(),
         })
     );
