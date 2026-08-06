@@ -407,7 +407,14 @@
             // rather than trusting whatever it has cached — belt and braces
             // with the no-cache header, since a stale worker is a fix nobody
             // receives.
-            const registration = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
+            // The version in the URL is the part that actually works: a new
+            // deploy is a new address, and a new address cannot come out of
+            // anybody's cache. updateViaCache and the no-cache header are the
+            // belt to its braces.
+            const registration = await navigator.serviceWorker.register(
+                @json(route('service-worker').'?v='.\App\Http\Controllers\ServiceWorkerController::version()),
+                { updateViaCache: 'none', scope: '/' }
+            );
             await navigator.serviceWorker.ready;
 
             const subscription = await registration.pushManager.subscribe({

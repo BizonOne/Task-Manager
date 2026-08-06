@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\ServiceWorkerController;
 use App\Models\NotificationChannel;
 use App\Models\Project;
 use App\Models\Task;
@@ -300,7 +301,7 @@ class BrowserNotificationTest extends TestCase
     {
         // A service worker can only act for pages under its own path, so one
         // served from /js/ could not cover the site.
-        $this->get('/sw.js')
+        $this->get('/service-worker')
             ->assertSuccessful()
             ->assertHeader('Content-Type', 'text/javascript; charset=utf-8')
             ->assertHeader('Service-Worker-Allowed', '/')
@@ -314,10 +315,22 @@ class BrowserNotificationTest extends TestCase
         // that told every browser to keep the version it already had — and two
         // fixes to the push handler reached nobody. A bug you cannot deploy a
         // fix to is the worst kind.
-        $response = $this->get('/sw.js')->assertSuccessful();
+        $response = $this->get('/service-worker')->assertSuccessful();
 
         $this->assertStringContainsString('no-cache', $response->headers->get('Cache-Control'));
         $this->assertFileDoesNotExist(public_path('sw.js'));
+    }
+
+    public function test_each_version_of_the_worker_is_its_own_address(): void
+    {
+        // The header alone is not enough: the CDN in front of production
+        // rewrites Cache-Control on anything that looks like a script. A new
+        // deploy being a new URL is what actually guarantees the browser
+        // fetches it, because a new URL cannot come out of anybody's cache.
+        $this->actingAs($this->user)
+            ->get(route('profile.notifications'))
+            ->assertSuccessful()
+            ->assertSee('service-worker?v='.ServiceWorkerController::version(), false);
     }
 
     public function test_the_page_fetches_the_worker_rather_than_trusting_a_cached_copy(): void
@@ -334,7 +347,7 @@ class BrowserNotificationTest extends TestCase
     {
         // The comments in that file discuss both of these at length, so read
         // the code without them.
-        $code = preg_replace('#^\s*//.*$#m', '', $this->get('/sw.js')->getContent());
+        $code = preg_replace('#^\s*//.*$#m', '', $this->get('/service-worker')->getContent());
 
         // Notifications were grouped by task, which is tidier and cost two
         // rounds of "nothing arrived": one replacing an earlier one with the
@@ -368,7 +381,7 @@ class BrowserNotificationTest extends TestCase
 
     public function test_the_service_worker_takes_over_as_soon_as_it_changes(): void
     {
-        $worker = $this->get('/sw.js')->getContent();
+        $worker = $this->get('/service-worker')->getContent();
 
         // Otherwise a fix in here waits for every tab on the site to close,
         // which for a tool people leave open all day is never.
