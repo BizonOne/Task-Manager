@@ -56,6 +56,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('profile/notifications', [NotificationChannelController::class, 'index'])->name('profile.notifications');
     Route::post('profile/notifications/telegram', [NotificationChannelController::class, 'connectTelegram'])->name('profile.notifications.telegram');
     Route::post('profile/notifications/browser', [NotificationChannelController::class, 'subscribeBrowser'])->name('profile.notifications.browser');
+    Route::post('profile/notifications/slack', [NotificationChannelController::class, 'connectSlack'])->name('profile.notifications.slack');
     Route::put('profile/notifications/{channel}', [NotificationChannelController::class, 'update'])->name('profile.notifications.update');
     Route::post('profile/notifications/{channel}/test', [NotificationChannelController::class, 'test'])->name('profile.notifications.test');
     Route::delete('profile/notifications/{channel}', [NotificationChannelController::class, 'destroy'])->name('profile.notifications.destroy');
