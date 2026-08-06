@@ -25,9 +25,22 @@ class NotificationChannelController extends Controller
     {
         $user = Auth::user();
 
+        $channels = $user->notificationChannels()->latest()->get();
+
         return view('profile.notifications', [
             'user' => $user,
-            'channels' => $user->notificationChannels()->latest()->get(),
+            'channels' => $channels,
+            // What is already set up, so the page stops offering it. Telegram
+            // and Slack are one per person; a browser is one per browser, so
+            // that one is answered on the client — this list is what it
+            // compares its own subscription against.
+            'connectedTypes' => $channels->filter->isLive()->pluck('type')->unique()->all(),
+            'subscribedEndpoints' => $channels
+                ->where('type', NotificationChannel::WEBPUSH)
+                ->filter->isLive()
+                ->pluck('target')
+                ->values()
+                ->all(),
             'events' => Delivery::events(),
             'telegramReady' => Telegram::configured() && Telegram::botUsername() !== null,
             'webPushReady' => WebPush::configured(),

@@ -281,6 +281,21 @@ class BrowserNotificationTest extends TestCase
         $this->postJson(route('profile.notifications.browser'), $this->subscription());
     }
 
+    public function test_the_browser_button_stays_offered_even_when_another_machine_is_subscribed(): void
+    {
+        $this->subscribed();
+
+        // A subscription belongs to one browser on one machine. Hiding the
+        // button because *some* browser is subscribed would strand somebody on
+        // their second laptop — which browser this is is a question only the
+        // browser can answer, so the page hands it the endpoints and lets it.
+        $this->actingAs($this->user)
+            ->get(route('profile.notifications'))
+            ->assertSuccessful()
+            ->assertSee('Enable in this browser')
+            ->assertSee('fcm.googleapis.com', false);
+    }
+
     public function test_the_service_worker_is_served_from_the_root(): void
     {
         // A service worker can only act for pages under its own path, so one

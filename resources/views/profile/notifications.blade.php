@@ -42,6 +42,7 @@
     .nc-btn-danger { background:#fff; color:#dc2626; border:1px solid #fecaca; }
     .nc-connect { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
     .nc-connect-text { font-size:13px; color:#4b5563; max-width:640px; line-height:1.55; }
+    .nc-done { font-size:12px; font-weight:600; color:#15803d; display:flex; align-items:center; gap:6px; white-space:nowrap; }
 
     .nc-help { margin-top:12px; border:1px solid #e6e6eb; border-radius:8px; background:#fbfbfd; }
     .nc-help > summary { cursor:pointer; padding:9px 12px; font-size:12px; font-weight:600; color:#4b5563; list-style:none; }
@@ -167,7 +168,9 @@
                     nothing to type. A bot cannot message you until you press Start, which is what makes that press
                     the permission.
                 </div>
-                @if($telegramReady)
+                @if(in_array('telegram', $connectedTypes, true))
+                    <span class="nc-done"><i class="bi bi-check-circle-fill"></i> Connected</span>
+                @elseif($telegramReady)
                     <form action="{{ route('profile.notifications.telegram') }}" method="POST">
                         @csrf
                         <button type="submit" class="nc-btn nc-btn-primary">
@@ -190,9 +193,15 @@
                     home screen; that is Apple's rule, not ours.</span>
                 </div>
                 @if($webPushReady)
+                    {{-- Not hidden just because some browser is subscribed: a
+                         subscription belongs to one browser on one machine, and
+                         hiding it here would strand somebody on their second
+                         laptop. Which browser this is is a question only the
+                         browser can answer, so it does, below. --}}
                     <button type="button" class="nc-btn nc-btn-primary" id="ncEnableBrowser">
                         <i class="bi bi-window me-1"></i>Enable in this browser
                     </button>
+                    <span class="nc-done" id="ncBrowserDone" hidden><i class="bi bi-check-circle-fill"></i> Enabled in this browser</span>
                 @else
                     <span class="nc-meta">Not configured yet.</span>
                 @endif
@@ -246,7 +255,9 @@
                     <strong>Slack.</strong> Our bot writes to you directly. We look you up in the workspace by
                     your email — nothing to authorise, nothing to paste.
                 </div>
-                @if($slackReady)
+                @if(in_array('slack', $connectedTypes, true))
+                    <span class="nc-done"><i class="bi bi-check-circle-fill"></i> Connected</span>
+                @elseif($slackReady)
                     <form action="{{ route('profile.notifications.slack') }}" method="POST">
                         @csrf
                         <button type="submit" class="nc-btn nc-btn-primary">
@@ -258,7 +269,7 @@
                 @endif
             </div>
 
-            @if($slackReady)
+            @if($slackReady && ! in_array('slack', $connectedTypes, true))
                 @error('slack')<div class="nc-error" style="margin-top:10px;">{{ $message }}</div>@enderror
 
                 {{-- The fallback that makes the lookup honest: plenty of people
@@ -329,6 +340,28 @@
     }
 
     if (reflectPermission()) return;
+
+    // Is it *this* browser that is already subscribed? Only this browser can
+    // say — the server knows a list of endpoints but not which one is us.
+    const knownEndpoints = @json($subscribedEndpoints ?? []);
+    const done = document.getElementById('ncBrowserDone');
+
+    (async function () {
+        if (!knownEndpoints.length) return;
+
+        try {
+            const registration = await navigator.serviceWorker.getRegistration();
+            const existing = await registration?.pushManager.getSubscription();
+
+            if (existing && knownEndpoints.includes(existing.endpoint)) {
+                button.hidden = true;
+                if (done) done.hidden = false;
+                say('');
+            }
+        } catch (e) {
+            // Nothing to say: the button simply stays offered.
+        }
+    })();
 
     // The key arrives base64url and the browser wants raw bytes.
     function urlBase64ToUint8Array(base64String) {
