@@ -134,7 +134,7 @@
 .cu-detail-table tr:last-child td { border-bottom: none; }
 .cu-detail-table td:first-child { font-weight: 600; color: #374151; width: 35%; display: flex; align-items: center; gap: 6px; }
 .cu-detail-table td:last-child  { color: #6b7280; }
-.cu-stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px,1fr)); gap: 10px; }
+.cu-stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100px, 100%), 1fr)); gap: 10px; }
 .cu-stat-box { background: #f9fafb; border: 1px solid #e3e4e8; border-radius: 8px; padding: 12px; text-align: center; }
 .cu-stat-box-num { font-size: 20px; font-weight: 800; color: #1a1d23; line-height: 1; }
 .cu-stat-box-lbl { font-size: 10px; color: #8a8f98; text-transform: uppercase; letter-spacing: .5px; margin-top: 3px; }

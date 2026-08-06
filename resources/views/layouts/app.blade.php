@@ -342,8 +342,9 @@
         .topnav-container {
             display: flex;
             align-items: center;
-            justify-content: between;
+            gap: 0.5rem;
             max-width: 100%;
+            min-width: 0;
         }
 
         .page-title {
@@ -358,12 +359,14 @@
             display: flex;
             align-items: center;
             gap: 0.625rem;
+            min-width: 0;
         }
 
         .current-time {
             font-size: 0.875rem;
             color: var(--gray-500);
             font-weight: 500;
+            white-space: nowrap;
         }
 
         .dropdown-menu {
@@ -395,7 +398,12 @@
             min-width: 17px; height: 17px; line-height: 17px; text-align: center;
             border-radius: 999px; padding: 0 4px;
         }
-        .notif-menu { min-width: 320px; max-width: 340px; max-height: 420px; overflow-y: auto; padding: 0; }
+        /* Wider than the phone it drops onto, otherwise. */
+        .notif-menu {
+            min-width: min(320px, calc(100vw - 1.5rem));
+            max-width: min(340px, calc(100vw - 1.5rem));
+            max-height: 420px; overflow-y: auto; padding: 0;
+        }
         .notif-head {
             display: flex; align-items: center; justify-content: space-between;
             padding: 10px 14px; border-bottom: 1px solid var(--gray-200);
@@ -415,6 +423,12 @@
             flex-grow: 1;
             overflow-y: auto;
             padding: 1rem;
+            /* A phone scrolls sideways because of one word, not because of the
+               layout: a pasted link, an address, a merchant domain. `anywhere`
+               rather than `break-word` because only `anywhere` shrinks an
+               element's min-content width, and it is that width a grid or flex
+               track refuses to go below — which is what drags the page wide. */
+            overflow-wrap: anywhere;
         }
 
         .card {
@@ -564,6 +578,23 @@
 
             .topnav { padding: 0.5rem 0.75rem; }
         }
+
+        @media (max-width: 576px) {
+            /* The clock ticks seconds and spells the weekday out, and on a
+               phone it is the widest thing in the bar — it pushes the bell and
+               Quick Add off the edge. Nobody opened this app to read the time. */
+            .current-time { display: none; }
+
+            main { padding: 0.625rem; }
+
+            /* Bootstrap's grid gutters are negative margins; inside our padded
+               main they hang over the right edge. */
+            .row { --bs-gutter-x: 1rem; }
+        }
+
+        /* A chart sizes itself from its container, but a canvas with nothing
+           driving it keeps its intrinsic 300px and pushes the page out. */
+        main canvas { max-width: 100%; }
 
         /* ── The editor's link popup ───────────────────────────────
            Quill drops its "Enter link" box inside the editor and positions it

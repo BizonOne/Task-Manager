@@ -34,7 +34,7 @@
 /* Stat tiles */
 .cu-rem-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(130px, 100%), 1fr));
     gap: .6rem;
     margin-bottom: 1rem;
 }

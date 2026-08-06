@@ -40,7 +40,7 @@
 .rp-card-body { padding: 18px; }
 
 /* Filters */
-.rp-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.rp-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 12px; }
 .rp-field label {
     display: block; font-size: 10px; font-weight: 700; color: #9ca3af;
     text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px;
@@ -64,7 +64,7 @@
 .rp-btn.ghost:hover { background: #e5e7eb; color: #374151; }
 
 /* Tiles */
-.rp-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.rp-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 12px; margin-bottom: 16px; }
 .rp-tile {
     background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
     padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.05);
@@ -78,7 +78,7 @@
 .rp-tile.ok .rp-tile-val { color: #16a34a; }
 
 /* Breakdown */
-.rp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.rp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 16px; }
 .rp-bar-row { margin-bottom: 12px; }
 .rp-bar-row:last-child { margin-bottom: 0; }
 .rp-bar-head {

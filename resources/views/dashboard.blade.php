@@ -24,7 +24,7 @@
 
         <!-- Stats Cards -->
         <div class="row mb-6">
-            <div class="col-xl-3 col-md-6 mb-4">
+            <div class="col-6 col-xl-3 mb-3">
                 <div class="stat-card stat-card-primary">
                     <div class="stat-card-icon">
                         <i class="bi bi-check-square-fill"></i>
@@ -40,7 +40,7 @@
                 </div>
             </div>
 
-            <div class="col-xl-3 col-md-6 mb-4">
+            <div class="col-6 col-xl-3 mb-3">
                 <div class="stat-card stat-card-success">
                     <div class="stat-card-icon">
                         <i class="bi bi-folder-fill"></i>
@@ -56,7 +56,7 @@
                 </div>
             </div>
 
-            <div class="col-xl-3 col-md-6 mb-4">
+            <div class="col-6 col-xl-3 mb-3">
                 <div class="stat-card stat-card-warning">
                     <div class="stat-card-icon">
                         <i class="bi bi-arrow-repeat"></i>
@@ -72,7 +72,7 @@
                 </div>
             </div>
 
-            <div class="col-xl-3 col-md-6 mb-4">
+            <div class="col-6 col-xl-3 mb-3">
                 <div class="stat-card stat-card-info">
                     <div class="stat-card-icon">
                         <i class="bi bi-journal-text"></i>
