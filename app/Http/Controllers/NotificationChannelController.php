@@ -6,6 +6,7 @@ use App\Models\NotificationChannel;
 use App\Support\Notifications\ChatMessage;
 use App\Support\Notifications\Delivery;
 use App\Support\Notifications\Telegram;
+use App\Support\Notifications\WebPush;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Throwable;
@@ -28,6 +29,8 @@ class NotificationChannelController extends Controller
             'channels' => $user->notificationChannels()->latest()->get(),
             'events' => Delivery::events(),
             'telegramReady' => Telegram::configured() && Telegram::botUsername() !== null,
+            'webPushReady' => WebPush::configured(),
+            'vapidPublicKey' => WebPush::publicKey(),
         ]);
     }
 
@@ -49,6 +52,45 @@ class NotificationChannelController extends Controller
         ]);
 
         return redirect()->away(Telegram::connectLink($channel->startConnecting()));
+    }
+
+    /**
+     * Remember a browser that has agreed to show notifications.
+     *
+     * Sent by the page after the browser has said yes. One subscription per
+     * browser per machine, keyed by its endpoint — allowing it twice from the
+     * same browser must update that subscription, not collect another.
+     */
+    public function subscribeBrowser(Request $request)
+    {
+        abort_unless(WebPush::configured(), 404);
+
+        $data = $request->validate([
+            'endpoint' => 'required|string|max:1000|url',
+            'keys.p256dh' => 'required|string|max:255',
+            'keys.auth' => 'required|string|max:255',
+            'encoding' => 'nullable|string|max:32',
+            'label' => 'nullable|string|max:120',
+        ]);
+
+        $channel = Auth::user()->notificationChannels()->firstOrNew([
+            'type' => NotificationChannel::WEBPUSH,
+            'target' => $data['endpoint'],
+        ]);
+
+        $channel->type = NotificationChannel::WEBPUSH;
+        $channel->enabled = true;
+        $channel->meta = [
+            'p256dh' => $data['keys']['p256dh'],
+            'auth' => $data['keys']['auth'],
+            'encoding' => $data['encoding'] ?? 'aesgcm',
+        ];
+        $channel->save();
+
+        // The browser said yes; there is no second step to wait for.
+        $channel->complete($data['endpoint'], $data['label'] ?? 'This browser');
+
+        return response()->json(['ok' => true]);
     }
 
     /**
@@ -105,6 +147,7 @@ class NotificationChannelController extends Controller
         try {
             match ($channel->type) {
                 NotificationChannel::TELEGRAM => Telegram::sendMessage($channel->target, $message->toTelegramHtml()),
+                NotificationChannel::WEBPUSH => WebPush::send($channel, $message),
                 default => throw new \RuntimeException('Nothing knows how to send to that channel yet.'),
             };
         } catch (Throwable $e) {

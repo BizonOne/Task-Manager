@@ -4,6 +4,7 @@ namespace App\Support\Notifications;
 
 use App\Models\NotificationChannel;
 use App\Notifications\Channels\TelegramChannel;
+use App\Notifications\Channels\WebPushChannel;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Str;
 use Throwable;
@@ -35,6 +36,7 @@ class Delivery
      */
     private const DRIVERS = [
         NotificationChannel::TELEGRAM => TelegramChannel::class,
+        NotificationChannel::WEBPUSH => WebPushChannel::class,
     ];
 
     /**

@@ -76,7 +76,7 @@
                     @csrf
                     @method('PUT')
                     <div class="nc-channel-head">
-                        <i class="bi bi-{{ $channel->type === 'telegram' ? 'telegram' : 'slack' }}" style="font-size:18px;color:#7c3aed;"></i>
+                        <i class="bi bi-{{ ['telegram' => 'telegram', 'slack' => 'slack', 'webpush' => 'window'][$channel->type] ?? 'bell' }}" style="font-size:18px;color:#7c3aed;"></i>
                         <span class="nc-channel-name">{{ $channel->typeLabel() }}</span>
                         @if(! $channel->verified_at)
                             <span class="nc-badge waiting">Waiting for you</span>
@@ -170,12 +170,113 @@
             <hr style="margin:16px 0;border-color:#eef0f3;">
 
             <div class="nc-connect">
-                <div class="nc-connect-text" style="color:#8a8f98;">
-                    <strong>Slack</strong> and <strong>browser notifications</strong> are next.
+                <div class="nc-connect-text">
+                    <strong>This browser.</strong> Notifications appear on your desktop even with the tab closed,
+                    as long as the browser is running. You allow it per browser and per machine — your laptop and
+                    your phone are two separate answers.
+                    <br><span class="nc-meta">On iPhone and iPad this only works once the site is added to the
+                    home screen; that is Apple's rule, not ours.</span>
                 </div>
+                @if($webPushReady)
+                    <button type="button" class="nc-btn nc-btn-primary" id="ncEnableBrowser">
+                        <i class="bi bi-window me-1"></i>Enable in this browser
+                    </button>
+                @else
+                    <span class="nc-meta">Not configured yet.</span>
+                @endif
+            </div>
+            <p id="ncBrowserNote" class="nc-meta" style="margin:10px 0 0;"></p>
+
+            <hr style="margin:16px 0;border-color:#eef0f3;">
+
+            <div class="nc-connect">
+                <div class="nc-connect-text" style="color:#8a8f98;"><strong>Slack</strong> is next.</div>
                 <span class="nc-meta">Coming soon</span>
             </div>
         </div>
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    const button = document.getElementById('ncEnableBrowser');
+    const note = document.getElementById('ncBrowserNote');
+    if (!button) return;
+
+    const say = (text) => { if (note) note.textContent = text; };
+
+    // Every one of these is a real way it can fail, and a button that does
+    // nothing is worse than one that says why.
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        button.disabled = true;
+        say('This browser does not support push notifications. On iPhone, add the site to your home screen first.');
+        return;
+    }
+
+    if (!window.isSecureContext) {
+        button.disabled = true;
+        say('Push notifications need a secure connection.');
+        return;
+    }
+
+    // The key arrives base64url and the browser wants raw bytes.
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const raw = window.atob(base64);
+        return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+    }
+
+    button.addEventListener('click', async function () {
+        button.disabled = true;
+        say('Waiting for you to allow notifications…');
+
+        try {
+            const permission = await Notification.requestPermission();
+
+            if (permission !== 'granted') {
+                say(permission === 'denied'
+                    ? 'This browser is blocking notifications for this site. Allow them in the padlock menu next to the address, then try again.'
+                    : 'Not allowed yet.');
+                button.disabled = false;
+                return;
+            }
+
+            const registration = await navigator.serviceWorker.register('/sw.js');
+            await navigator.serviceWorker.ready;
+
+            const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(@json($vapidPublicKey)),
+            });
+
+            const payload = subscription.toJSON();
+
+            const response = await fetch(@json(route('profile.notifications.browser')), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                },
+                body: JSON.stringify({
+                    endpoint: payload.endpoint,
+                    keys: payload.keys,
+                    encoding: (PushManager.supportedContentEncodings || ['aesgcm'])[0],
+                    label: navigator.userAgent.match(/Chrome|Firefox|Safari|Edg/)?.[0] || 'This browser',
+                }),
+            });
+
+            if (!response.ok) throw new Error('The server would not take the subscription.');
+
+            say('Allowed. Reloading…');
+            window.location.reload();
+        } catch (error) {
+            say('It did not work: ' + error.message);
+            button.disabled = false;
+        }
+    });
+})();
+</script>
+@endpush

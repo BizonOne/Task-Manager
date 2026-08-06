@@ -55,6 +55,7 @@ Route::middleware(['auth'])->group(function () {
     // administrator has no business hooking somebody's Telegram up for them.
     Route::get('profile/notifications', [NotificationChannelController::class, 'index'])->name('profile.notifications');
     Route::post('profile/notifications/telegram', [NotificationChannelController::class, 'connectTelegram'])->name('profile.notifications.telegram');
+    Route::post('profile/notifications/browser', [NotificationChannelController::class, 'subscribeBrowser'])->name('profile.notifications.browser');
     Route::put('profile/notifications/{channel}', [NotificationChannelController::class, 'update'])->name('profile.notifications.update');
     Route::post('profile/notifications/{channel}/test', [NotificationChannelController::class, 'test'])->name('profile.notifications.test');
     Route::delete('profile/notifications/{channel}', [NotificationChannelController::class, 'destroy'])->name('profile.notifications.destroy');
