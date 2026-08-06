@@ -31,10 +31,12 @@ Route::get('login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('login', [LoginController::class, 'login']);
 Route::post('logout', [LoginController::class, 'logout'])->name('logout');
 
-// The service worker, served without a cache. As a file in public/ it went out
-// with a four-hour max-age, and a service worker update obeys the HTTP cache —
-// so a fix to it reached nobody until the cache expired.
-Route::get('sw.js', ServiceWorkerController::class)->name('service-worker');
+// The service worker, served without a cache and from a path with no `.js` on
+// the end — the CDN rewrites Cache-Control on anything that looks like a
+// script, whatever the application said. /sw.js stays for browsers that
+// registered it before; both serve the same file.
+Route::get('service-worker', ServiceWorkerController::class)->name('service-worker');
+Route::get('sw.js', ServiceWorkerController::class)->name('service-worker.legacy');
 
 // Brand logo over HTTP, so emails can show it (data: URIs are blocked in mail).
 Route::get('brand/logo', [BrandAssetController::class, 'logo'])->name('brand.logo');
