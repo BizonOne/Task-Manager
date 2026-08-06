@@ -74,8 +74,11 @@
 }
 .ts-header-btn.del:hover { background:rgba(239,68,68,.5); }
 
-/* Two-column layout */
-.ts-body { display:grid; grid-template-columns:260px 1fr; gap:20px; align-items:start; }
+/* Two-column layout. minmax(0,1fr), not 1fr: a track sized `auto` at the
+   bottom refuses to go below its content's min-content width, so one long
+   link in a comment widens the whole page. */
+.ts-body { display:grid; grid-template-columns:260px minmax(0,1fr); gap:20px; align-items:start; }
+.ts-body > * { min-width:0; }
 
 /* Left panel */
 .ts-panel {
@@ -222,7 +225,10 @@
     margin-top:12px; padding-top:12px; border-top:1px dashed #e5e7eb;
 }
 .ts-cl-input {
-    flex:1; border:1.5px solid #e5e7eb; border-radius:8px;
+    /* min-width:0, because an input's default intrinsic width is around
+       170px and a flex item will not shrink below it — on a narrow phone
+       that pushes the button out past the edge. */
+    flex:1; min-width:0; border:1.5px solid #e5e7eb; border-radius:8px;
     padding:8px 12px; font-size:13px; outline:none;
     transition:border-color .2s;
 }
@@ -467,8 +473,12 @@
 
 @media(max-width:768px) {
     /* Two-column → single column */
-    .ts-body  { grid-template-columns:1fr; }
-    .ts-progress-grid { grid-template-columns:repeat(3,1fr); }
+    .ts-body  { grid-template-columns:minmax(0,1fr); }
+    /* Three tiles across a phone leave about 90px each, and CHECKLIST does
+       not fit in that at 11px with letter-spacing on top. */
+    .ts-progress-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+    .ts-stat-tile { padding:12px 6px; }
+    .ts-stat-lbl  { font-size:10px; letter-spacing:0; overflow-wrap:normal; }
 
     /* Panel action buttons — side by side */
     .ts-panel-actions { flex-direction:row; flex-wrap:wrap; }

@@ -30,7 +30,7 @@
 .ar-card-header i { color: #64748b; }
 .ar-card-body { padding: 18px; }
 
-.ar-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.ar-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 12px; }
 .ar-field label {
     display: block; font-size: 10px; font-weight: 700; color: #9ca3af;
     text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px;

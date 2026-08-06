@@ -132,7 +132,7 @@
     }
     .cu-check-item label:hover { border-color: #7c3aed; color: #7c3aed; background: #faf5ff; }
     .cu-check-item input:checked + label { background: #7c3aed; border-color: #7c3aed; color: white; }
-    .cu-week-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(50px,1fr)); gap: 5px; max-height: 220px; overflow-y: auto; }
+    .cu-week-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(50px, 100%), 1fr)); gap: 5px; max-height: 220px; overflow-y: auto; }
     .cu-week-grid .cu-check-item label { width: 100%; font-size: 11px; padding: 4px 6px; }
 
     .cu-action-bar {

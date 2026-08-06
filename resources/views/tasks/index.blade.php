@@ -175,11 +175,22 @@
 
         /* Toolbar */
         .cu-toolbar { flex-direction: column; align-items: stretch; gap: 8px; }
-        .cu-toolbar-left  { flex-wrap: wrap; }
         .cu-toolbar-right { justify-content: space-between; }
+        .cu-toolbar-right > span { white-space: nowrap; }
         .cu-search-input  { width: 100%; }
-        .cu-filter-select { flex: 1; min-width: 0; }
         .cu-btn-new       { width: 100%; justify-content: center; padding: 8px; }
+
+        /* Five filters sharing one row leaves each of them a word wide, and a
+           project that defines its own fields adds more. Two per row, and the
+           view toggle and the search box across the top. */
+        .cu-toolbar-left {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+        .cu-view-toggle, .cu-search-input { grid-column: 1 / -1; }
+        .cu-view-btn      { flex: 1; justify-content: center; }
+        .cu-filter-select { width: 100%; min-width: 0; }
 
         /* List view columns — hide less important cols */
         .cu-list-head,

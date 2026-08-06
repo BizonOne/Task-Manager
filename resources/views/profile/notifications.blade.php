@@ -31,7 +31,7 @@
     .nc-badge.waiting { background:#fef3c7; color:#b45309; }
     .nc-meta { font-size:12px; color:#8a8f98; }
     .nc-error { font-size:12px; color:#b91c1c; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:8px 10px; margin-top:10px; }
-    .nc-events { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:6px 16px; margin-top:12px; }
+    .nc-events { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(230px, 100%), 1fr)); gap:6px 16px; margin-top:12px; }
     .nc-event { font-size:12px; color:#4b5563; display:flex; align-items:center; gap:6px; }
     .nc-actions { display:flex; gap:8px; align-items:center; margin-top:12px; flex-wrap:wrap; }
 
@@ -54,6 +54,14 @@
     .nc-help th, .nc-help td { text-align:left; padding:7px 8px; border-top:1px solid #eceef2; vertical-align:top; }
     .nc-help th { color:#8a8f98; font-weight:700; width:150px; white-space:nowrap; }
     .nc-help td { color:#4b5563; line-height:1.5; }
+    /* On a phone there is no room for a label column beside the instruction,
+       and `chrome://settings/content/notifications` will not fit next to it.
+       Put the browser's name above its own instructions instead. */
+    @media (max-width:640px) {
+        .nc-help table, .nc-help tbody, .nc-help tr, .nc-help th, .nc-help td { display:block; width:auto; }
+        .nc-help tr { border-top:1px solid #eceef2; padding:6px 0; }
+        .nc-help th, .nc-help td { border-top:none; padding:2px 0; white-space:normal; }
+    }
     .nc-help code { background:#f1f2f5; border-radius:4px; padding:1px 5px; font-size:11px; color:#374151; }
 </style>
 @endpush
