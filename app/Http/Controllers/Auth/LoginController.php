@@ -21,7 +21,9 @@ class LoginController extends Controller
             'password' => 'required|min:6',
         ]);
 
-        if (Auth::attempt($request->only('email', 'password'))) {
+        // The second argument is the "Remember me" box. Without it the box
+        // was decoration: the form sent it and nothing ever read it.
+        if (Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {
             $request->session()->regenerate();
 
             // The dashboard is served at '/', so the literal path 'dashboard'

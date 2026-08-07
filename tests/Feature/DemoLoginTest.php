@@ -28,6 +28,35 @@ class DemoLoginTest extends TestCase
         $this->assertAuthenticatedAs(User::where('email', 'admin@example.com')->first());
     }
 
+    public function test_ticking_remember_me_issues_a_remember_token(): void
+    {
+        $this->seed(DemoUserSeeder::class);
+
+        // The box promised thirty days and delivered nothing: the form sent
+        // `remember` and Auth::attempt() was never handed it. The token is
+        // the proof the promise is now kept — without it, the recaller
+        // cookie cannot exist.
+        $this->post('/login', [
+            'email' => 'admin@example.com',
+            'password' => 'secret',
+            'remember' => '1',
+        ]);
+
+        $this->assertNotNull(User::where('email', 'admin@example.com')->first()->remember_token);
+    }
+
+    public function test_leaving_remember_me_unticked_issues_no_token(): void
+    {
+        $this->seed(DemoUserSeeder::class);
+
+        $this->post('/login', [
+            'email' => 'admin@example.com',
+            'password' => 'secret',
+        ]);
+
+        $this->assertNull(User::where('email', 'admin@example.com')->first()->remember_token);
+    }
+
     public function test_login_is_rejected_with_the_wrong_password(): void
     {
         $this->seed(DemoUserSeeder::class);
