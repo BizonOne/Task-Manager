@@ -968,6 +968,36 @@
             });
         });
 
+        // A tab left open past the session's lifetime starts failing every
+        // request with 419, and what the page's handlers show for that —
+        // "CSRF token mismatch", "Failed to update status" — reads like a
+        // broken app. Watch every fetch, and when the session is gone, say
+        // so in words and offer the one thing that fixes it.
+        (function () {
+            const realFetch = window.fetch;
+            let told = false;
+
+            window.fetch = function (...args) {
+                return realFetch.apply(this, args).then(function (resp) {
+                    if ((resp.status === 419 || resp.status === 401) && !told) {
+                        told = true;
+                        const bar = document.createElement('div');
+                        bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;' +
+                            'display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;' +
+                            'padding:12px 16px;background:#1e293b;color:#fff;font-size:13px;font-weight:500;' +
+                            'box-shadow:0 4px 14px rgba(0,0,0,.3);';
+                        bar.innerHTML = '<span>Your session has expired, so this action did not go through.' +
+                            ' Copy any unsaved text, then reload to sign back in.</span>' +
+                            '<button style="border:none;border-radius:6px;padding:6px 14px;font-size:13px;' +
+                            'font-weight:600;background:#7c3aed;color:#fff;cursor:pointer;">Reload</button>';
+                        bar.querySelector('button').addEventListener('click', () => location.reload());
+                        document.body.appendChild(bar);
+                    }
+                    return resp;
+                });
+            };
+        })();
+
         // Anything carrying data-open behaves like a card you can click:
         // hunting for a small eye icon to open a task is a poor way to spend
         // a day. The title inside is still a real link, so keyboard and
