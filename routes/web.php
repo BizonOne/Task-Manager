@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AgentTokenController;
 use App\Http\Controllers\AiChatController;
 use App\Http\Controllers\ArchiveController;
 use App\Http\Controllers\Auth\InvitationController;
@@ -68,6 +69,12 @@ Route::middleware(['auth'])->group(function () {
     Route::put('profile/notifications/{channel}', [NotificationChannelController::class, 'update'])->name('profile.notifications.update');
     Route::post('profile/notifications/{channel}/test', [NotificationChannelController::class, 'test'])->name('profile.notifications.test');
     Route::delete('profile/notifications/{channel}', [NotificationChannelController::class, 'destroy'])->name('profile.notifications.destroy');
+    // Keys an AI agent uses to act as this person over MCP. Each person
+    // manages their own — a token is their access, not the team's.
+    Route::get('profile/agents', [AgentTokenController::class, 'index'])->name('profile.agents');
+    Route::post('profile/agents', [AgentTokenController::class, 'store'])->name('profile.agents.store');
+    Route::delete('profile/agents/{tokenId}', [AgentTokenController::class, 'destroy'])->name('profile.agents.destroy');
+
     // Avatars are served by the app for the same reason as files.
     Route::get('avatar/{user}', [ProfileController::class, 'avatar'])->name('avatar.show');
 
