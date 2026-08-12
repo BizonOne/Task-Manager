@@ -187,7 +187,7 @@
                 </tr>
                 <tr>
                     <th>What it can do</th>
-                    <td>Read tasks and projects, search the boards, read text and image attachments, post comments, move tasks between statuses. Nothing more yet — it cannot create or delete anything.</td>
+                    <td>Read tasks and projects, search the boards, read text and image attachments, post comments, move tasks between statuses, create tasks, keep checklists, and assign people (where you could). It cannot delete anything.</td>
                 </tr>
             </table>
         </div>
