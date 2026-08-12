@@ -46,6 +46,96 @@ class TaskTimelineTest extends TestCase
         ], $overrides));
     }
 
+    // --- the checklist ---------------------------------------------------------
+
+    public function test_every_checklist_action_lands_in_the_history(): void
+    {
+        $task = $this->task();
+        $this->actingAs($this->owner);
+
+        // The whole life of one item: added, done, second thoughts, reworded, gone.
+        $item = $task->checklistItems()->create(['name' => 'Check the KYC pack']);
+        $item->update(['completed' => 1]);
+        $item->update(['completed' => 0]);
+        $item->update(['name' => 'Check the KYC pack twice']);
+        $item->delete();
+
+        $events = TaskActivity::where('task_id', $task->id)
+            ->whereIn('event', [
+                TaskActivity::EVENT_CHECKLIST_ADDED,
+                TaskActivity::EVENT_CHECKLIST_DONE,
+                TaskActivity::EVENT_CHECKLIST_UNDONE,
+                TaskActivity::EVENT_CHECKLIST_RENAMED,
+                TaskActivity::EVENT_CHECKLIST_REMOVED,
+            ])
+            ->orderBy('id')
+            ->get();
+
+        $this->assertSame([
+            TaskActivity::EVENT_CHECKLIST_ADDED,
+            TaskActivity::EVENT_CHECKLIST_DONE,
+            TaskActivity::EVENT_CHECKLIST_UNDONE,
+            TaskActivity::EVENT_CHECKLIST_RENAMED,
+            TaskActivity::EVENT_CHECKLIST_REMOVED,
+        ], $events->pluck('event')->all());
+
+        // Each entry names its actor and reads like a sentence.
+        $this->assertSame('added a checklist item: “Check the KYC pack”', $events[0]->description);
+        $this->assertSame('checked off “Check the KYC pack”', $events[1]->description);
+        $this->assertSame('unchecked “Check the KYC pack”', $events[2]->description);
+        $this->assertSame('reworded a checklist item to “Check the KYC pack twice”', $events[3]->description);
+        // The wording survives the row it described being gone.
+        $this->assertSame('removed a checklist item: “Check the KYC pack twice”', $events[4]->description);
+        $this->assertSame($this->owner->id, $events[0]->user_id);
+    }
+
+    public function test_checklist_history_is_written_from_the_web_routes_too(): void
+    {
+        $task = $this->task();
+
+        $this->actingAs($this->owner)
+            ->postJson(route('checklist-items.store'), ['task_id' => $task->id, 'name' => 'Ship it'])
+            ->assertSuccessful();
+
+        $item = $task->checklistItems()->first();
+
+        $this->actingAs($this->owner)
+            ->get(route('checklist-items.update-status', $item))
+            ->assertSuccessful();
+
+        $this->actingAs($this->owner)
+            ->deleteJson(route('checklist-items.destroy', $item))
+            ->assertSuccessful();
+
+        $this->assertSame(3, TaskActivity::where('task_id', $task->id)
+            ->where('event', 'like', 'checklist_%')
+            ->count());
+    }
+
+    public function test_an_outsider_cannot_touch_somebody_elses_checklist(): void
+    {
+        $task = $this->task();
+        $item = $task->checklistItems()->create(['name' => 'Private step']);
+
+        $outsider = User::create(['name' => 'Out Sider', 'email' => 'out@example.com', 'password' => bcrypt('secret')]);
+
+        // Not on the project, not assigned — the checklist is not theirs.
+        $this->actingAs($outsider)
+            ->postJson(route('checklist-items.store'), ['task_id' => $task->id, 'name' => 'Sneaky'])
+            ->assertForbidden();
+
+        $this->actingAs($outsider)
+            ->get(route('checklist-items.update-status', $item))
+            ->assertForbidden();
+
+        $this->actingAs($outsider)
+            ->deleteJson(route('checklist-items.destroy', $item))
+            ->assertForbidden();
+
+        $this->assertSame(1, $task->checklistItems()->count());
+        $this->assertFalse((bool) $item->fresh()->completed);
+    }
+
     public function test_creating_a_task_records_the_first_entry(): void
     {
         $task = $this->task();

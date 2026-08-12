@@ -33,6 +33,16 @@ class TaskActivity extends Model
 
     public const EVENT_UNARCHIVED = 'unarchived';
 
+    public const EVENT_CHECKLIST_ADDED = 'checklist_added';
+
+    public const EVENT_CHECKLIST_DONE = 'checklist_done';
+
+    public const EVENT_CHECKLIST_UNDONE = 'checklist_undone';
+
+    public const EVENT_CHECKLIST_RENAMED = 'checklist_renamed';
+
+    public const EVENT_CHECKLIST_REMOVED = 'checklist_removed';
+
     protected $fillable = [
         'task_id',
         'user_id',
@@ -94,11 +104,26 @@ class TaskActivity extends Model
             self::EVENT_COMMENT_DELETED => 'deleted a comment',
             self::EVENT_ARCHIVED => 'moved this task to the archive',
             self::EVENT_UNARCHIVED => 'brought this task back from the archive',
+            self::EVENT_CHECKLIST_ADDED => 'added a checklist item: '.$this->checklistName(),
+            self::EVENT_CHECKLIST_DONE => 'checked off '.$this->checklistName(),
+            self::EVENT_CHECKLIST_UNDONE => 'unchecked '.$this->checklistName(),
+            self::EVENT_CHECKLIST_RENAMED => 'reworded a checklist item to '.$this->checklistName(),
+            self::EVENT_CHECKLIST_REMOVED => 'removed a checklist item: '.$this->checklistName(),
             self::EVENT_LINKED => $this->describeLink('linked this task as'),
             self::EVENT_UNLINKED => $this->describeLink('removed the link'),
             self::EVENT_UPDATED => $this->describeFieldChange(),
             default => $this->event,
         };
+    }
+
+    /**
+     * The checklist item's wording, quoted the way field values are.
+     */
+    private function checklistName(): string
+    {
+        $name = $this->meta['name'] ?? null;
+
+        return $name ? '“'.Str::limit($name, 60).'”' : 'a checklist item';
     }
 
     /**
@@ -189,6 +214,11 @@ class TaskActivity extends Model
             self::EVENT_UNARCHIVED => 'box-arrow-up',
             self::EVENT_LINKED => 'link-45deg',
             self::EVENT_UNLINKED => 'link-45deg',
+            self::EVENT_CHECKLIST_ADDED => 'plus-square',
+            self::EVENT_CHECKLIST_DONE => 'check2-square',
+            self::EVENT_CHECKLIST_UNDONE => 'square',
+            self::EVENT_CHECKLIST_RENAMED => 'pencil',
+            self::EVENT_CHECKLIST_REMOVED => 'trash',
             default => match ($this->field) {
                 'status' => 'arrow-repeat',
                 'priority' => 'flag',
