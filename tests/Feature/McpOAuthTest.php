@@ -161,6 +161,25 @@ class McpOAuthTest extends TestCase
             ->assertRedirectContains('retried=1');
     }
 
+    public function test_a_click_from_a_session_that_never_saw_consent_gets_told_to_start_over(): void
+    {
+        // A resubmitted tab from yesterday, an expired session — there is no
+        // authorize URL to restart from, and "403 Access Forbidden" reads
+        // like a permissions bug. Say what actually helps.
+        $client = app(ClientRepository::class)->createAuthorizationCodeGrantClient(
+            'Claude', ['https://claude.ai/api/mcp/auth_callback'], confidential: false,
+        );
+
+        $this->actingAs($this->user)
+            ->post('/oauth/authorize', [
+                'state' => 'st',
+                'client_id' => $client->getKey(),
+                'auth_token' => 'token-from-a-long-dead-render',
+            ])
+            ->assertStatus(410)
+            ->assertSee('start the connection again', false);
+    }
+
     // --- the grant opens the same door -------------------------------------------
 
     public function test_an_oauth_grant_reaches_the_mcp_endpoint(): void
