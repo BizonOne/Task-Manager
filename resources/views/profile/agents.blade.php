@@ -114,10 +114,42 @@
             <form method="POST" action="{{ route('profile.agents.store') }}" class="ag-create" style="margin-top:12px;">
                 @csrf
                 <input type="text" name="name" maxlength="60" required
-                       placeholder="What will hold this token? e.g. Claude Code on my laptop">
+                       placeholder="What will hold this token? e.g. a script on the server">
                 <button type="submit" class="ag-btn ag-btn-primary"><i class="bi bi-plus-lg"></i> Create token</button>
             </form>
             @error('name')<div class="alert alert-danger py-2 mt-2">{{ $message }}</div>@enderror
+        </div>
+    </div>
+
+    <div class="ag-section">
+        <div class="ag-section-header">
+            <span class="ag-section-icon" style="background:#dcfce7;color:#16a34a;"><i class="bi bi-shield-check"></i></span>
+            <span class="ag-section-title">Connected apps</span>
+        </div>
+        <div class="ag-section-body">
+            <p class="ag-lead">
+                Apps that connected themselves with an <strong>Authorize</strong> click — claude.ai,
+                Claude Code and the like. They hold their own keys and renew them quietly;
+                revoking one here signs it out everywhere it runs.
+            </p>
+
+            @forelse($connections as $connection)
+                <div class="ag-row">
+                    <i class="bi bi-plug" style="color:#16a34a;"></i>
+                    <span class="ag-row-name">{{ $connection->name }}</span>
+                    <span class="ag-row-meta">
+                        authorized {{ $connection->since->diffForHumans() }}
+                        · key renewed {{ $connection->last_issued->diffForHumans() }}
+                    </span>
+                    <form method="POST" action="{{ route('profile.agents.connections.destroy', $connection->client_id) }}"
+                          onsubmit="return confirm('Revoke this connection? The app loses access immediately.')">
+                        @csrf @method('DELETE')
+                        <button type="submit" class="ag-btn ag-btn-danger">Revoke</button>
+                    </form>
+                </div>
+            @empty
+                <p class="ag-row-meta" style="margin:0;">Nothing connected yet.</p>
+            @endforelse
         </div>
     </div>
 
@@ -134,19 +166,24 @@
             </p>
             <table class="ag-setup">
                 <tr>
-                    <th>Claude Code</th>
+                    <th>Claude.ai</th>
                     <td>
-                        <code>claude mcp add tasks {{ $mcpUrl }} --transport http --header "Authorization: Bearer &lt;token&gt;"</code>
-                        — then paste a task link into the chat and ask it to do the work.
+                        Settings → Connectors → Add custom connector → URL <code>{{ $mcpUrl }}</code>.
+                        Leave every other field empty and press Add — when you first use it, Claude sends
+                        you here to sign in and press <strong>Authorize</strong>. No token needed.
                     </td>
                 </tr>
                 <tr>
-                    <th>Claude.ai</th>
-                    <td>Settings → Connectors → Add custom connector → URL <code>{{ $mcpUrl }}</code>, token in the Authorization header.</td>
+                    <th>Claude Code</th>
+                    <td>
+                        <code>claude mcp add tasks {{ $mcpUrl }} --transport http</code>
+                        — it opens the same Authorize page in your browser. Then paste a task link
+                        into the chat and ask it to do the work.
+                    </td>
                 </tr>
                 <tr>
-                    <th>Anything else</th>
-                    <td>Any MCP client with Streamable HTTP transport works the same way: the URL above plus the Bearer header.</td>
+                    <th>Scripts &amp; the rest</th>
+                    <td>Anything that cannot click Authorize uses a token from the section above, sent as <code>Authorization: Bearer &lt;token&gt;</code>.</td>
                 </tr>
                 <tr>
                     <th>What it can do</th>

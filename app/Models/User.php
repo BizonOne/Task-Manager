@@ -12,6 +12,12 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements FilamentUser
 {
+    // Two token systems, one trait. Sanctum's HasApiTokens carries the
+    // hand-issued agent tokens from the profile page, and its untyped
+    // withAccessToken() happens to be everything Passport's guard asks of a
+    // user — so OAuth grants (claude.ai connectors) ride on it too. The two
+    // traits cannot coexist (same $accessToken property, different types),
+    // and Passport's adds nothing this application calls.
     use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
     /**
