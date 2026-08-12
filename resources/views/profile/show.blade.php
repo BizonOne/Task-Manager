@@ -194,6 +194,7 @@
                     <a href="{{ route('profile.edit') }}" class="cu-nav-link"><i class="bi bi-pencil"></i> Edit Info</a>
                     <a href="{{ route('profile.password') }}" class="cu-nav-link"><i class="bi bi-key"></i> Password</a>
                     <a href="{{ route('profile.notifications') }}" class="cu-nav-link"><i class="bi bi-bell"></i> Notifications</a>
+                    <a href="{{ route('profile.agents') }}" class="cu-nav-link"><i class="bi bi-robot"></i> AI agents</a>
                 </div>
             </div>
         </div>
