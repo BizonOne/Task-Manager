@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\ChecklistItem;
 use App\Models\Task;
 use App\Models\TaskComment;
+use App\Observers\ChecklistItemObserver;
 use App\Observers\TaskCommentObserver;
 use App\Observers\TaskObserver;
 use App\Policies\RolePolicy;
@@ -38,6 +40,7 @@ class AppServiceProvider extends ServiceProvider
         // Record every task change, wherever it comes from.
         Task::observe(TaskObserver::class);
         TaskComment::observe(TaskCommentObserver::class);
+        ChecklistItem::observe(ChecklistItemObserver::class);
 
         // The front-end is built on Bootstrap, so paginators should be too.
         Paginator::useBootstrapFive();
