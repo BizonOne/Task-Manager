@@ -74,6 +74,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('profile/agents', [AgentTokenController::class, 'index'])->name('profile.agents');
     Route::post('profile/agents', [AgentTokenController::class, 'store'])->name('profile.agents.store');
     Route::delete('profile/agents/{tokenId}', [AgentTokenController::class, 'destroy'])->name('profile.agents.destroy');
+    Route::delete('profile/agents/connections/{clientId}', [AgentTokenController::class, 'destroyConnection'])->name('profile.agents.connections.destroy');
 
     // Avatars are served by the app for the same reason as files.
     Route::get('avatar/{user}', [ProfileController::class, 'avatar'])->name('avatar.show');

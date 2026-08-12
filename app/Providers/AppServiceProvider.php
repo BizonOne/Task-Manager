@@ -16,6 +16,7 @@ use Filament\Tables\Table;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Passport\Passport;
 use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
@@ -36,6 +37,14 @@ class AppServiceProvider extends ServiceProvider
         // Spatie's Role model lives in the vendor namespace, so Laravel's
         // policy auto-discovery can't map it — register it explicitly.
         Gate::policy(Role::class, RolePolicy::class);
+
+        // The consent screen an OAuth client sends a person to, and how long
+        // its grants live. Thirty days of access with a six-month refresh
+        // window: a connector in daily use never re-asks, an abandoned one
+        // quietly expires instead of holding access forever.
+        Passport::authorizationView('auth.oauth.authorize');
+        Passport::tokensExpireIn(now()->addDays(30));
+        Passport::refreshTokensExpireIn(now()->addDays(180));
 
         // Record every task change, wherever it comes from.
         Task::observe(TaskObserver::class);
