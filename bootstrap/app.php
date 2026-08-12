@@ -6,6 +6,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Laravel\Passport\Exceptions\InvalidAuthTokenException;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
@@ -48,10 +49,27 @@ return Application::configure(basePath: dirname(__DIR__))
                 ? $request->session()->pull('oauth.authorize_url')
                 : null;
 
+            // Enough to reconstruct a failed connection attempt from the
+            // logs without guessing: whether the click rode a session that
+            // had seen the consent page at all.
+            Log::warning('OAuth consent click refused (stale auth token)', [
+                'had_authorize_url' => $authorizeUrl !== null,
+                'has_session' => $request->hasSession(),
+                'referer' => (string) $request->headers->get('referer'),
+                'user_agent' => (string) $request->userAgent(),
+                'user_id' => $request->user()?->id,
+            ]);
+
             if ($authorizeUrl !== null) {
                 return redirect()->to(
                     $authorizeUrl.(str_contains($authorizeUrl, '?') ? '&' : '?').'retried=1'
                 );
             }
+
+            // No remembered authorize URL means this session never rendered
+            // the consent page — a resubmitted old tab, an expired session,
+            // a different browser. Nothing here can finish that flow; say
+            // what will, instead of a 403 that reads like a permissions bug.
+            return response()->view('auth.oauth.expired', [], 410);
         });
     })->create();
