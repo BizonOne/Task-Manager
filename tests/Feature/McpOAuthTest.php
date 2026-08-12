@@ -126,6 +126,41 @@ class McpOAuthTest extends TestCase
             ->assertSee($this->user->email);
     }
 
+    public function test_a_click_with_a_stale_consent_token_restarts_the_flow_instead_of_403(): void
+    {
+        // claude.ai reopens the consent page while connecting, which replaces
+        // the one-time token the visible tab is holding. The click that
+        // follows must land the person back on a fresh consent screen — a
+        // 403 here strands them mid-authorization.
+        $client = app(ClientRepository::class)->createAuthorizationCodeGrantClient(
+            'Claude', ['https://claude.ai/api/mcp/auth_callback'], confidential: false,
+        );
+
+        $authorizeUrl = '/oauth/authorize?'.http_build_query([
+            'client_id' => $client->id,
+            'redirect_uri' => 'https://claude.ai/api/mcp/auth_callback',
+            'response_type' => 'code',
+            'scope' => 'mcp:use',
+            'state' => 'st',
+            'code_challenge' => str_repeat('a', 43),
+            'code_challenge_method' => 'S256',
+        ]);
+
+        $this->actingAs($this->user)->get($authorizeUrl)->assertSuccessful();
+
+        // fullUrl() alphabetises the query string, so match on substance:
+        // back to /oauth/authorize, same client, marked as a retry.
+        $this->actingAs($this->user)
+            ->post('/oauth/authorize', [
+                'state' => 'st',
+                'client_id' => $client->getKey(),
+                'auth_token' => 'stale-token-from-an-older-render',
+            ])
+            ->assertRedirectContains('/oauth/authorize?')
+            ->assertRedirectContains('client_id='.$client->id)
+            ->assertRedirectContains('retried=1');
+    }
+
     // --- the grant opens the same door -------------------------------------------
 
     public function test_an_oauth_grant_reaches_the_mcp_endpoint(): void

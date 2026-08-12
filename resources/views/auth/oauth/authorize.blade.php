@@ -42,6 +42,10 @@
         .deny { background: #fff; color: #475569; border-color: #cbd5e1; }
         .deny:hover { border-color: #94a3b8; }
         .fine { font-size: 11.5px; color: #94a3b8; margin-top: 14px; }
+        .retry {
+            background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;
+            padding: 9px 12px; font-size: 12.5px; color: #92400e; margin-bottom: 14px;
+        }
     </style>
 </head>
 <body>
@@ -50,6 +54,10 @@
             <img src="{{ \App\Support\Brand::logoUrl() ?? asset('assets/img/logo-circle.png') }}" alt="">
             <span>{{ \App\Support\Brand::name() }}</span>
         </div>
+
+        @if(request('retried'))
+            <div class="retry">That confirmation had expired, so here it is afresh — press Authorize once more.</div>
+        @endif
 
         <h1>{{ $client->name }} wants to work as you</h1>
 
