@@ -3,11 +3,15 @@
 namespace Tests\Feature;
 
 use App\Mcp\Servers\TaskManagerServer;
+use App\Mcp\Tools\AddChecklistItem;
 use App\Mcp\Tools\AddComment;
+use App\Mcp\Tools\AssignTask;
+use App\Mcp\Tools\CreateTask;
 use App\Mcp\Tools\GetProject;
 use App\Mcp\Tools\GetTask;
 use App\Mcp\Tools\ListTasks;
 use App\Mcp\Tools\ReadAttachment;
+use App\Mcp\Tools\SetChecklistItem;
 use App\Mcp\Tools\UpdateTaskStatus;
 use App\Models\File;
 use App\Models\Project;
@@ -66,8 +70,12 @@ class McpServerTest extends TestCase
         // connected agent, which deserves a red test, not a surprise.
         $this->assertSame('get-task', (new GetTask)->name());
         $this->assertSame('list-tasks', (new ListTasks)->name());
+        $this->assertSame('create-task', (new CreateTask)->name());
         $this->assertSame('add-comment', (new AddComment)->name());
         $this->assertSame('update-task-status', (new UpdateTaskStatus)->name());
+        $this->assertSame('assign-task', (new AssignTask)->name());
+        $this->assertSame('add-checklist-item', (new AddChecklistItem)->name());
+        $this->assertSame('set-checklist-item', (new SetChecklistItem)->name());
         $this->assertSame('read-attachment', (new ReadAttachment)->name());
         $this->assertSame('get-project', (new GetProject)->name());
     }
@@ -180,6 +188,162 @@ class McpServerTest extends TestCase
             ->assertSee('shipped');
 
         $this->assertSame('to_do', $this->task->fresh()->status);
+    }
+
+    // --- creating tasks -----------------------------------------------------------
+
+    public function test_an_agent_files_a_task_like_the_form_does(): void
+    {
+        TaskManagerServer::actingAs($this->member)
+            ->tool(CreateTask::class, [
+                'project' => 'Onboarding',
+                'title' => 'Chase the missing KYC pack',
+                'description' => "First paragraph.\n\nSecond <script>alert(1)</script>",
+                'priority' => 'high',
+                'due_date' => '2026-09-01',
+                'tags' => 'urgent, kyc',
+            ])
+            ->assertOk()
+            ->assertSee('TASK-');
+
+        $task = Task::where('title', 'Chase the missing KYC pack')->first();
+
+        $this->assertNotNull($task);
+        // Owned by the acting person, in the board's first column.
+        $this->assertSame($this->member->id, $task->user_id);
+        $this->assertSame('to_do', $task->status);
+        // Plain text became escaped paragraphs, never markup.
+        $this->assertStringContainsString('<p>First paragraph.</p>', $task->description);
+        $this->assertStringNotContainsString('<script>', $task->description);
+        $this->assertEqualsCanonicalizing(['urgent', 'kyc'], $task->tags->pluck('name')->all());
+        // And it entered history like any created task.
+        $this->assertSame(1, $task->activities()->where('event', 'created')->count());
+    }
+
+    public function test_a_task_filed_for_a_colleague_belongs_to_them(): void
+    {
+        $this->project->users()->attach($this->outsider->id);
+
+        TaskManagerServer::actingAs($this->member)
+            ->tool(CreateTask::class, [
+                'project' => 'Onboarding',
+                'title' => 'Handover piece',
+                'assignee' => 'oz@example.com',
+            ])
+            ->assertOk();
+
+        $task = Task::where('title', 'Handover piece')->first();
+
+        $this->assertSame($this->outsider->id, $task->user_id);
+        $this->assertTrue($task->assignees->contains('id', $this->outsider->id));
+    }
+
+    public function test_a_task_cannot_be_filed_into_somebody_elses_project(): void
+    {
+        TaskManagerServer::actingAs($this->outsider)
+            ->tool(CreateTask::class, ['project' => 'Onboarding', 'title' => 'Sneaky'])
+            ->assertHasErrors();
+
+        $this->assertNull(Task::where('title', 'Sneaky')->first());
+    }
+
+    public function test_a_task_cannot_be_handed_to_somebody_outside_the_project(): void
+    {
+        TaskManagerServer::actingAs($this->member)
+            ->tool(CreateTask::class, [
+                'project' => 'Onboarding',
+                'title' => 'Landing in a locked room',
+                'assignee' => 'oz@example.com',
+            ])
+            ->assertHasErrors()
+            ->assertSee('not a member');
+
+        $this->assertNull(Task::where('title', 'Landing in a locked room')->first());
+    }
+
+    // --- checklists -----------------------------------------------------------------
+
+    public function test_an_agent_keeps_a_checklist(): void
+    {
+        TaskManagerServer::actingAs($this->member)
+            ->tool(AddChecklistItem::class, ['task' => (string) $this->task->id, 'name' => 'Check the site'])
+            ->assertOk();
+
+        TaskManagerServer::actingAs($this->member)
+            ->tool(SetChecklistItem::class, ['task' => (string) $this->task->id, 'item' => 'Check the site'])
+            ->assertOk();
+
+        $item = $this->task->checklistItems()->first();
+
+        $this->assertTrue((bool) $item->completed);
+        // Both moves are in the history, attributed.
+        $this->assertSame(1, $this->task->activities()->where('event', 'checklist_added')->count());
+        $this->assertSame(1, $this->task->activities()->where('event', 'checklist_done')->count());
+    }
+
+    public function test_a_missing_checklist_item_is_answered_with_what_exists(): void
+    {
+        $this->task->checklistItems()->create(['name' => 'Only step']);
+
+        TaskManagerServer::actingAs($this->member)
+            ->tool(SetChecklistItem::class, ['task' => (string) $this->task->id, 'item' => 'No such step'])
+            ->assertHasErrors()
+            ->assertSee('Only step');
+    }
+
+    public function test_an_outsider_cannot_touch_the_checklist(): void
+    {
+        TaskManagerServer::actingAs($this->outsider)
+            ->tool(AddChecklistItem::class, ['task' => (string) $this->task->id, 'name' => 'Sneaky step'])
+            ->assertHasErrors();
+
+        $this->assertSame(0, $this->task->checklistItems()->count());
+    }
+
+    // --- assignment -------------------------------------------------------------------
+
+    public function test_the_owner_hands_the_task_to_a_project_member(): void
+    {
+        $this->project->users()->attach($this->outsider->id);
+
+        TaskManagerServer::actingAs($this->member)
+            ->tool(AssignTask::class, ['task' => (string) $this->task->id, 'person' => 'Oz Outsider'])
+            ->assertOk();
+
+        $this->assertTrue($this->task->assignees()->get()->contains('id', $this->outsider->id));
+
+        TaskManagerServer::actingAs($this->member)
+            ->tool(AssignTask::class, ['task' => (string) $this->task->id, 'person' => 'oz@example.com', 'remove' => true])
+            ->assertOk();
+
+        $this->assertFalse($this->task->assignees()->get()->contains('id', $this->outsider->id));
+    }
+
+    public function test_assignment_respects_the_managers_only_rule(): void
+    {
+        // A member of the project who neither owns the task nor manages the
+        // project may read it — and may not rearrange who works on it.
+        $collaborator = User::create(['name' => 'Col Laborator', 'email' => 'col@example.com', 'password' => bcrypt('secret')]);
+        $this->project->users()->attach($collaborator->id);
+
+        TaskManagerServer::actingAs($collaborator)
+            ->tool(AssignTask::class, ['task' => (string) $this->task->id, 'person' => 'me'])
+            ->assertHasErrors()
+            ->assertSee('owner or a project manager');
+    }
+
+    public function test_an_ambiguous_name_is_refused_with_the_candidates(): void
+    {
+        $this->project->users()->attach($this->outsider->id);
+        $twin = User::create(['name' => 'Oz Outsider', 'email' => 'oz2@example.com', 'password' => bcrypt('secret')]);
+        $this->project->users()->attach($twin->id);
+
+        TaskManagerServer::actingAs($this->member)
+            ->tool(AssignTask::class, ['task' => (string) $this->task->id, 'person' => 'Oz'])
+            ->assertHasErrors()
+            ->assertSee('oz2@example.com');
+
+        $this->assertFalse($this->task->assignees()->get()->contains('id', $twin->id));
     }
 
     // --- attachments ------------------------------------------------------------
