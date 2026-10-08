@@ -275,7 +275,7 @@
                             <div class="timeline-content">
                                 <div class="timeline-title">{{ $task->title }}</div>
                                 <div class="timeline-subtitle">{{ $task->project->name ?? 'No Project' }}</div>
-                                <div class="timeline-time">{{ $task->updated_at->diffForHumans() }}</div>
+                                <div class="timeline-time">{{ \App\Support\Dates::ago($task->updated_at) }}</div>
                             </div>
                         </div>
                         @endforeach

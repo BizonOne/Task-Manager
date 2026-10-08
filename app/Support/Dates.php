@@ -2,8 +2,10 @@
 
 namespace App\Support;
 
+use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\HtmlString;
 
 /**
  * One place that decides how a date or a time is written down.
@@ -101,6 +103,63 @@ class Dates
     public static function longDate(mixed $value): ?string
     {
         return self::render($value, 'D, j M Y');
+    }
+
+    /**
+     * An instant written the way the reader asked for in their profile:
+     * "3 days ago" by default, or "Aug 03, 2026 23:59" for those who chose
+     * exact dates. Whichever is shown, the other one is on hover.
+     */
+    public static function ago(mixed $value, ?User $reader = null): HtmlString
+    {
+        $date = self::parse($value);
+
+        if ($date === null) {
+            return new HtmlString('');
+        }
+
+        [$shown, $hover] = self::agoParts($date, $reader);
+
+        return new HtmlString(sprintf(
+            '<time datetime="%s" title="%s">%s</time>',
+            e($date->toIso8601String()), e($hover), e($shown),
+        ));
+    }
+
+    /**
+     * The same choice as ago(), as plain text — for JSON the page renders
+     * itself. Returns [shown, on hover].
+     *
+     * @return array{0: string, 1: string}
+     */
+    public static function agoParts(mixed $value, ?User $reader = null): array
+    {
+        $date = self::parse($value);
+
+        if ($date === null) {
+            return ['', ''];
+        }
+
+        $reader ??= auth()->user();
+        $relative = $date->diffForHumans();
+        $exact = self::dateTime($date);
+
+        return $reader instanceof User && $reader->prefersExactDates()
+            ? [$exact, $relative]
+            : [$relative, $exact];
+    }
+
+    private static function parse(mixed $value): ?CarbonInterface
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        try {
+            return $value instanceof CarbonInterface ? $value : Carbon::parse($value);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**

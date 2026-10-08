@@ -8,6 +8,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
 class ProfileController extends Controller
@@ -43,12 +44,17 @@ class ProfileController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,'.$user->id],
             'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
+            'date_display' => ['nullable', Rule::in([User::DATE_DISPLAY_RELATIVE, User::DATE_DISPLAY_EXACT])],
         ]);
 
         $updateData = [
             'name' => $request->name,
             'email' => $request->email,
         ];
+
+        if ($request->filled('date_display')) {
+            $updateData['date_display'] = $request->date_display;
+        }
 
         // Handle avatar upload
         if ($request->hasFile('avatar')) {

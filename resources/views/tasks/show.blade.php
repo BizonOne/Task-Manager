@@ -1074,7 +1074,7 @@
                                 <div class="ts-comment-main">
                                     <div class="ts-comment-head">
                                         <span class="ts-comment-author">{{ $comment->user->name }}</span>
-                                        <span class="ts-comment-time" title="{{ \App\Support\Dates::dateTime($comment->created_at) }}">{{ $comment->created_at->diffForHumans() }}</span>
+                                        <span class="ts-comment-time">{{ \App\Support\Dates::ago($comment->created_at) }}</span>
                                         @if($comment->user_id === auth()->id() || $task->user_id === auth()->id() || $task->project?->user_id === auth()->id())
                                             <button type="button" class="ts-comment-del" onclick="deleteComment({{ $comment->id }})" title="Delete"><i class="bi bi-trash"></i></button>
                                         @endif
@@ -1146,8 +1146,8 @@
                                 <div class="ts-tl-head">
                                     <span class="ts-tl-actor">{{ $entry['actor'] }}</span>
                                     <span class="ts-tl-text">{{ $entry['text'] }}</span>
-                                    <span class="ts-tl-time" title="{{ \App\Support\Dates::dateTime($entry['at']) }}">
-                                        {{ $entry['at']?->diffForHumans() }}
+                                    <span class="ts-tl-time">
+                                        {{ \App\Support\Dates::ago($entry['at']) }}
                                     </span>
                                 </div>
                                 @if($entry['body'])
@@ -1502,7 +1502,7 @@ function buildCommentNode(c) {
     const time = document.createElement('span');
     time.className = 'ts-comment-time';
     time.textContent = c.created_at;
-    if (c.created_at_exact) time.title = c.created_at_exact;
+    time.title = c.created_at_hover || c.created_at_exact || '';
     head.appendChild(author);
     head.appendChild(time);
     if (c.is_author) {

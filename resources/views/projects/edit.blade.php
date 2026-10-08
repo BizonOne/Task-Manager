@@ -561,7 +561,7 @@
 
                 <div class="cu-meta-row">
                     <i class="bi bi-clock-history"></i>
-                    <span>Updated&nbsp;<strong>{{ $project->updated_at->diffForHumans() }}</strong></span>
+                    <span>Updated&nbsp;<strong>{{ \App\Support\Dates::ago($project->updated_at) }}</strong></span>
                 </div>
 
                 <div class="cu-meta-row">

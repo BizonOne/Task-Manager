@@ -74,11 +74,11 @@
                 @elseif($reminder->is_completed)
                     <span class="cu-status-badge cu-sb-success">
                         <i class="bi bi-check-circle-fill"></i>
-                        Completed {{ $reminder->completed_at ? $reminder->completed_at->diffForHumans() : '' }}
+                        Completed {{ \App\Support\Dates::ago($reminder->completed_at) }}
                     </span>
                 @elseif($reminder->formatted_date_time)
                     <span class="cu-status-badge cu-sb-muted">
-                        <i class="bi bi-clock"></i> {{ $reminder->formatted_date_time->diffForHumans() }}
+                        <i class="bi bi-clock"></i> {{ $reminder->formatted_date_time?->diffForHumans() }}
                     </span>
                 @else
                     <span class="cu-status-badge cu-sb-muted">

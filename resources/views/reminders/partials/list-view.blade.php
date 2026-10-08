@@ -58,7 +58,7 @@
                     @if($reminder->is_completed)
                         <div class="reminder-completed-status mt-1">
                             <i class="fas fa-check-circle me-1"></i>
-                            <span class="text-success">Completed {{ $reminder->completed_at->diffForHumans() }}</span>
+                            <span class="text-success">Completed {{ \App\Support\Dates::ago($reminder->completed_at) }}</span>
                         </div>
                     @endif
 
@@ -83,7 +83,7 @@
                         @if($reminder->is_overdue)
                             <span class="text-danger">Overdue</span>
                         @elseif($reminder->formatted_date_time)
-                            {{ $reminder->formatted_date_time->diffForHumans() }}
+                            {{ $reminder->formatted_date_time?->diffForHumans() }}
                         @else
                             No date set
                         @endif

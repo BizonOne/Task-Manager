@@ -272,7 +272,7 @@
                 <div class="cu-section-body" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
                     <div style="font-size:13px;color:#374151;">
                         <strong>Password</strong><br>
-                        <span style="font-size:11px;color:#9ca3af;">Last updated {{ $user->updated_at->diffForHumans() }}</span>
+                        <span style="font-size:11px;color:#9ca3af;">Last updated {{ \App\Support\Dates::ago($user->updated_at) }}</span>
                     </div>
                     <a href="{{ route('profile.password') }}" class="cu-btn-save" style="text-decoration:none;">
                         <i class="bi bi-key"></i> Change Password

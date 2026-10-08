@@ -107,7 +107,7 @@
                             <span class="nc-badge off">Paused</span>
                         @endif
                         @if($channel->label)<span class="nc-meta">{{ $channel->label }}</span>@endif
-                        @if($channel->last_sent_at)<span class="nc-meta">· last message {{ $channel->last_sent_at->diffForHumans() }}</span>@endif
+                        @if($channel->last_sent_at)<span class="nc-meta">· last message {{ \App\Support\Dates::ago($channel->last_sent_at) }}</span>@endif
                     </div>
 
                     @if($channel->last_error)

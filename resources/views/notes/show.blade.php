@@ -137,9 +137,9 @@
             <div>
                 <h1 class="cu-header-title">{{ $note->title }}</h1>
                 <p class="cu-header-sub">
-                    Created {{ $note->created_at->diffForHumans() }}
+                    Created {{ \App\Support\Dates::ago($note->created_at) }}
                     @if($note->updated_at->ne($note->created_at))
-                        &middot; Updated {{ $note->updated_at->diffForHumans() }}
+                        &middot; Updated {{ \App\Support\Dates::ago($note->updated_at) }}
                     @endif
                 </p>
             </div>
