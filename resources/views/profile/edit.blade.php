@@ -129,6 +129,10 @@
 }
 .cu-nav-link:hover, .cu-nav-link.active { background: #ede9fe; color: #6366f1; }
 .cu-nav-link i { font-size: 13px; }
+.cu-date-choice { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.cu-date-opt { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 13px; }
+.cu-date-opt:has(input:checked) { border-color: #6366f1; background: #ede9fe; }
+.cu-date-opt em { color: #9ca3af; font-style: normal; font-size: 12px; }
 
 /* Avatar upload */
 .cu-avatar-drop {
@@ -259,6 +263,29 @@
                                 @error('email')<p class="cu-err">{{ $message }}</p>@enderror
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                {{-- Display --}}
+                <div class="cu-section">
+                    <div class="cu-section-header">
+                        <span class="cu-section-icon violet"><i class="bi bi-clock"></i></span>
+                        <span class="cu-section-title">Display</span>
+                    </div>
+                    <div class="cu-section-body">
+                        <label class="cu-label">Comment &amp; activity times</label>
+                        <div class="cu-date-choice">
+                            <label class="cu-date-opt">
+                                <input type="radio" name="date_display" value="relative" @checked(old('date_display', $user->date_display) !== 'exact')>
+                                <span><strong>Relative</strong> <em>“2 days ago”</em></span>
+                            </label>
+                            <label class="cu-date-opt">
+                                <input type="radio" name="date_display" value="exact" @checked(old('date_display', $user->date_display) === 'exact')>
+                                <span><strong>Date &amp; time</strong> <em>“{{ \App\Support\Dates::dateTime(now()->subDays(2)) }}”</em></span>
+                            </label>
+                        </div>
+                        <p class="cu-hint" style="font-size:11px;color:#9ca3af;margin:6px 0 0;">Hover over any time to see it the other way.</p>
+                        @error('date_display')<p class="cu-err">{{ $message }}</p>@enderror
                     </div>
                 </div>
 

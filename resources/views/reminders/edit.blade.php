@@ -237,7 +237,7 @@
             <div class="cu-info-body">
                 <div class="cu-avatar"><i class="bi bi-bell-fill"></i></div>
                 <div class="cu-panel-name">{{ Str::limit($reminder->title, 36) }}</div>
-                <div class="cu-panel-sub">Last edited {{ $reminder->updated_at->diffForHumans() }}</div>
+                <div class="cu-panel-sub">Last edited {{ \App\Support\Dates::ago($reminder->updated_at) }}</div>
 
                 <div class="cu-pri-row">
                     <span class="cu-pri-badge cu-pri-{{ $reminder->priority }}">

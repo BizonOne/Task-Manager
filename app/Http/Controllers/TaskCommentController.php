@@ -53,6 +53,8 @@ class TaskCommentController extends Controller
         // comment posted from the admin panel notifies the same people as one
         // posted here.
 
+        [$shownAt, $hoverAt] = Dates::agoParts($comment->created_at, $user);
+
         return response()->json([
             'success' => true,
             'comment' => [
@@ -60,9 +62,10 @@ class TaskCommentController extends Controller
                 'body' => $comment->body,
                 'user_name' => $user->name,
                 'initials' => $this->initials($user->name),
-                'created_at' => $comment->created_at->diffForHumans(),
-                // The relative time is what is shown; the exact one is what a
-                // person hovers for.
+                // Written the way this person chose in their profile; the
+                // other form is what they get on hover.
+                'created_at' => $shownAt,
+                'created_at_hover' => $hoverAt,
                 'created_at_exact' => Dates::dateTime($comment->created_at),
                 'is_author' => true,
                 'files' => $files->map(fn (File $file) => app(FileController::class)->toJson($file))->values(),

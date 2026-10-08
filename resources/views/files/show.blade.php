@@ -179,7 +179,7 @@
             </a>
             <div>
                 <h1 class="cu-header-title">{{ Str::limit($file->name, 55) }}</h1>
-                <p class="cu-header-sub">Uploaded {{ $file->created_at->diffForHumans() }}</p>
+                <p class="cu-header-sub">Uploaded {{ \App\Support\Dates::ago($file->created_at) }}</p>
             </div>
         </div>
     </div>
@@ -206,7 +206,7 @@
                 </div>
                 <div class="cu-meta-row">
                     <i class="bi bi-clock-history"></i>
-                    <span>Updated {{ $file->updated_at->diffForHumans() }}</span>
+                    <span>Updated {{ \App\Support\Dates::ago($file->updated_at) }}</span>
                 </div>
                 <div class="cu-meta-row">
                     <i class="bi bi-hdd"></i>

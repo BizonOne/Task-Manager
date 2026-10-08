@@ -268,7 +268,7 @@
                 </div>
                 <div class="cu-meta-row">
                     <i class="bi bi-clock-history"></i>
-                    <span>Updated {{ $file->updated_at->diffForHumans() }}</span>
+                    <span>Updated {{ \App\Support\Dates::ago($file->updated_at) }}</span>
                 </div>
 
                 {{-- Current file preview --}}

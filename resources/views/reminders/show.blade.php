@@ -157,7 +157,7 @@
                     @elseif($reminder->is_overdue)
                         Overdue &mdash; {{ $reminder->formatted_date_time?->diffForHumans() }}
                     @elseif($reminder->formatted_date_time)
-                        Due {{ $reminder->formatted_date_time->diffForHumans() }}
+                        Due {{ $reminder->formatted_date_time?->diffForHumans() }}
                     @else
                         No due date set
                     @endif
@@ -174,7 +174,7 @@
             <div class="cu-info-body">
                 <div class="cu-avatar"><i class="bi bi-bell-fill"></i></div>
                 <div class="cu-panel-name">{{ Str::limit($reminder->title, 40) }}</div>
-                <div class="cu-panel-sub">Created {{ $reminder->created_at->diffForHumans() }}</div>
+                <div class="cu-panel-sub">Created {{ \App\Support\Dates::ago($reminder->created_at) }}</div>
 
                 {{-- Priority --}}
                 <div class="cu-pri-inline">
@@ -215,7 +215,7 @@
                             @endif
                             <br>
                             <span class="{{ $reminder->is_overdue ? 'cu-meta-danger' : '' }}" style="font-size:11px;">
-                                {{ $reminder->formatted_date_time->diffForHumans() }}
+                                {{ $reminder->formatted_date_time?->diffForHumans() }}
                             </span>
                         </div>
                     </div>
@@ -256,7 +256,7 @@
                     <div class="cu-meta-row">
                         <i class="bi bi-check2-circle"></i>
                         <span style="color:#065f46;">
-                            Done {{ $reminder->completed_at->diffForHumans() }}
+                            Done {{ \App\Support\Dates::ago($reminder->completed_at) }}
                         </span>
                     </div>
                 @endif
@@ -268,7 +268,7 @@
 
                 <div class="cu-meta-row">
                     <i class="bi bi-clock"></i>
-                    <span>Updated {{ $reminder->updated_at->diffForHumans() }}</span>
+                    <span>Updated {{ \App\Support\Dates::ago($reminder->updated_at) }}</span>
                 </div>
             </div>
 

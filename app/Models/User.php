@@ -72,6 +72,7 @@ class User extends Authenticatable implements FilamentUser
         'email',
         'password',
         'avatar',
+        'date_display',
     ];
 
     /**
@@ -96,6 +97,17 @@ class User extends Authenticatable implements FilamentUser
         'invitation_accepted_at' => 'datetime',
         'last_active_at' => 'datetime',
     ];
+
+    /** "3 days ago", with the exact moment on hover. */
+    public const DATE_DISPLAY_RELATIVE = 'relative';
+
+    /** "Aug 03, 2026 23:59", with "3 days ago" on hover. */
+    public const DATE_DISPLAY_EXACT = 'exact';
+
+    public function prefersExactDates(): bool
+    {
+        return $this->date_display === self::DATE_DISPLAY_EXACT;
+    }
 
     /**
      * Whether this user was invited and has not accepted yet — they still have

@@ -37,7 +37,7 @@
         <div class="cu-note-footer">
             <div class="cu-note-meta">
                 <i class="bi bi-clock" style="font-size:10px;"></i>
-                {{ $note->created_at->diffForHumans() }}
+                {{ \App\Support\Dates::ago($note->created_at) }}
                 &middot; {{ $note->word_count }} words
             </div>
             <div class="cu-note-actions">

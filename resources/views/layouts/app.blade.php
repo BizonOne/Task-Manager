@@ -866,7 +866,7 @@
                                 <li>
                                     <a class="dropdown-item notif-item" href="{{ route('notifications.read', $n->id) }}">
                                         <div class="notif-msg">{{ $n->data['message'] ?? 'Notification' }}</div>
-                                        <div class="notif-time" title="{{ \App\Support\Dates::dateTime($n->created_at) }}">{{ $n->created_at->diffForHumans() }}</div>
+                                        <div class="notif-time">{{ \App\Support\Dates::ago($n->created_at) }}</div>
                                     </a>
                                 </li>
                             @empty

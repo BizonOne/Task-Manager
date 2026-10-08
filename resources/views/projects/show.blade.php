@@ -495,7 +495,7 @@
                 </div>
                 <div class="cu-panel-row">
                     <span class="cu-panel-row-label"><i class="bi bi-clock-history"></i> Updated</span>
-                    <span class="cu-panel-row-value">{{ $project->updated_at->diffForHumans() }}</span>
+                    <span class="cu-panel-row-value">{{ \App\Support\Dates::ago($project->updated_at) }}</span>
                 </div>
             </div>
 

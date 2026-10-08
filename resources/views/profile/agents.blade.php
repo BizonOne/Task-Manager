@@ -98,8 +98,8 @@
                     <i class="bi bi-key" style="color:#7c3aed;"></i>
                     <span class="ag-row-name">{{ $token->name }}</span>
                     <span class="ag-row-meta">
-                        created {{ $token->created_at->diffForHumans() }}
-                        · {{ $token->last_used_at ? 'last used '.$token->last_used_at->diffForHumans() : 'never used' }}
+                        created {{ \App\Support\Dates::ago($token->created_at) }}
+                        · @if($token->last_used_at)last used {{ \App\Support\Dates::ago($token->last_used_at) }}@else never used @endif
                     </span>
                     <form method="POST" action="{{ route('profile.agents.destroy', $token->id) }}"
                           onsubmit="return confirm('Revoke this token? The agent holding it loses access immediately.')">
@@ -138,8 +138,8 @@
                     <i class="bi bi-plug" style="color:#16a34a;"></i>
                     <span class="ag-row-name">{{ $connection->name }}</span>
                     <span class="ag-row-meta">
-                        authorized {{ $connection->since->diffForHumans() }}
-                        · key renewed {{ $connection->last_issued->diffForHumans() }}
+                        authorized {{ \App\Support\Dates::ago($connection->since) }}
+                        · key renewed {{ \App\Support\Dates::ago($connection->last_issued) }}
                     </span>
                     <form method="POST" action="{{ route('profile.agents.connections.destroy', $connection->client_id) }}"
                           onsubmit="return confirm('Revoke this connection? The app loses access immediately.')">
